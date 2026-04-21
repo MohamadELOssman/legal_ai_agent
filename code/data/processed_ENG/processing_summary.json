@@ -1,0 +1,16 @@
+{
+  "processing_date": "2026-04-21T17:48:30.625255",
+  "total_files": 1,
+  "processed": 0,
+  "skipped": 0,
+  "failed": 1,
+  "total_chunks": 0,
+  "master_file": "data/processed_ENG/vector_store_ready/all_documents.jsonl",
+  "results": [
+    {
+      "file": "data/ENG/Penal-Code-EN.pdf",
+      "success": false,
+      "error": "Error code: 413 - {'error': {'type': 'request_too_large', 'message': 'Request exceeds the maximum size'}}"
+    }
+  ]
+}

@@ -1,0 +1,80 @@
+# Core Dependencies
+python-dotenv==1.0.0
+pydantic==2.6.0
+pydantic-settings==2.1.0
+
+# LLM APIs
+anthropic==0.39.0  # REQUIRED: Main LLM
+google-generativeai==0.8.0  # Optional: Fallback model
+openai==1.54.0  # Optional: If you want OpenAI embeddings instead of local
+
+# LangChain Ecosystem
+langchain==0.3.7
+langchain-anthropic==0.2.4
+langchain-google-genai==2.0.4
+langchain-openai==0.2.9
+langchain-huggingface==0.0.1  # For local embeddings
+langchain-community==0.3.7
+langchain-chroma==0.1.4
+langgraph==0.2.45
+
+# Vector Store & Embeddings
+chromadb==0.5.0
+sentence-transformers==2.3.1
+
+# Document Processing
+pypdf==5.1.0
+pymupdf==1.24.0
+pdfplumber==0.11.0
+python-docx==1.1.0
+beautifulsoup4==4.12.3
+pytesseract==0.3.10  # OCR for scanned PDFs
+
+# NLP & Text Processing
+spacy==3.7.2
+transformers==4.36.0
+torch==2.1.2
+langdetect==1.0.9
+sentence-transformers==2.3.1  # For reranking
+
+# Search & Retrieval
+rank-bm25==0.2.2
+elasticsearch==8.11.1
+
+# Data Processing
+pandas==2.2.0
+numpy==1.26.3
+openpyxl==3.1.2
+
+# Evaluation & Metrics
+ragas==0.1.0
+scikit-learn==1.4.0
+scipy==1.11.4  # For statistical significance tests
+rouge-score==0.1.2
+nltk==3.8.1
+
+# Web Interface
+streamlit==1.30.0
+plotly==5.18.0
+
+# Monitoring & Logging
+loguru==0.7.2
+tqdm==4.66.1
+
+# Utilities
+python-json-logger==2.0.7
+tenacity==8.2.3
+httpx==0.26.0
+
+# Development
+pytest==7.4.4
+pytest-asyncio==0.23.3
+black==24.1.1
+ruff==0.1.14
+mypy==1.8.0
+
+# Jupyter for experiments
+jupyter==1.0.0
+ipykernel==6.29.0
+matplotlib==3.8.2
+seaborn==0.13.1

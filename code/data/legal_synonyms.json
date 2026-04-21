@@ -1,0 +1,263 @@
+{
+  "مسؤولية": [
+    "مسؤولية",
+    "responsibility",
+    "responsabilité",
+    "التزام",
+    "liability",
+    "obligation"
+  ],
+  "التزام": [
+    "التزام",
+    "obligation",
+    "مسؤولية",
+    "commitment",
+    "engagement"
+  ],
+  "عقد": [
+    "عقد",
+    "contract",
+    "contrat",
+    "اتفاق",
+    "agreement",
+    "convention"
+  ],
+  "اتفاق": [
+    "اتفاق",
+    "agreement",
+    "accord",
+    "عقد",
+    "convention"
+  ],
+  "اتفاقية": [
+    "اتفاقية",
+    "agreement",
+    "convention",
+    "عقد"
+  ],
+  "خرق": [
+    "خرق",
+    "breach",
+    "violation",
+    "انتهاك",
+    "rupture",
+    "infraction"
+  ],
+  "انتهاك": [
+    "انتهاك",
+    "violation",
+    "infraction",
+    "خرق",
+    "breach"
+  ],
+  "مخالفة": [
+    "مخالفة",
+    "violation",
+    "contravention",
+    "خرق"
+  ],
+  "تعويض": [
+    "تعويض",
+    "compensation",
+    "indemnisation",
+    "damages",
+    "dédommagement"
+  ],
+  "ضرر": [
+    "ضرر",
+    "damage",
+    "dommage",
+    "harm",
+    "prejudice",
+    "أذى"
+  ],
+  "أضرار": [
+    "أضرار",
+    "damages",
+    "dommages",
+    "losses",
+    "ضرر"
+  ],
+  "طرف": [
+    "طرف",
+    "party",
+    "partie",
+    "جهة",
+    "side"
+  ],
+  "متعاقد": [
+    "متعاقد",
+    "contractor",
+    "contractant",
+    "contracting party",
+    "طرف"
+  ],
+  "حق": [
+    "حق",
+    "right",
+    "droit",
+    "entitlement"
+  ],
+  "واجب": [
+    "واجب",
+    "duty",
+    "obligation",
+    "devoir",
+    "التزام"
+  ],
+  "حقوق": [
+    "حقوق",
+    "rights",
+    "droits"
+  ],
+  "دعوى": [
+    "دعوى",
+    "lawsuit",
+    "action",
+    "claim",
+    "procès"
+  ],
+  "دعاوى": [
+    "دعاوى",
+    "lawsuits",
+    "actions",
+    "دعوى"
+  ],
+  "قضية": [
+    "قضية",
+    "case",
+    "affaire",
+    "matter",
+    "cause"
+  ],
+  "بيع": [
+    "بيع",
+    "sale",
+    "vente",
+    "selling"
+  ],
+  "شراء": [
+    "شراء",
+    "purchase",
+    "achat",
+    "buying"
+  ],
+  "بضائع": [
+    "بضائع",
+    "goods",
+    "marchandises",
+    "merchandise",
+    "سلع"
+  ],
+  "عمل": [
+    "عمل",
+    "work",
+    "employment",
+    "travail",
+    "وظيفة"
+  ],
+  "موظف": [
+    "موظف",
+    "employee",
+    "employé",
+    "worker",
+    "عامل"
+  ],
+  "صاحب_عمل": [
+    "صاحب عمل",
+    "employer",
+    "employeur",
+    "مشغل"
+  ],
+  "غش": [
+    "غش",
+    "fraud",
+    "fraude",
+    "deception",
+    "تدليس"
+  ],
+  "تدليس": [
+    "تدليس",
+    "fraud",
+    "deception",
+    "fraude",
+    "غش"
+  ],
+  "احتيال": [
+    "احتيال",
+    "fraud",
+    "escroquerie",
+    "deception"
+  ],
+  "دفع": [
+    "دفع",
+    "payment",
+    "paiement",
+    "سداد"
+  ],
+  "سداد": [
+    "سداد",
+    "payment",
+    "paiement",
+    "دفع"
+  ],
+  "ثمن": [
+    "ثمن",
+    "price",
+    "prix",
+    "سعر",
+    "cost"
+  ],
+  "تسليم": [
+    "تسليم",
+    "delivery",
+    "livraison",
+    "remise"
+  ],
+  "استلام": [
+    "استلام",
+    "receipt",
+    "réception",
+    "receiving"
+  ],
+  "فسخ": [
+    "فسخ",
+    "termination",
+    "résiliation",
+    "cancellation",
+    "إلغاء"
+  ],
+  "إنهاء": [
+    "إنهاء",
+    "termination",
+    "cessation",
+    "ending",
+    "فسخ"
+  ],
+  "إلغاء": [
+    "إلغاء",
+    "cancellation",
+    "annulation",
+    "فسخ"
+  ],
+  "قانون": [
+    "قانون",
+    "law",
+    "loi",
+    "legislation",
+    "تشريع"
+  ],
+  "مادة": [
+    "مادة",
+    "article",
+    "clause",
+    "provision",
+    "بند"
+  ],
+  "محكمة": [
+    "محكمة",
+    "court",
+    "tribunal",
+    "cour"
+  ]
+}

@@ -1,0 +1,74 @@
+{
+  "processing_date": "2026-04-21T17:41:25.521826",
+  "total_files": 5,
+  "processed": 1,
+  "skipped": 4,
+  "failed": 0,
+  "total_chunks": 20,
+  "master_file": "data/processed_use_cases/vector_store_ready/all_documents.jsonl",
+  "results": [
+    {
+      "file": "data/use_cases/README.md",
+      "success": true,
+      "skipped": true,
+      "document_id": "README",
+      "chunks_created": 0,
+      "message": "Already processed",
+      "outputs": {
+        "full_document": "data/processed_use_cases/full_documents/README_full.json",
+        "summary": "data/processed_use_cases/summaries/README_summary.json",
+        "ratio": "data/processed_use_cases/ratios/README_ratio.txt"
+      }
+    },
+    {
+      "file": "data/use_cases/RulingFile (2).pdf",
+      "success": true,
+      "document_id": "RulingFile (2)",
+      "chunks_created": 4,
+      "outputs": {
+        "full_document": "data/processed_use_cases/full_documents/RulingFile (2)_full.json",
+        "summary": "data/processed_use_cases/summaries/RulingFile (2)_summary.json",
+        "ratio": "data/processed_use_cases/ratios/RulingFile (2)_ratio.txt"
+      }
+    },
+    {
+      "file": "data/use_cases/RulingFile (3).pdf",
+      "success": true,
+      "skipped": true,
+      "document_id": "RulingFile (3)",
+      "chunks_created": 0,
+      "message": "Already processed",
+      "outputs": {
+        "full_document": "data/processed_use_cases/full_documents/RulingFile (3)_full.json",
+        "summary": "data/processed_use_cases/summaries/RulingFile (3)_summary.json",
+        "ratio": "data/processed_use_cases/ratios/RulingFile (3)_ratio.txt"
+      }
+    },
+    {
+      "file": "data/use_cases/RulingFile (4).pdf",
+      "success": true,
+      "skipped": true,
+      "document_id": "RulingFile (4)",
+      "chunks_created": 0,
+      "message": "Already processed",
+      "outputs": {
+        "full_document": "data/processed_use_cases/full_documents/RulingFile (4)_full.json",
+        "summary": "data/processed_use_cases/summaries/RulingFile (4)_summary.json",
+        "ratio": "data/processed_use_cases/ratios/RulingFile (4)_ratio.txt"
+      }
+    },
+    {
+      "file": "data/use_cases/RulingFile (5).pdf",
+      "success": true,
+      "skipped": true,
+      "document_id": "RulingFile (5)",
+      "chunks_created": 0,
+      "message": "Already processed",
+      "outputs": {
+        "full_document": "data/processed_use_cases/full_documents/RulingFile (5)_full.json",
+        "summary": "data/processed_use_cases/summaries/RulingFile (5)_summary.json",
+        "ratio": "data/processed_use_cases/ratios/RulingFile (5)_ratio.txt"
+      }
+    }
+  ]
+}

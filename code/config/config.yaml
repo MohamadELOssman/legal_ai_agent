@@ -1,0 +1,145 @@
+# Legal AI System Configuration
+
+# LLM Models
+llm:
+  primary: "claude-sonnet-4-20250514"  # Main model for all agents
+  reasoning: "claude-sonnet-4-20250514"  # For complex reasoning tasks
+  fallback: "gemini-1.5-pro"  # Backup model
+  temperature: 0.1  # Low temperature for legal accuracy
+  max_tokens: 4096
+
+# Embedding Models (LOCAL - FREE!)
+embeddings:
+  model: "sentence-transformers/paraphrase-multilingual-mpnet-base-v2"
+  # Multilingual model supporting Arabic, French, English
+  # FREE - runs locally, no API key needed
+  dimensions: 768
+  batch_size: 32
+
+# RAG Configuration
+rag:
+  vector_store: "chroma"
+  persist_directory: "./data_processed/vectorstore"
+  collection_name: "lebanese_legal_docs"
+
+  # Retrieval
+  retrieval_strategy: "hybrid"  # hybrid, semantic, bm25
+  top_k: 5
+  similarity_threshold: 0.7
+
+  # Chunking
+  chunk_size: 1000
+  chunk_overlap: 200
+  chunking_strategy: "semantic"  # semantic, fixed, article
+
+  # Reranking (NEW: Improves precision by 10-20%)
+  use_reranking: true  # Enable cross-encoder reranking
+  rerank_model: "cross-encoder/ms-marco-MiniLM-L-6-v2"  # Fast, good quality
+  rerank_candidates: 10  # Retrieve this many, rerank to top_k
+
+# Agent Configuration
+agents:
+  coordinator:
+    model: "claude-sonnet-4-20250514"
+    temperature: 0.0
+    max_iterations: 3
+
+  query_understanding:
+    model: "claude-sonnet-4-20250514"
+    temperature: 0.1
+    timeout: 30
+
+  research:
+    model: "claude-sonnet-4-20250514"
+    temperature: 0.0
+    max_documents: 10
+
+  analysis:
+    model: "claude-sonnet-4-20250514"
+    temperature: 0.1
+
+  reasoning:
+    model: "claude-sonnet-4-20250514"
+    temperature: 0.2
+    chain_of_thought: true
+
+  citation:
+    model: "claude-sonnet-4-20250514"
+    temperature: 0.0
+    validate_citations: true
+
+  writing:
+    model: "claude-sonnet-4-20250514"
+    temperature: 0.3
+
+# Document Processing
+document_processing:
+  supported_formats: ["pdf", "docx", "txt"]
+  ocr_enabled: true
+  language_detection: true
+  extract_metadata: true
+
+  # Legal-specific processing
+  extract_articles: true
+  extract_citations: true
+  detect_code_switching: true
+
+# Languages
+languages:
+  supported: ["ar", "fr", "en"]
+  primary: "ar"
+  detect_language: true
+  handle_code_switching: true
+
+# Legal Database
+legal_database:
+  primary_sources:
+    - "Lebanese Code of Obligations and Contracts"
+    - "Lebanese Penal Code"
+    - "Lebanese Criminal Procedure Code"
+
+  secondary_sources:
+    - "Court of Cassation Decisions"
+    - "Legal Commentaries"
+
+  focus_area: "Contract Law"
+
+# Evaluation
+evaluation:
+  metrics:
+    retrieval:
+      - "precision@k"
+      - "recall@k"
+      - "mrr"
+      - "ndcg@k"
+
+    legal_accuracy:
+      - "citation_accuracy"
+      - "legal_correctness"
+      - "completeness"
+      - "reasoning_coherence"
+
+    performance:
+      - "latency"
+      - "token_usage"
+      - "cost_per_query"
+
+  baselines:
+    - "single_agent_gpt4"
+    - "single_agent_claude"
+    - "gpt4_no_rag"
+
+# Logging
+logging:
+  level: "INFO"
+  format: "json"
+  file: "./logs/legal_ai.log"
+  trace_agents: true
+  log_prompts: true  # For debugging/analysis
+
+# System
+system:
+  max_retries: 3
+  timeout: 120
+  cache_enabled: true
+  cache_ttl: 3600

@@ -1,0 +1,42 @@
+{
+  "processing_metadata": {
+    "processing_date": "2024-12-19",
+    "quality_score": 0.0,
+    "ocr_confidence": 0.0,
+    "sections_found": [
+      "METADATA"
+    ],
+    "processing_notes": "Input is not a Lebanese court decision but rather documentation/README file"
+  },
+  "document_metadata": {
+    "document_id": "",
+    "court": "",
+    "chamber": "",
+    "case_number": "",
+    "decision_number": "",
+    "decision_date": "",
+    "document_language": "en",
+    "case_type": "",
+    "legal_domain": [],
+    "applicable_laws": [],
+    "applicable_articles": [],
+    "outcome": "",
+    "sentence_original": "",
+    "sentence_final": "",
+    "mitigating_factors_accepted": false,
+    "aggravating_factors_noted": false,
+    "presiding_judge": "",
+    "advisors": [],
+    "prior_courts": [],
+    "prior_case_numbers": [],
+    "requires_human_review": true
+  },
+  "entity_resolution_map": {},
+  "cleaned_body": "[METADATA]\nThis is not a Lebanese court decision but rather a README/documentation file describing a processing pipeline for Lebanese legal documents. The file contains instructions for processing scanned PDFs of Lebanese court rulings, including technical specifications for OCR, text extraction, metadata extraction, and anonymization procedures.\n\n[SECTION_ABSENT]\nAll other sections (COMPOSITION, PROCEDURAL_HISTORY, CHARGES, FACTS, PRELIMINARY_INVESTIGATION, INVESTIGATIVE_INVESTIGATION, TRIAL_PROCEEDINGS, LEGAL_ANALYSIS, DISPOSITIF, SIGNATURES) are absent as this is not a court decision.",
+  "quality_flags": [
+    "FLAG-001: Input document is not a Lebanese court decision",
+    "FLAG-002: Document is technical documentation in English",
+    "FLAG-003: No legal content to process",
+    "FLAG-004: Requires human review - wrong document type"
+  ]
+}
