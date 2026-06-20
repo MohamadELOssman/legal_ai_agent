@@ -136,6 +136,38 @@ class BaseAgent(ABC):
             logger.error(f"{self.role.value} agent error: {e}")
             raise
 
+    def invoke_structured(self, user_message: str, schema, system_prompt: Optional[str] = None):
+        """Invoke the LLM and return a schema-validated object (Pydantic model).
+
+        Uses the provider's tool/structured-output support so the result is
+        guaranteed to match `schema` — eliminating brittle regex JSON parsing.
+        Token/latency/cost telemetry is still recorded. Returns the parsed model,
+        or raises if the model could not produce a valid structure.
+        """
+        if system_prompt is None:
+            system_prompt = self.get_system_prompt()
+
+        messages = [
+            SystemMessage(content=system_prompt),
+            HumanMessage(content=user_message),
+        ]
+
+        structured_llm = self.llm.with_structured_output(schema, include_raw=True)
+        t0 = time.time()
+        result = structured_llm.invoke(messages)
+        latency = time.time() - t0
+
+        # include_raw=True -> {"raw": AIMessage, "parsed": model|None, "parsing_error": ...}
+        raw = result.get("raw") if isinstance(result, dict) else None
+        if raw is not None:
+            self._record_usage(raw, latency)
+
+        parsed = result.get("parsed") if isinstance(result, dict) else result
+        if parsed is None:
+            err = result.get("parsing_error") if isinstance(result, dict) else "unknown"
+            raise ValueError(f"Structured output parsing failed: {err}")
+        return parsed
+
     # ── usage telemetry ──────────────────────────────────────────────────────────
 
     def _record_usage(self, response, latency: float) -> None:

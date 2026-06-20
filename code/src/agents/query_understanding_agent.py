@@ -3,9 +3,6 @@ Agent 1: Query Understanding Agent
 Parses and understands legal questions in Arabic, French, or English
 """
 
-import json
-from typing import Dict, Any
-
 from pydantic import BaseModel, Field
 from loguru import logger
 
@@ -85,36 +82,15 @@ Be precise and thorough in your analysis."""
         """Process user query and return structured understanding."""
 
         try:
-            # Prepare prompt
-            user_message = f"""Analyze this legal query:
+            user_message = f"""Analyze this legal query and produce a structured understanding.
 
 Query: {agent_input.query}
 
-Provide a structured understanding in JSON format following the schema defined in the system prompt.
-Focus on Lebanese legal context (contract law, civil liability, criminal law)."""
+Focus on Lebanese legal context (contract law, civil liability, criminal law).
+Extract key_entities, facts, and legal_questions as lists of plain strings."""
 
-            # Invoke LLM
-            response = self.invoke_llm(user_message)
-
-            # Parse JSON response
-            # Try to extract JSON from response
-            json_str = self._extract_json(response)
-            structured_query = json.loads(json_str)
-
-            # Clean up list fields if they contain complex objects (convert to simple strings)
-            for field in ['key_entities', 'facts', 'legal_questions']:
-                if field in structured_query and isinstance(structured_query[field], list):
-                    cleaned_list = []
-                    for item in structured_query[field]:
-                        if isinstance(item, dict):
-                            # Extract value from dict (e.g., {'type': 'person', 'value': 'أحمد'} -> 'أحمد')
-                            cleaned_list.append(item.get('value', str(item)))
-                        else:
-                            cleaned_list.append(str(item))
-                    structured_query[field] = cleaned_list
-
-            # Validate with Pydantic
-            validated_query = StructuredQuery(**structured_query)
+            # Schema-validated output (tool use) — no manual JSON parsing needed.
+            validated_query = self.invoke_structured(user_message, StructuredQuery)
 
             logger.info(
                 f"Query understood - Language: {validated_query.language}, "
@@ -122,7 +98,7 @@ Focus on Lebanese legal context (contract law, civil liability, criminal law).""
             )
 
             output = AgentOutput(
-                result=validated_query.dict(),
+                result=validated_query.model_dump(),
                 metadata={
                     "agent": self.role.value,
                     "model": self.model_name,
@@ -142,17 +118,3 @@ Focus on Lebanese legal context (contract law, civil liability, criminal law).""
                 success=False,
                 error=str(e),
             )
-
-    def _extract_json(self, text: str) -> str:
-        """Extract JSON from LLM response."""
-        # Try to find JSON block
-        if "```json" in text:
-            start = text.find("```json") + 7
-            end = text.find("```", start)
-            return text[start:end].strip()
-        elif "{" in text:
-            start = text.find("{")
-            end = text.rfind("}") + 1
-            return text[start:end]
-        else:
-            return text

@@ -7,12 +7,47 @@ Two query types:
   case_analysis       — description of a real/hypothetical situation needing assessment
 """
 
-import json
-import re
+from typing import List
+from pydantic import BaseModel, Field
 from loguru import logger
 
 from src.agents.base_agent import BaseAgent, AgentRole, AgentInput, AgentOutput
 from src.config import DEFAULT_MODEL
+
+
+# ── Structured-output schema (enforced via tool use; no regex JSON parsing) ──────
+
+class _ResearchCfg(BaseModel):
+    mode: str = Field("articles_only", description="articles_only | articles_and_cases")
+    emphasis: str = ""
+
+
+class _AnalysisCfg(BaseModel):
+    mode: str = Field("legal_explanation", description="legal_explanation | case_assessment")
+    instructions: str = ""
+
+
+class _WritingCfg(BaseModel):
+    format: str = Field("legal_explanation", description="legal_explanation | case_assessment")
+    tone: str = Field("educational", description="educational | advisory")
+
+
+class _PipelineConfig(BaseModel):
+    research: _ResearchCfg = Field(default_factory=_ResearchCfg)
+    analysis: _AnalysisCfg = Field(default_factory=_AnalysisCfg)
+    writing: _WritingCfg = Field(default_factory=_WritingCfg)
+
+
+class RoutingDecision(BaseModel):
+    """Routing decision for the legal pipeline."""
+    query_type: str = Field(description="general_legal_query | case_analysis")
+    detected_language: str = Field("ar", description="ar | fr | en")
+    confidence: float = 0.5
+    reasoning: str = Field("", description="one sentence explaining the classification")
+    legal_domain: str = Field("other", description="criminal | civil | commercial | personal_status | other")
+    key_entities: List[str] = Field(default_factory=list)
+    extracted_facts: List[str] = Field(default_factory=list, description="key facts for case_analysis; empty otherwise")
+    pipeline_config: _PipelineConfig = Field(default_factory=_PipelineConfig)
 
 
 class OrchestratorAgent(BaseAgent):
@@ -78,46 +113,20 @@ Return ONLY valid JSON — no prose, no markdown."""
     # ── private ───────────────────────────────────────────────────────────────
 
     def _classify(self, query: str) -> dict:
-        user_message = f"""Classify this input and return the routing JSON.
+        user_message = f"""Classify this input and produce the routing decision.
 
 Input: "{query}"
 
-Return this exact JSON structure (fill every field):
-{{
-  "query_type": "general_legal_query" | "case_analysis",
-  "detected_language": "ar" | "fr" | "en",
-  "confidence": 0.0-1.0,
-  "reasoning": "one sentence explaining the classification",
-  "legal_domain": "criminal" | "civil" | "commercial" | "personal_status" | "other",
-  "key_entities": ["list", "of", "key", "legal", "entities"],
-  "extracted_facts": [],
-  "pipeline_config": {{
-    "research": {{
-      "mode": "articles_only" | "articles_and_cases",
-      "emphasis": "short description of retrieval focus"
-    }},
-    "analysis": {{
-      "mode": "legal_explanation" | "case_assessment",
-      "instructions": "specific instructions for the analysis agent"
-    }},
-    "writing": {{
-      "format": "legal_explanation" | "case_assessment",
-      "tone": "educational" | "advisory"
-    }}
-  }}
-}}
-
 Rules:
-- general_legal_query  → research.mode=articles_only, analysis.mode=legal_explanation, writing.format=legal_explanation
-- case_analysis        → research.mode=articles_and_cases, analysis.mode=case_assessment, writing.format=case_assessment
-- For case_analysis, populate extracted_facts with the key facts from the user's description (as a list of strings).
-- key_entities: legal concepts, crimes, parties — extracted from the input.
+- general_legal_query (abstract question about the law) → research.mode=articles_only,
+  analysis.mode=legal_explanation, writing.format=legal_explanation, tone=educational.
+- case_analysis (a described situation/facts to assess) → research.mode=articles_and_cases,
+  analysis.mode=case_assessment, writing.format=case_assessment, tone=advisory.
+- For case_analysis, populate extracted_facts with the key facts from the description.
+- key_entities: legal concepts, crimes, parties extracted from the input."""
 
-Return ONLY the JSON object."""
-
-        response = self.invoke_llm(user_message)
-        routing = self._parse_json(response)
-        return self._normalize_routing(routing)
+        routing = self.invoke_structured(user_message, RoutingDecision)
+        return self._normalize_routing(routing.model_dump())
 
     def _normalize_routing(self, routing: dict) -> dict:
         """Validate the routing and enforce a consistent pipeline_config.
@@ -164,20 +173,6 @@ Return ONLY the JSON object."""
         routing.setdefault("confidence", 0.5)
         routing.setdefault("reasoning", "")
         return routing
-
-    def _parse_json(self, text: str) -> dict:
-        text = text.strip()
-        try:
-            return json.loads(text)
-        except json.JSONDecodeError:
-            pass
-        m = re.search(r'```(?:json)?\s*([\s\S]*?)\s*```', text)
-        if m:
-            return json.loads(m.group(1))
-        m = re.search(r'\{[\s\S]*\}', text)
-        if m:
-            return json.loads(m.group(0))
-        raise ValueError(f"Cannot parse orchestrator response: {text[:300]}")
 
     def _fallback_routing(self) -> dict:
         return {
