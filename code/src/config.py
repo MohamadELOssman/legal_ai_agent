@@ -8,11 +8,16 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 import yaml
 
 
+# Canonical model ID — single source of truth for the whole system.
+# Standardized on Claude Sonnet 4.5.
+DEFAULT_MODEL = "claude-sonnet-4-5"
+
+
 class LLMConfig(BaseSettings):
     """LLM configuration."""
 
-    primary: str = "claude-sonnet-4.5"
-    reasoning: str = "claude-sonnet-4.5"
+    primary: str = DEFAULT_MODEL
+    reasoning: str = DEFAULT_MODEL
     fallback: str = "gemini-1.5-pro"
     temperature: float = 0.1
     max_tokens: int = 4096
@@ -48,7 +53,7 @@ class RAGConfig(BaseSettings):
 class AgentConfig(BaseSettings):
     """Individual agent configuration."""
 
-    model: str = "claude-sonnet-4.5"
+    model: str = DEFAULT_MODEL
     temperature: float = 0.1
     timeout: int = 60
     max_retries: int = 3
@@ -69,8 +74,8 @@ class SystemConfig(BaseSettings):
     openai_api_key: str = Field(default="", alias="OPENAI_API_KEY")
 
     # Model configuration
-    primary_llm: str = "claude-sonnet-4.5"
-    reasoning_llm: str = "claude-sonnet-4.5"
+    primary_llm: str = DEFAULT_MODEL
+    reasoning_llm: str = DEFAULT_MODEL
     embedding_model: str = "text-embedding-3-large"
 
     # RAG

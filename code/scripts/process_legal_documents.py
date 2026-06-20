@@ -26,7 +26,7 @@ class DocumentBatchProcessor:
         self,
         raw_documents_dir: str = "data/raw_documents",
         output_dir: str = "data/processed_documents",
-        model: str = "claude-sonnet-4-20250514",
+        model: str = "claude-sonnet-4-5",
         skip_existing: bool = True,
     ):
         self.raw_documents_dir = Path(raw_documents_dir)
@@ -240,12 +240,39 @@ class DocumentBatchProcessor:
 
         # Common metadata - clean to remove empty lists
         doc_metadata = self._clean_metadata(output1.get("document_metadata", {}))
+
+        # Flatten list fields to strings so Chroma can filter on them
+        raw_dm = output1.get("document_metadata", {})
+        legal_domain_str = ", ".join(raw_dm.get("legal_domain", []) or [])
+        applicable_laws_str = ", ".join(raw_dm.get("applicable_laws", []) or [])
+        articles_mentioned = ", ".join(
+            f"{a.get('article','')}/{a.get('law','')}"
+            for a in (raw_dm.get("applicable_articles", []) or [])
+            if isinstance(a, dict)
+        )
+        # Infer source_type from input directory path
+        input_dir_lower = str(self.raw_documents_dir).lower()
+        if "use_case" in input_dir_lower or "ruling" in input_dir_lower:
+            source_type = "court_ruling"
+        else:
+            source_type = "legal_code"
+
         base_metadata = {
             "document_id": doc_id,
+            "file_name": doc_id,                      # original filename stem
             "source": "lebanese_legal_corpus",
+            "source_type": source_type,               # "court_ruling" | "legal_code"
             "processed_at": timestamp,
+            # Keep the flat string versions for Chroma metadata filtering
+            "legal_domain_str": legal_domain_str,
+            "applicable_laws_str": applicable_laws_str,
+            "articles_mentioned": articles_mentioned,
             **doc_metadata,
         }
+
+        # Skip documents flagged as wrong document type (e.g. README files processed by mistake)
+        if raw_dm.get("requires_human_review") and not raw_dm.get("court"):
+            return []
 
         # Chunk 1: Full cleaned document
         chunk1_metadata = {
@@ -253,8 +280,8 @@ class DocumentBatchProcessor:
             "chunk_purpose": "exact_match_retrieval",
         }
         quality_flags = output1.get("quality_flags", [])
-        if quality_flags:  # Only add if not empty
-            chunk1_metadata["quality_flags"] = quality_flags
+        if quality_flags:
+            chunk1_metadata["quality_flags"] = ", ".join(quality_flags)  # string for Chroma
 
         chunks.append(
             {
@@ -266,29 +293,39 @@ class DocumentBatchProcessor:
         )
 
         # Chunk 2: RAG-optimized summary
+        rules_lines = []
+        for rule in output2.get("rules_applied", []):
+            if isinstance(rule, dict):
+                rules_lines.append(f"- {rule.get('article','')} من {rule.get('law','')}: {rule.get('how_applied','')}")
+            else:
+                rules_lines.append(f"- {rule}")
+
         summary_text = f"""
-{output2['case_snapshot']}
+{output2.get('case_snapshot', '')}
 
 الوقائع:
-{output2['facts_summary']}
+{output2.get('facts_summary', '')}
 
 المسائل القانونية:
-{chr(10).join(f"{i+1}. {issue}" for i, issue in enumerate(output2['legal_issues']))}
+{chr(10).join(f"{i+1}. {issue}" for i, issue in enumerate(output2.get('legal_issues', [])))}
 
 الأساس القانوني:
-{chr(10).join(f"- {rule['article']} من {rule['law']}: {rule['how_applied']}" for rule in output2['rules_applied'])}
+{chr(10).join(rules_lines)}
 
 الحكم القانوني (Ratio Decidendi):
-{output2['ratio_decidendi']}
+{output2.get('ratio_decidendi', '')}
 """.strip()
 
         chunk2_metadata = {
             **base_metadata,
             "chunk_purpose": "semantic_search",
         }
+        # Flatten search_tags dict to individual filterable string fields
         search_tags = output2.get("search_tags", {})
-        if search_tags:  # Only add if not empty
-            chunk2_metadata["search_tags"] = search_tags
+        if isinstance(search_tags, dict):
+            for tag_key, tag_values in search_tags.items():
+                if isinstance(tag_values, list) and tag_values:
+                    chunk2_metadata[f"tag_{tag_key}"] = ", ".join(str(v) for v in tag_values)
 
         chunks.append(
             {
@@ -308,13 +345,12 @@ class DocumentBatchProcessor:
                 "metadata": {
                     **base_metadata,
                     "chunk_purpose": "legal_principle_search",
-                    "outcome": base_metadata.get("outcome", ""),
                 },
             }
         )
 
         # Chunk 4: Facts section (if substantial)
-        if len(output2["facts_summary"]) > 100:
+        if len(output2.get("facts_summary", "")) > 100:
             chunks.append(
                 {
                     "chunk_id": f"{doc_id}_facts",
@@ -461,8 +497,8 @@ def main():
     parser.add_argument(
         "--model",
         type=str,
-        default="claude-sonnet-4-20250514",
-        help="Model to use for processing (e.g., claude-sonnet-4-20250514, claude-opus-4-20250514)",
+        default="claude-sonnet-4-5",
+        help="Model to use for processing (e.g., claude-sonnet-4-5, claude-opus-4-20250514)",
     )
     parser.add_argument(
         "--force",

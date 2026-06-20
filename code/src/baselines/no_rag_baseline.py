@@ -7,7 +7,7 @@ from typing import Dict, Any
 from loguru import logger
 
 from langchain_anthropic import ChatAnthropic
-from langchain.schema import HumanMessage, SystemMessage
+from langchain_core.messages import HumanMessage, SystemMessage
 
 from src.config import get_config
 
@@ -20,7 +20,7 @@ class NoRAGBaseline:
     Tests whether RAG provides significant improvement.
     """
 
-    def __init__(self, model: str = "claude-sonnet-4.5"):
+    def __init__(self, model: str = "claude-sonnet-4-5"):
         self.model_name = model
         config = get_config()
 

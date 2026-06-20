@@ -2,8 +2,8 @@
 
 # LLM Models
 llm:
-  primary: "claude-sonnet-4-20250514"  # Main model for all agents
-  reasoning: "claude-sonnet-4-20250514"  # For complex reasoning tasks
+  primary: "claude-sonnet-4-5"  # Main model for all agents
+  reasoning: "claude-sonnet-4-5"  # For complex reasoning tasks
   fallback: "gemini-1.5-pro"  # Backup model
   temperature: 0.1  # Low temperature for legal accuracy
   max_tokens: 4096
@@ -40,36 +40,36 @@ rag:
 # Agent Configuration
 agents:
   coordinator:
-    model: "claude-sonnet-4-20250514"
+    model: "claude-sonnet-4-5"
     temperature: 0.0
     max_iterations: 3
 
   query_understanding:
-    model: "claude-sonnet-4-20250514"
+    model: "claude-sonnet-4-5"
     temperature: 0.1
     timeout: 30
 
   research:
-    model: "claude-sonnet-4-20250514"
+    model: "claude-sonnet-4-5"
     temperature: 0.0
     max_documents: 10
 
   analysis:
-    model: "claude-sonnet-4-20250514"
+    model: "claude-sonnet-4-5"
     temperature: 0.1
 
   reasoning:
-    model: "claude-sonnet-4-20250514"
+    model: "claude-sonnet-4-5"
     temperature: 0.2
     chain_of_thought: true
 
   citation:
-    model: "claude-sonnet-4-20250514"
+    model: "claude-sonnet-4-5"
     temperature: 0.0
     validate_citations: true
 
   writing:
-    model: "claude-sonnet-4-20250514"
+    model: "claude-sonnet-4-5"
     temperature: 0.3
 
 # Document Processing

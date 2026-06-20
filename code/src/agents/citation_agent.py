@@ -1,6 +1,7 @@
 """
 Agent 5: Citation Agent
-Formats legal citations according to Lebanese standards
+Formats legal citations according to Lebanese standards and validates them
+against the known corpus to prevent hallucinated article numbers.
 """
 
 import re
@@ -8,6 +9,13 @@ from typing import List, Dict
 from loguru import logger
 
 from src.agents.base_agent import BaseAgent, AgentRole, AgentInput, AgentOutput
+from src.config import DEFAULT_MODEL
+
+try:
+    from src.utils.citation_validator import CitationValidator
+    _VALIDATOR_AVAILABLE = True
+except Exception:  # pragma: no cover - validator is optional
+    _VALIDATOR_AVAILABLE = False
 
 
 class CitationAgent(BaseAgent):
@@ -15,12 +23,13 @@ class CitationAgent(BaseAgent):
     Agent 5: Citation Agent
 
     Responsibility: Format legal citations according to Lebanese standards
-    Input: Referenced legal sources
-    Output: Properly formatted citations (e.g., "المادة 121 من قانون الموجبات والعقود")
-    Technical Approach: Rule-based citation formatting with validation
+    Input: Extracted provisions (from the Analysis agent) + query language
+    Output: Properly formatted, corpus-validated citations
+            (e.g., "المادة 549 من قانون العقوبات اللبناني")
+    Technical Approach: Rule-based formatting + validation against the article index
     """
 
-    def __init__(self, model: str = "claude-sonnet-4.5", temperature: float = 0.0):
+    def __init__(self, model: str = DEFAULT_MODEL, temperature: float = 0.0):
         super().__init__(
             role=AgentRole.CITATION,
             model=model,
@@ -46,57 +55,60 @@ class CitationAgent(BaseAgent):
             },
         }
 
+        # Map our document-type keys to the validator's index keys.
+        self._validator_doctype = {
+            "penal_code": "penal_code",
+            "code_obligations": "code_obligations_contracts",
+            "criminal_procedure": "criminal_procedure",
+        }
+
+        # Lazy-load the corpus validator (article index). Optional — if the index
+        # is missing, citations are still produced but marked as unverified.
+        self.validator = None
+        if _VALIDATOR_AVAILABLE:
+            try:
+                self.validator = CitationValidator()
+            except Exception as e:
+                logger.warning(f"CitationValidator unavailable: {e}")
+
     def get_system_prompt(self) -> str:
         return """You are a Citation Agent for Lebanese Legal Documents.
-
-Your task is to format legal citations according to Lebanese legal citation standards.
-
-Lebanese citation format:
-- Arabic: "المادة [number] من [law name]"
-- French: "Article [number] du/de [law name]"
-- English: "Article [number] of the [law name]"
-
-Common Lebanese laws:
-- Code of Obligations and Contracts (قانون الموجبات والعقود)
-- Penal Code (قانون العقوبات)
-- Criminal Procedure Code (قانون أصول المحاكمات الجزائية)
-- Court of Cassation decisions
-
-Ensure citations are:
-1. Properly formatted for the language
-2. Complete with article numbers
-3. Include the correct legal source
-4. Consistent throughout the document
-
-Validate that cited articles actually exist in the referenced sources."""
+Format legal citations according to Lebanese citation standards and never cite
+an article that is not present in the provided provisions."""
 
     def process(self, agent_input: AgentInput) -> AgentOutput:
-        """Format legal citations."""
+        """Format and validate legal citations."""
 
         try:
-            # Get provisions and language
-            provisions = agent_input.context.get("provisions", [])
-            language = agent_input.context.get("structured_query", {}).get(
-                "language", "ar"
+            structured_query = agent_input.context.get("structured_query", {}) or {}
+            language = structured_query.get("language", "ar")
+
+            # Provisions live in the analysis output in the pipeline; fall back to a
+            # directly-supplied `provisions` key (used by the individual-agent tester).
+            analysis_results = agent_input.context.get("analysis_results", {}) or {}
+            provisions = (
+                agent_input.context.get("provisions")
+                or analysis_results.get("provisions", [])
             )
 
-            # Format citations
-            citations = self._format_citations(provisions, language)
+            # Default legal source for the active corpus is the Penal Code.
+            default_doc_type = self._default_doc_type(structured_query)
 
-            # Validate citations (basic validation)
-            validated_citations = self._validate_citations(citations)
+            citations = self._format_citations(provisions, language, default_doc_type)
+            validated_citations, report = self._validate_citations(citations)
 
-            logger.info(f"Formatted {len(validated_citations)} citations")
+            logger.info(
+                f"CitationAgent — {len(validated_citations)} citations "
+                f"({report['verified']} verified, {report['unverified']} unverified)"
+            )
 
             output = AgentOutput(
                 result={
                     "citations": validated_citations,
                     "formatted_count": len(validated_citations),
+                    "validation_report": report,
                 },
-                metadata={
-                    "agent": self.role.value,
-                    "language": language,
-                },
+                metadata={"agent": self.role.value, "language": language},
                 success=True,
             )
 
@@ -112,28 +124,40 @@ Validate that cited articles actually exist in the referenced sources."""
                 error=str(e),
             )
 
-    def _format_citations(self, provisions: List[Dict], language: str) -> List[Dict]:
-        """Format citations for provisions."""
+    # ── formatting ───────────────────────────────────────────────────────────────
+
+    def _default_doc_type(self, structured_query: Dict) -> str:
+        """Pick the default legal source. The loaded corpus is the Penal Code, so
+        criminal queries (and the default) map to penal_code rather than the old
+        obligations-code default."""
+        domain = (structured_query.get("legal_domain") or "").lower()
+        if "contract" in domain or "obligation" in domain or "civil" in domain:
+            return "code_obligations"
+        if "procedure" in domain:
+            return "criminal_procedure"
+        return "penal_code"
+
+    def _format_citations(
+        self, provisions: List[Dict], language: str, default_doc_type: str
+    ) -> List[Dict]:
+        """Format citations for provisions, de-duplicating by (article, doc_type)."""
 
         formatted_citations = []
+        seen = set()
 
         for prov in provisions:
-            article = prov.get("article_number", "")
-            source = prov.get("source_document", "")
-
-            # Extract article number
-            article_num = self._extract_article_number(article)
-
+            article_num = self._extract_article_number(prov.get("article_number", ""))
             if not article_num:
                 continue
 
-            # Determine document type
-            doc_type = self._classify_document_type(source)
+            doc_type = self._classify_document_type(prov, default_doc_type)
 
-            # Format citation
-            citation_text = self._format_single_citation(
-                article_num, doc_type, language
-            )
+            key = (article_num, doc_type)
+            if key in seen:
+                continue
+            seen.add(key)
+
+            citation_text = self._format_single_citation(article_num, doc_type, language)
 
             formatted_citations.append(
                 {
@@ -148,51 +172,79 @@ Validate that cited articles actually exist in the referenced sources."""
         return formatted_citations
 
     def _extract_article_number(self, article_str: str) -> str:
-        """Extract article number from string."""
-        # Try to find numbers
         match = re.search(r"\d+", str(article_str))
-        if match:
-            return match.group(0)
-        return ""
+        return match.group(0) if match else ""
 
-    def _classify_document_type(self, source: str) -> str:
-        """Classify document type from source."""
-        source_lower = source.lower()
-
-        if "obligation" in source_lower or "contract" in source_lower:
-            return "code_obligations"
-        elif "penal" in source_lower or "عقوبات" in source:
+    def _classify_document_type(self, prov: Dict, default_doc_type: str) -> str:
+        """Classify the legal source for a provision, preferring explicit metadata."""
+        # Explicit metadata from the retrieved document, if the analysis kept it.
+        meta_type = str(prov.get("document_type", "")).lower()
+        if "penal" in meta_type or "عقوبات" in meta_type:
             return "penal_code"
-        elif "criminal" in source_lower or "procedure" in source_lower:
+        if "obligation" in meta_type or "contract" in meta_type:
+            return "code_obligations"
+        if "procedure" in meta_type or "محاكمات" in meta_type:
             return "criminal_procedure"
-        else:
-            return "code_obligations"  # Default
 
-    def _format_single_citation(
-        self, article_num: str, doc_type: str, language: str
-    ) -> str:
-        """Format a single citation."""
+        source = str(prov.get("source_document", "")).lower()
+        if "penal" in source or "عقوبات" in source:
+            return "penal_code"
+        if "obligation" in source or "contract" in source:
+            return "code_obligations"
+        if "procedure" in source or "محاكمات" in source:
+            return "criminal_procedure"
 
-        # Get template
+        return default_doc_type
+
+    def _format_single_citation(self, article_num: str, doc_type: str, language: str) -> str:
         if language not in self.templates:
-            language = "ar"  # Default to Arabic
-
+            language = "ar"
         if doc_type not in self.templates[language]:
-            doc_type = "code_obligations"  # Default
+            doc_type = "penal_code"
+        return self.templates[language][doc_type].format(article=article_num)
 
-        template = self.templates[language][doc_type]
-        return template.format(article=article_num)
+    # ── validation ───────────────────────────────────────────────────────────────
 
-    def _validate_citations(self, citations: List[Dict]) -> List[Dict]:
-        """Basic validation of citations."""
+    def _validate_citations(self, citations: List[Dict]):
+        """Mark each citation as verified against the corpus article index.
 
-        validated = []
+        Citations are never dropped — unverifiable ones are flagged so downstream
+        agents and the UI can surface potential hallucinations.
+        """
+        verified = 0
+        unverified = 0
+        flagged = []
 
         for citation in citations:
-            # Check that citation has required fields
-            if citation.get("citation_text") and citation.get("article_number"):
-                validated.append(citation)
-            else:
-                logger.warning(f"Invalid citation: {citation}")
+            if not (citation.get("citation_text") and citation.get("article_number")):
+                citation["verified"] = False
+                unverified += 1
+                continue
 
-        return validated
+            is_valid = True
+            if self.validator is not None:
+                index_key = self._validator_doctype.get(
+                    citation["document_type"], citation["document_type"]
+                )
+                is_valid = self.validator.validate_citation(
+                    citation["article_number"], index_key
+                )
+
+            citation["verified"] = bool(is_valid)
+            if is_valid:
+                verified += 1
+            else:
+                unverified += 1
+                flagged.append(citation["citation_text"])
+                logger.warning(
+                    f"Unverified citation (not in corpus): {citation['citation_text']}"
+                )
+
+        report = {
+            "total": len(citations),
+            "verified": verified,
+            "unverified": unverified,
+            "validator_available": self.validator is not None,
+            "flagged": flagged,
+        }
+        return citations, report

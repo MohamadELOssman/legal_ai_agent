@@ -1,200 +1,195 @@
 """
 Agent 6: Writing Agent
-Generates professional legal memorandum
+Two output formats driven by the Orchestrator:
+  legal_explanation — educational memo explaining what the law says
+  case_assessment   — advisory memo assessing a specific situation with precedent comparison
 """
 
 from loguru import logger
 
 from src.agents.base_agent import BaseAgent, AgentRole, AgentInput, AgentOutput
+from src.config import DEFAULT_MODEL
+from src.utils.prompt_loader import load_agent_prompt
 
 
 class WritingAgent(BaseAgent):
-    """
-    Agent 6: Writing Agent
 
-    Responsibility: Generate professional legal memorandum
-    Input: Analysis, reasoning, and citations from other agents
-    Output: Complete legal opinion in user's preferred language
-    Technical Approach: LLM-based text generation with legal writing templates
-    """
-
-    def __init__(self, model: str = "claude-sonnet-4.5", temperature: float = 0.3):
-        super().__init__(
-            role=AgentRole.WRITING,
-            model=model,
-            temperature=temperature,  # Higher temperature for natural writing
-        )
+    def __init__(self, model: str = DEFAULT_MODEL, temperature: float = 0.3):
+        super().__init__(role=AgentRole.WRITING, model=model, temperature=temperature)
 
     def get_system_prompt(self) -> str:
-        return """You are a Writing Agent for Lebanese Legal Memoranda.
-
-Your task is to generate professional legal memoranda in Arabic, French, or English.
-
-Structure of legal memorandum:
-1. **Introduction**
-   - Brief summary of the matter
-   - Key legal questions
-
-2. **Facts**
-   - Relevant facts presented clearly
-
-3. **Legal Analysis**
-   - Applicable legal provisions (with citations)
-   - Application of law to facts
-   - Legal reasoning
-   - Discussion of relevant precedents
-
-4. **Conclusion**
-   - Clear answer to legal questions
-   - Legal consequences and recommendations
-
-Writing style:
-- Professional and formal tone
-- Clear and precise language
-- Structured with headings and subheadings
-- Proper use of legal terminology
-- Citations in Lebanese format
-- Logical flow of arguments
-
-Lebanese legal writing conventions:
-- Arabic: Formal classical Arabic (not colloquial)
-- French: Formal French legal style
-- English: Professional legal English
-
-Ensure the memorandum is:
-- Comprehensive yet concise
-- Well-organized and easy to follow
-- Properly cited
-- Actionable for the client"""
+        prompt = load_agent_prompt("writing")
+        if prompt:
+            return prompt
+        return """You are a Legal Writing Agent specializing in Lebanese law memoranda.
+You write in formal Arabic, French, or English depending on the query language.
+Your memoranda are precise, well-structured, and legally grounded.
+Only cite articles that are supplied to you; never invent legal references."""
 
     def process(self, agent_input: AgentInput) -> AgentOutput:
-        """Generate legal memorandum."""
-
         try:
-            # Get context from previous agents
-            structured_query = agent_input.context.get("structured_query", {})
-            provisions = agent_input.context.get("provisions", [])
-            reasoning = agent_input.context.get("reasoning", "")
-            citations = agent_input.context.get("citations", [])
+            orch         = agent_input.metadata.get("orchestrator", {})
+            writing_cfg  = orch.get("writing", {})
+            fmt          = writing_cfg.get("format", "legal_explanation")
+            tone         = writing_cfg.get("tone", "educational")
 
-            # Get language preference
+            structured_query = agent_input.context.get("structured_query", {})
+            provisions       = agent_input.context.get("provisions", [])
+            reasoning        = agent_input.context.get("reasoning", "")
+            citations        = agent_input.context.get("citations", [])
+            similar_cases    = agent_input.context.get("similar_cases", [])
+            case_assessment  = agent_input.context.get("case_assessment", {})
+            extracted_facts  = orch.get("extracted_facts", [])
+
             language = structured_query.get("language", "ar")
 
-            # Generate memorandum
-            memorandum = self._generate_memorandum(
-                structured_query, provisions, reasoning, citations, language
-            )
+            if fmt == "case_assessment":
+                memorandum = self._write_case_assessment(
+                    structured_query, provisions, reasoning, citations,
+                    similar_cases, case_assessment, extracted_facts, language
+                )
+            else:
+                memorandum = self._write_legal_explanation(
+                    structured_query, provisions, reasoning, citations, language
+                )
 
-            logger.info(f"Generated legal memorandum ({len(memorandum)} characters)")
+            logger.info(f"WritingAgent [{fmt}] — {len(memorandum)} chars")
 
-            output = AgentOutput(
-                result={"memorandum": memorandum, "language": language},
-                metadata={
-                    "agent": self.role.value,
-                    "language": language,
-                    "word_count": len(memorandum.split()),
-                },
+            return AgentOutput(
+                result={"memorandum": memorandum, "language": language, "format": fmt},
+                metadata={"agent": self.role.value, "format": fmt,
+                          "word_count": len(memorandum.split())},
                 success=True,
             )
 
-            # Skip logging to avoid serialization issues
-            # self.log_input_output(agent_input, output)
-            logger.info(f"[{self.role.value}] Memorandum generated successfully")
-
-            return output
-
         except Exception as e:
-            logger.error(f"Writing agent failed: {e}")
-            import traceback
-            logger.error(f"Traceback: {traceback.format_exc()}")
+            logger.error(f"WritingAgent failed: {e}")
+            import traceback; logger.error(traceback.format_exc())
             return AgentOutput(
-                result={"memorandum": ""},
+                result={"memorandum": "", "language": "ar", "format": "legal_explanation"},
                 metadata={"agent": self.role.value},
                 success=False,
                 error=str(e),
             )
 
-    def _generate_memorandum(
-        self,
-        structured_query: dict,
-        provisions: list,
-        reasoning: str,
-        citations: list,
-        language: str,
+    # ── format 1: legal explanation ────────────────────────────────────────────
+
+    def _write_legal_explanation(
+        self, structured_query, provisions, reasoning, citations, language
     ) -> str:
-        """Generate complete legal memorandum."""
 
-        # Format citations
-        citations_text = "\n".join(
-            [
-                f"- {cit.get('citation_text', '')}"
-                for cit in citations[:10]  # Top 10 citations
-            ]
-        )
+        lang_rule = {
+            "ar": "Write entirely in formal classical Arabic (الفصحى). Use proper Lebanese legal terminology.",
+            "fr": "Write entirely in formal French legal style.",
+            "en": "Write entirely in professional legal English.",
+        }.get(language, "Write in formal Arabic.")
 
-        # Format provisions
         provisions_text = "\n\n".join(
-            [
-                f"{i+1}. {prov.get('article_number', '')}: {prov.get('provision_text', '')[:200]}..."
-                for i, prov in enumerate(provisions[:5])
-            ]
+            f"Article {p.get('article_number', '')}: {p.get('provision_text', '')[:300]}\n"
+            f"Principle: {p.get('legal_principle', '')}\n"
+            f"Conditions: {', '.join(p.get('conditions', []))}\n"
+            f"Consequences: {p.get('penalties_or_consequences', '')}"
+            for p in provisions[:6]
         )
 
-        # Language-specific instructions
-        lang_instructions = {
-            "ar": "Write in formal classical Arabic (الفصحى). Use proper legal terminology.",
-            "fr": "Write in formal French legal style. Use proper legal terminology.",
-            "en": "Write in professional legal English. Use clear and precise language.",
-        }
+        citations_text = "\n".join(
+            f"- {c.get('citation_text', '')}" for c in citations[:8]
+        )
 
-        lang_instruction = lang_instructions.get(language, lang_instructions["ar"])
+        user_message = f"""Write a legal explanation memorandum.
 
-        # Build prompt
-        user_message = f"""Generate a complete legal memorandum based on the following:
+QUERY: {structured_query.get('original_query', '')}
+LEGAL DOMAIN: {structured_query.get('legal_domain', '')}
+LANGUAGE RULE: {lang_rule}
 
-QUERY INFORMATION:
-- Original Query: {structured_query.get('original_query', '')}
-- Legal Domain: {structured_query.get('legal_domain', '')}
-- Legal Questions: {', '.join(structured_query.get('legal_questions', []))}
-- Facts: {', '.join(structured_query.get('facts', []))}
-
-APPLICABLE LEGAL PROVISIONS:
-{provisions_text}
+APPLICABLE PROVISIONS:
+{provisions_text or 'No provisions retrieved.'}
 
 LEGAL REASONING:
-{reasoning}
+{reasoning or 'Not provided.'}
 
 CITATIONS:
-{citations_text}
+{citations_text or 'None.'}
 
----
+Write a structured memorandum with these sections:
+1. الموضوع / SUBJECT — one line stating the topic
+2. الإطار القانوني / LEGAL FRAMEWORK — list the applicable articles and what they establish
+3. الشروط والأحكام / CONDITIONS & RULES — explain the conditions, requirements, and limitations clearly
+4. العقوبات والآثار / PENALTIES & CONSEQUENCES — what the law prescribes
+5. الخلاصة / CONCLUSION — direct answer to the question
 
-INSTRUCTIONS:
-{lang_instruction}
+Tone: {structured_query.get('legal_domain', 'educational')} — educational and clear.
+Cite every article you reference."""
 
-Generate a professional legal memorandum with the following structure:
+        return self.invoke_llm(user_message)
 
-1. **مذكرة قانونية / NOTE JURIDIQUE / LEGAL MEMORANDUM**
+    # ── format 2: case assessment ──────────────────────────────────────────────
 
-2. **الموضوع / OBJET / SUBJECT**
-   - Brief description of the matter
+    def _write_case_assessment(
+        self, structured_query, provisions, reasoning, citations,
+        similar_cases, case_assessment, extracted_facts, language
+    ) -> str:
 
-3. **الوقائع / FAITS / FACTS**
-   - Summary of relevant facts
+        lang_rule = {
+            "ar": "Write entirely in formal classical Arabic (الفصحى). Use proper Lebanese legal terminology.",
+            "fr": "Write entirely in formal French legal style.",
+            "en": "Write entirely in professional legal English.",
+        }.get(language, "Write in formal Arabic.")
 
-4. **التحليل القانوني / ANALYSE JURIDIQUE / LEGAL ANALYSIS**
-   - Applicable legal provisions with citations
-   - Application of law to facts
-   - Legal reasoning and conclusions
+        facts_text = "\n".join(f"- {f}" for f in extracted_facts) if extracted_facts else "See original query."
 
-5. **الخلاصة والتوصيات / CONCLUSION ET RECOMMANDATIONS / CONCLUSION**
-   - Clear answers to legal questions
-   - Legal consequences
-   - Recommendations
+        applicable = "\n\n".join(
+            f"Article {p.get('article_number', '')}: {p.get('provision_text', '')[:250]}\n"
+            f"Applies because: {p.get('application_reasoning', p.get('relevance', ''))}"
+            for p in provisions[:5] if p.get("applies_to_case", True)
+        )
 
-Make it professional, well-structured, and actionable."""
+        cases_text = "\n\n".join(
+            f"Case {c.get('case_id', i+1)} | {c.get('court', '')} | {c.get('decision_date', '')}\n"
+            f"Outcome: {c.get('outcome', '')} | Sentence: {c.get('sentence', '')}\n"
+            f"Similarity: {c.get('similarity_reasoning', '')}"
+            for i, c in enumerate(similar_cases[:3])
+        ) if similar_cases else "No similar court rulings retrieved."
 
-        # Generate memorandum
-        memorandum = self.invoke_llm(user_message)
+        assessment = case_assessment or {}
+        citations_text = "\n".join(f"- {c.get('citation_text', '')}" for c in citations[:8])
 
-        return memorandum
+        user_message = f"""Write a legal case assessment memorandum for a lawyer.
+
+CASE FACTS:
+{facts_text}
+
+ORIGINAL QUERY: {structured_query.get('original_query', '')}
+LANGUAGE RULE: {lang_rule}
+
+APPLICABLE LEGAL PROVISIONS:
+{applicable or 'No directly applicable provisions identified.'}
+
+SIMILAR COURT RULINGS:
+{cases_text}
+
+LEGAL REASONING:
+{reasoning or 'Not provided.'}
+
+PRELIMINARY ASSESSMENT:
+- Strength: {assessment.get('strength_of_case', 'N/A')}
+- Likely outcome: {assessment.get('likely_outcome', 'N/A')}
+- Key issues: {', '.join(assessment.get('key_legal_issues', []))}
+- Mitigating factors: {', '.join(assessment.get('mitigating_factors', []))}
+- Aggravating factors: {', '.join(assessment.get('aggravating_factors', []))}
+
+CITATIONS:
+{citations_text or 'None.'}
+
+Write a structured case assessment memorandum with these sections:
+1. الموضوع / SUBJECT — one line describing the case situation
+2. وقائع القضية / FACTS — concise summary of the relevant facts
+3. النصوص القانونية المنطبقة / APPLICABLE LAW — each article with explanation of why it applies
+4. مقارنة بالسوابق القضائية / PRECEDENT COMPARISON — compare with similar rulings, note key similarities/differences
+5. التقدير القانوني / LEGAL ASSESSMENT — strength of case, likely outcome based on law and precedent
+6. الخلاصة والتوصيات / CONCLUSION & RECOMMENDATIONS — concrete advice for the client
+
+Tone: advisory — written for a lawyer advising a client.
+Cite every article and case you reference."""
+
+        return self.invoke_llm(user_message)

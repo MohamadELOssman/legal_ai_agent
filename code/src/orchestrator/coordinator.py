@@ -1,12 +1,31 @@
 """
-Multi-Agent Orchestrator / Coordinator (Agent 7)
-Manages workflow between all agents and ensures quality
+Headless Multi-Agent Pipeline (canonical orchestration)
+
+This is the Streamlit-free equivalent of the pipeline in app.py. It drives the
+full 7-agent flow so the system can be run programmatically — for batch
+evaluation, baseline comparison, scripting, and tests — without the web UI.
+
+Flow:
+  0. Orchestrator       — classify query, emit pipeline_config
+  1. Query Understanding — structured query
+  2. Research (RAG)     — retrieve articles (+ rulings for case_analysis)
+  3. Analysis           — extract & ground provisions
+  4. Reasoning          — apply law to facts / explain
+  5. Citation           — format & validate citations
+  6. Writing            — final memorandum
+
+Both app.py and this module construct identical AgentInput payloads, so behaviour
+is consistent across the UI and headless runs.
 """
 
-from typing import Dict, Any, Optional
+import time
+from typing import Dict, Any, List, Optional
+
 from loguru import logger
 
+from src.config import DEFAULT_MODEL
 from src.agents.base_agent import AgentInput, AgentOutput
+from src.agents.orchestrator_agent import OrchestratorAgent
 from src.agents.query_understanding_agent import QueryUnderstandingAgent
 from src.agents.research_agent import ResearchAgent
 from src.agents.analysis_agent import AnalysisAgent
@@ -15,265 +34,257 @@ from src.agents.citation_agent import CitationAgent
 from src.agents.writing_agent import WritingAgent
 
 
-class LegalAIOrchestrator:
-    """
-    Agent 7: Coordinator Agent + Orchestration System
-
-    Responsibility: Manage workflow between all agents and ensure quality
-    Input: User query and outputs from all agents
-    Output: Orchestrated multi-agent workflow and final validated response
-    Technical Approach: Custom Python orchestration logic using Claude/Gemini function calling
-    """
+class LegalAIPipeline:
+    """End-to-end multi-agent legal pipeline, runnable without Streamlit."""
 
     def __init__(
         self,
-        primary_model: str = "claude-sonnet-4.5",
-        enable_logging: bool = True,
+        model: str = DEFAULT_MODEL,
+        temperature: float = 0.1,
+        top_k: int = 5,
+        score_threshold: float = 0.3,
+        vectorstore: Optional[Any] = None,
+        load_vectorstore: bool = True,
     ):
-        self.primary_model = primary_model
-        self.enable_logging = enable_logging
+        self.model = model
+        self.temperature = temperature
+        self.top_k = top_k
+        self.score_threshold = score_threshold
 
-        # Initialize all agents
-        logger.info("Initializing multi-agent system...")
+        logger.info(f"Initializing LegalAIPipeline (model={model})...")
 
-        self.query_agent = QueryUnderstandingAgent(model=primary_model)
-        self.research_agent = ResearchAgent(model=primary_model)
-        self.analysis_agent = AnalysisAgent(model=primary_model)
-        self.reasoning_agent = ReasoningAgent(model=primary_model)
-        self.citation_agent = CitationAgent(model=primary_model)
-        self.writing_agent = WritingAgent(model=primary_model)
+        # Load the vector store once and share it with the research agent.
+        if vectorstore is None and load_vectorstore:
+            from src.rag.vectorstore import LegalVectorStore
+            vectorstore = LegalVectorStore()
+            try:
+                vectorstore.load_vectorstore()
+            except FileNotFoundError:
+                logger.warning("Vector store not found — research will return no documents.")
+        self.vectorstore = vectorstore
 
-        logger.info("Multi-agent system initialized successfully")
+        # Construct agents once and reuse them across queries (efficient for batch).
+        self.orchestrator = OrchestratorAgent(model=model)
+        self.query_agent = QueryUnderstandingAgent(model=model, temperature=temperature)
+        self.research_agent = ResearchAgent(model=model, temperature=temperature, vectorstore=vectorstore)
+        self.analysis_agent = AnalysisAgent(model=model, temperature=temperature)
+        self.reasoning_agent = ReasoningAgent(model=model, temperature=temperature)
+        self.citation_agent = CitationAgent(model=model, temperature=temperature)
+        self.writing_agent = WritingAgent(model=model, temperature=temperature)
 
-    def process_query(
-        self, user_query: str, max_retries: int = 2
-    ) -> Dict[str, Any]:
+        logger.info("LegalAIPipeline initialized successfully")
+
+    # ── public API ────────────────────────────────────────────────────────────
+
+    def process_query(self, user_query: str) -> Dict[str, Any]:
+        """Run the full pipeline on a single query and return a structured result.
+
+        Never raises on agent failure — failures are captured in the returned
+        dict (`success`, `error`, `execution_trace`) so batch runs don't abort.
         """
-        Process legal query through all agents.
-
-        Workflow:
-        1. Query Understanding Agent - Parse query
-        2. Research Agent - Retrieve relevant documents
-        3. Analysis Agent - Extract provisions
-        4. Reasoning Agent - Construct legal argument
-        5. Citation Agent - Format citations
-        6. Writing Agent - Generate memorandum
-        7. Validation - Final quality check
-        """
-
         logger.info(f"Processing query: {user_query[:100]}...")
+        trace: List[Dict[str, Any]] = []
+        timings: Dict[str, float] = {}
 
-        execution_trace = []
+        # Fresh usage telemetry for this query.
+        for agent in self._agents():
+            agent.reset_usage()
+
+        def _run(step: str, fn) -> AgentOutput:
+            t0 = time.time()
+            out = fn()
+            timings[step] = round(time.time() - t0, 2)
+            trace.append({"step": step, "success": out.success, "error": out.error})
+            return out
 
         try:
-            # Step 1: Query Understanding
-            logger.info("STEP 1/6: Query Understanding...")
-            query_output = self._run_query_understanding(user_query)
-            execution_trace.append(("query_understanding", query_output.success))
+            # Step 0 — Orchestrator
+            out0 = _run("orchestrator", lambda: self.orchestrator.process(
+                AgentInput(query=user_query, context={}, metadata={})
+            ))
+            routing = out0.result
+            query_type = routing.get("query_type", "general_legal_query")
+            pipeline_cfg = routing.get("pipeline_config", {})
+            orch_meta = {**pipeline_cfg, "extracted_facts": routing.get("extracted_facts", [])}
 
-            if not query_output.success:
-                raise Exception(f"Query understanding failed: {query_output.error}")
+            # Step 1 — Query Understanding
+            out1 = _run("query_understanding", lambda: self.query_agent.process(
+                AgentInput(query=user_query, context={}, metadata={"orchestrator": orch_meta})
+            ))
+            if not out1.success:
+                return self._fail("query_understanding", out1.error, trace, timings)
+            structured_query = out1.result
 
-            structured_query = query_output.result
+            # Step 2 — Research
+            out2 = _run("research", lambda: self.research_agent.process(
+                AgentInput(
+                    query=user_query,
+                    context={"structured_query": structured_query},
+                    metadata={"k": self.top_k, "score_threshold": self.score_threshold,
+                              "orchestrator": orch_meta},
+                )
+            ))
+            if not out2.success:
+                return self._fail("research", out2.error, trace, timings)
+            documents = out2.result.get("retrieved_documents", [])
 
-            # Step 2: Research (RAG)
-            logger.info("STEP 2/6: Research (RAG Retrieval)...")
-            research_output = self._run_research(user_query, structured_query)
-            execution_trace.append(("research", research_output.success))
+            # Step 3 — Analysis
+            out3 = _run("analysis", lambda: self.analysis_agent.process(
+                AgentInput(
+                    query=user_query,
+                    context={"structured_query": structured_query, "research_results": out2.result},
+                    metadata={"orchestrator": orch_meta},
+                )
+            ))
+            if not out3.success:
+                return self._fail("analysis", out3.error, trace, timings)
+            provisions = out3.result.get("provisions", [])
 
-            if not research_output.success:
-                raise Exception(f"Research failed: {research_output.error}")
+            # Step 4 — Reasoning (non-fatal: continue with empty reasoning if it fails)
+            out4 = _run("reasoning", lambda: self.reasoning_agent.process(
+                AgentInput(
+                    query=user_query,
+                    context={"structured_query": structured_query,
+                             "research_results": out2.result,
+                             "analysis_results": out3.result},
+                    metadata={"orchestrator": orch_meta},
+                )
+            ))
+            reasoning_text = out4.result.get("reasoning", "") if out4.success else ""
 
-            documents = research_output.result.get("documents", [])
+            # Step 5 — Citation
+            out5 = _run("citation", lambda: self.citation_agent.process(
+                AgentInput(
+                    query=user_query,
+                    context={"structured_query": structured_query,
+                             "research_results": out2.result,
+                             "analysis_results": out3.result,
+                             "reasoning_results": out4.result},
+                    metadata={"orchestrator": orch_meta},
+                )
+            ))
+            citations = out5.result.get("citations", []) if out5.success else []
+            validation_report = out5.result.get("validation_report", {}) if out5.success else {}
 
-            # Step 3: Analysis
-            logger.info("STEP 3/6: Legal Analysis...")
-            analysis_output = self._run_analysis(
-                user_query, structured_query, documents
-            )
-            execution_trace.append(("analysis", analysis_output.success))
-
-            if not analysis_output.success:
-                raise Exception(f"Analysis failed: {analysis_output.error}")
-
-            provisions = analysis_output.result.get("provisions", [])
-
-            # Step 4: Reasoning
-            logger.info("STEP 4/6: Legal Reasoning...")
-            reasoning_output = self._run_reasoning(
-                user_query, structured_query, provisions
-            )
-            execution_trace.append(("reasoning", reasoning_output.success))
-
-            if not reasoning_output.success:
-                logger.warning(f"Reasoning failed: {reasoning_output.error}")
-                reasoning_text = ""
-            else:
-                reasoning_text = reasoning_output.result.get("reasoning", "")
-
-            # Step 5: Citation
-            logger.info("STEP 5/6: Citation Formatting...")
-            citation_output = self._run_citation(structured_query, provisions)
-            execution_trace.append(("citation", citation_output.success))
-
-            citations = citation_output.result.get("citations", [])
-
-            # Step 6: Writing
-            logger.info("STEP 6/6: Generating Legal Memorandum...")
-            writing_output = self._run_writing(
-                user_query, structured_query, provisions, reasoning_text, citations
-            )
-            execution_trace.append(("writing", writing_output.success))
-
-            if not writing_output.success:
-                raise Exception(f"Writing failed: {writing_output.error}")
-
-            memorandum = writing_output.result.get("memorandum", "")
-
-            # Final validation
-            logger.info("Performing final validation...")
-            validation_result = self._validate_output(memorandum, citations)
-
-            # Build final result
-            result = {
-                "memorandum": memorandum,
+            # Step 6 — Writing (same safe context construction as app.py)
+            writing_ctx = {
                 "structured_query": structured_query,
                 "provisions": provisions,
-                "citations": citations,
                 "reasoning": reasoning_text,
-                "documents_retrieved": len(documents),
-                "validation": validation_result,
-                "execution_trace": execution_trace,
-                "success": True,
+                "citations": citations,
+                "similar_cases": out3.result.get("similar_cases", []),
+                "case_assessment": out3.result.get("case_assessment", {}),
             }
+            out6 = _run("writing", lambda: self.writing_agent.process(
+                AgentInput(query=user_query, context=writing_ctx,
+                           metadata={"orchestrator": orch_meta})
+            ))
+            if not out6.success:
+                return self._fail("writing", out6.error, trace, timings)
+            memorandum = out6.result.get("memorandum", "")
 
-            logger.info("✓ Query processing complete!")
+            result = {
+                "success": True,
+                "query": user_query,
+                "query_type": query_type,
+                "routing": routing,
+                "structured_query": structured_query,
+                "documents_retrieved": len(documents),
+                "provisions": provisions,
+                "grounding": out3.metadata.get("grounding", {}),
+                "reasoning": reasoning_text,
+                "citations": citations,
+                "citation_validation": validation_report,
+                "memorandum": memorandum,
+                "memorandum_format": out6.result.get("format", "legal_explanation"),
+                "language": out6.result.get("language", structured_query.get("language", "ar")),
+                "validation": self._validate_output(memorandum, citations),
+                "execution_trace": trace,
+                "timings": timings,
+                "total_latency_s": round(sum(timings.values()), 2),
+                "usage": self._collect_usage(),
+            }
+            logger.info(f"✓ Query complete in {result['total_latency_s']}s "
+                        f"({query_type}, {len(citations)} citations)")
             return result
 
         except Exception as e:
-            logger.error(f"✗ Query processing failed: {e}")
-            return {
-                "memorandum": "",
-                "error": str(e),
-                "execution_trace": execution_trace,
-                "success": False,
-            }
+            logger.error(f"✗ Pipeline crashed: {e}")
+            return self._fail("pipeline", str(e), trace, timings)
 
-    def _run_query_understanding(self, query: str) -> AgentOutput:
-        """Run query understanding agent."""
-        agent_input = AgentInput(
-            query=query, context={}, metadata={"step": "query_understanding"}
-        )
-        return self.query_agent.process(agent_input)
+    def process_batch(self, queries: List[str]) -> List[Dict[str, Any]]:
+        """Run the pipeline over many queries (for evaluation / baselines)."""
+        results = []
+        for i, q in enumerate(queries, 1):
+            logger.info(f"[batch {i}/{len(queries)}]")
+            results.append(self.process_query(q))
+        return results
 
-    def _run_research(
-        self, query: str, structured_query: dict
-    ) -> AgentOutput:
-        """Run research agent."""
-        agent_input = AgentInput(
-            query=query,
-            context={"structured_query": structured_query, "top_k": 5},
-            metadata={"step": "research"},
-        )
-        return self.research_agent.process(agent_input)
+    # ── helpers ───────────────────────────────────────────────────────────────
 
-    def _run_analysis(
-        self, query: str, structured_query: dict, documents: list
-    ) -> AgentOutput:
-        """Run analysis agent."""
-        agent_input = AgentInput(
-            query=query,
-            context={
-                "structured_query": structured_query,
-                "retrieved_documents": documents,
-            },
-            metadata={"step": "analysis"},
-        )
-        return self.analysis_agent.process(agent_input)
+    def _agents(self):
+        return [self.orchestrator, self.query_agent, self.research_agent,
+                self.analysis_agent, self.reasoning_agent, self.citation_agent,
+                self.writing_agent]
 
-    def _run_reasoning(
-        self, query: str, structured_query: dict, provisions: list
-    ) -> AgentOutput:
-        """Run reasoning agent."""
-        agent_input = AgentInput(
-            query=query,
-            context={"structured_query": structured_query, "provisions": provisions},
-            metadata={"step": "reasoning"},
-        )
-        return self.reasoning_agent.process(agent_input)
+    def _collect_usage(self) -> Dict[str, Any]:
+        """Aggregate token/cost/latency telemetry across all agents for this query."""
+        per_agent = {}
+        totals = {"input_tokens": 0, "output_tokens": 0, "total_tokens": 0, "cost_usd": 0.0}
+        for agent in self._agents():
+            summary = agent.usage_summary()
+            if summary["calls"] == 0:
+                continue
+            per_agent[agent.role.value] = summary
+            for key in totals:
+                totals[key] += summary[key]
+        totals["cost_usd"] = round(totals["cost_usd"], 6)
+        return {"per_agent": per_agent, "totals": totals}
 
-    def _run_citation(
-        self, structured_query: dict, provisions: list
-    ) -> AgentOutput:
-        """Run citation agent."""
-        agent_input = AgentInput(
-            query="",  # No query needed for citation
-            context={"structured_query": structured_query, "provisions": provisions},
-            metadata={"step": "citation"},
-        )
-        return self.citation_agent.process(agent_input)
+    @staticmethod
+    def _fail(step: str, error: Optional[str], trace, timings) -> Dict[str, Any]:
+        return {
+            "success": False,
+            "failed_step": step,
+            "error": error,
+            "memorandum": "",
+            "execution_trace": trace,
+            "timings": timings,
+        }
 
-    def _run_writing(
-        self,
-        query: str,
-        structured_query: dict,
-        provisions: list,
-        reasoning: str,
-        citations: list,
-    ) -> AgentOutput:
-        """Run writing agent."""
-        agent_input = AgentInput(
-            query=query,
-            context={
-                "structured_query": structured_query,
-                "provisions": provisions,
-                "reasoning": reasoning,
-                "citations": citations,
-            },
-            metadata={"step": "writing"},
-        )
-        return self.writing_agent.process(agent_input)
-
-    def _validate_output(
-        self, memorandum: str, citations: list
-    ) -> Dict[str, Any]:
-        """Validate final output."""
-
-        validation = {
+    @staticmethod
+    def _validate_output(memorandum: str, citations: list) -> Dict[str, Any]:
+        return {
             "memorandum_length": len(memorandum),
             "has_content": len(memorandum) > 100,
             "num_citations": len(citations),
+            "num_verified_citations": sum(1 for c in citations if c.get("verified")),
             "has_citations": len(citations) > 0,
             "is_valid": len(memorandum) > 100 and len(citations) > 0,
         }
 
-        return validation
+
+# Backward-compatible alias for the previous class name.
+LegalAIOrchestrator = LegalAIPipeline
 
 
 def main():
-    """Test the orchestrator."""
-    orchestrator = LegalAIOrchestrator()
-
-    # Test query in Arabic
-    test_query = """
-    هناك شركة تجارية في بيروت تُدعى "شركة النور للتجارة"، كان المدير المالي مسؤولاً عن إدارة الحسابات والتحويلات المالية خلال سنة 2024.
-    قام المدير المالي بالتصرف بالأموال الموجودة في حساب الشركة، حيث قام بتحويل مبلغ 150,000 دولار إلى حسابه الشخصي.
-    السؤال: ما هي المسؤولية المدنية والجزائية للمدير المالي؟
-    """
-
-    result = orchestrator.process_query(test_query)
+    """Quick manual test of the headless pipeline."""
+    pipeline = LegalAIPipeline()
+    test_query = "ما هي عقوبة القتل العمد في القانون اللبناني؟"
+    result = pipeline.process_query(test_query)
 
     if result["success"]:
         print("\n" + "=" * 80)
-        print("LEGAL MEMORANDUM")
+        print(f"QUERY TYPE: {result['query_type']}  |  LATENCY: {result['total_latency_s']}s")
+        print(f"Documents: {result['documents_retrieved']}  |  "
+              f"Provisions: {len(result['provisions'])}  |  "
+              f"Citations: {result['validation']['num_verified_citations']}/"
+              f"{result['validation']['num_citations']} verified")
         print("=" * 80)
         print(result["memorandum"])
-        print("\n" + "=" * 80)
-        print(f"Citations: {len(result['citations'])}")
-        print(f"Provisions analyzed: {len(result['provisions'])}")
-        print(f"Documents retrieved: {result['documents_retrieved']}")
     else:
-        print(f"Error: {result['error']}")
+        print(f"FAILED at {result.get('failed_step')}: {result.get('error')}")
 
 
 if __name__ == "__main__":

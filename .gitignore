@@ -1,0 +1,37 @@
+# ── Python ──
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# ── Virtual environments ──
+venv/
+.venv/
+env/
+
+# ── Secrets / config ──
+.env
+*.env
+!.env.example
+
+# ── OS / editor ──
+.DS_Store
+*.swp
+.idea/
+.vscode/
+
+# ── Logs ──
+logs/
+*.log
+
+# ── Notebooks ──
+.ipynb_checkpoints/
+
+# ── Evaluation / experiment outputs ──
+eval_*.json
+comparison_*.json
+benchmark_*.json
+_smoke*.json

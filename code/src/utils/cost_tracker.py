@@ -29,9 +29,9 @@ class CostTracker:
 
     # Pricing (per 1M tokens)
     PRICING = {
-        "claude-sonnet-4.5": {"input": 3.0, "output": 15.0},
-        "claude-opus-4.6": {"input": 15.0, "output": 75.0},
-        "claude-haiku-3.5": {"input": 0.8, "output": 4.0},
+        "claude-sonnet-4-5": {"input": 3.0, "output": 15.0},
+        "claude-opus-4-8": {"input": 15.0, "output": 75.0},
+        "claude-haiku-4-5-20251001": {"input": 0.8, "output": 4.0},
         "text-embedding-3-large": {"input": 0.13, "output": 0.0},
     }
 
@@ -186,12 +186,12 @@ if __name__ == "__main__":
     tracker = CostTracker()
 
     # Simulate some API calls
-    tracker.track_call("query_understanding", "claude-sonnet-4.5", 1000, 300)
-    tracker.track_call("research", "claude-sonnet-4.5", 1300, 100)
-    tracker.track_call("analysis", "claude-sonnet-4.5", 4200, 800)
-    tracker.track_call("reasoning", "claude-sonnet-4.5", 2300, 1200)
-    tracker.track_call("citation", "claude-sonnet-4.5", 1400, 200)
-    tracker.track_call("writing", "claude-sonnet-4.5", 3500, 2500)
+    tracker.track_call("query_understanding", "claude-sonnet-4-5", 1000, 300)
+    tracker.track_call("research", "claude-sonnet-4-5", 1300, 100)
+    tracker.track_call("analysis", "claude-sonnet-4-5", 4200, 800)
+    tracker.track_call("reasoning", "claude-sonnet-4-5", 2300, 1200)
+    tracker.track_call("citation", "claude-sonnet-4-5", 1400, 200)
+    tracker.track_call("writing", "claude-sonnet-4-5", 3500, 2500)
 
     # Print summary
     tracker.print_summary()

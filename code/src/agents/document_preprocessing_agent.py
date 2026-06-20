@@ -16,6 +16,7 @@ from loguru import logger
 from langchain_core.messages import HumanMessage, SystemMessage
 
 from src.agents.base_agent import BaseAgent, AgentRole, AgentInput, AgentOutput
+from src.config import DEFAULT_MODEL
 
 try:
     import fitz  # PyMuPDF
@@ -98,7 +99,7 @@ class DocumentPreprocessingAgent(BaseAgent):
     Output: Three structured outputs - full document, summary, and ratio decidendi
     """
 
-    def __init__(self, model: str = "claude-sonnet-4-20250514", temperature: float = 0.1, use_vision: bool = True):
+    def __init__(self, model: str = DEFAULT_MODEL, temperature: float = 0.1, use_vision: bool = True):
         super().__init__(
             role=AgentRole.DOCUMENT_PREPROCESSING,
             model=model,
@@ -211,8 +212,8 @@ INSTRUCTIONS:
    - Ratio decidendi only
 
 CRITICAL JSON FORMATTING:
-- In legal article references, use FORWARD SLASH (/) not backslash (\)
-  Example: "المادة 638/1" NOT "المادة 638\1"
+- In legal article references, use FORWARD SLASH (/) not backslash (\\)
+  Example: "المادة 638/1" NOT "المادة 638\\1"
   Example: "article 638/1" NOT "article 638\1"
 - This prevents JSON parsing errors
 
@@ -318,8 +319,8 @@ IMPORTANT:
 - Provide an honest OCR confidence score (0-1)
 - Flag any quality issues in the quality_flags array
 - Return ONLY valid JSON - no markdown code blocks, no extra text
-- CRITICAL: In legal article references (e.g., "المادة 638\1"), use FORWARD SLASH (/) not backslash (\)
-  Example: "المادة 638/1" NOT "المادة 638\1"
+- CRITICAL: In legal article references (e.g., "المادة 638\\1"), use FORWARD SLASH (/) not backslash (\\)
+  Example: "المادة 638/1" NOT "المادة 638\\1"
 - Properly escape all remaining special characters in JSON strings
 - For Arabic text, ensure proper Unicode encoding without invalid escape sequences
 """

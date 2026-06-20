@@ -7,7 +7,7 @@ from typing import Dict, Any
 from loguru import logger
 
 from langchain_anthropic import ChatAnthropic
-from langchain.schema import HumanMessage, SystemMessage
+from langchain_core.messages import HumanMessage, SystemMessage
 
 from src.rag.vectorstore import LegalVectorStore
 from src.config import get_config
@@ -21,7 +21,7 @@ class SingleAgentBaseline:
     Tests whether multi-agent approach provides benefit over simple RAG.
     """
 
-    def __init__(self, model: str = "claude-sonnet-4.5"):
+    def __init__(self, model: str = "claude-sonnet-4-5", vectorstore: "LegalVectorStore" = None):
         self.model_name = model
         config = get_config()
 
@@ -33,12 +33,15 @@ class SingleAgentBaseline:
             anthropic_api_key=config.anthropic_api_key,
         )
 
-        # Initialize vector store
-        self.vectorstore = LegalVectorStore()
-        try:
-            self.vectorstore.load_vectorstore()
-        except FileNotFoundError:
-            logger.warning("Vector store not found. Build it first.")
+        # Reuse a shared vector store if provided (avoids reloading), else load one.
+        if vectorstore is not None:
+            self.vectorstore = vectorstore
+        else:
+            self.vectorstore = LegalVectorStore()
+            try:
+                self.vectorstore.load_vectorstore()
+            except FileNotFoundError:
+                logger.warning("Vector store not found. Build it first.")
 
         logger.info(f"Initialized single-agent baseline with {model}")
 

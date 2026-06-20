@@ -3,8 +3,9 @@ Base Agent Class
 All specialized agents inherit from this base class
 """
 
+import time
 from abc import ABC, abstractmethod
-from typing import Dict, Any, Optional
+from typing import Dict, Any, List, Optional
 from dataclasses import dataclass
 from enum import Enum
 
@@ -13,12 +14,19 @@ from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_core.messages import HumanMessage, SystemMessage
 from loguru import logger
 
-from src.config import get_config
+from src.config import get_config, DEFAULT_MODEL
+
+try:
+    from src.utils.cost_tracker import CostTracker
+    _PRICING = CostTracker.PRICING
+except Exception:  # pragma: no cover
+    _PRICING = {}
 
 
 class AgentRole(Enum):
     """Agent roles in the system."""
 
+    ORCHESTRATOR = "orchestrator"
     COORDINATOR = "coordinator"
     DOCUMENT_PREPROCESSING = "document_preprocessing"
     QUERY_UNDERSTANDING = "query_understanding"
@@ -54,7 +62,7 @@ class BaseAgent(ABC):
     def __init__(
         self,
         role: AgentRole,
-        model: str = "claude-sonnet-4.5",
+        model: str = DEFAULT_MODEL,
         temperature: float = 0.1,
         max_tokens: int = 4096,
     ):
@@ -63,7 +71,15 @@ class BaseAgent(ABC):
         self.temperature = temperature
         self.max_tokens = max_tokens
 
+        # Per-call usage telemetry (tokens / latency / cost). Reset with reset_usage().
+        self.usage_log: List[Dict[str, Any]] = []
+        self.last_usage: Dict[str, Any] = {}
+
         config = get_config()
+
+        # Resilience: retries (with backoff) + per-request timeout from config.
+        max_retries = getattr(config, "max_agent_retries", 3)
+        timeout = getattr(config, "agent_timeout", 60)
 
         # Initialize LLM
         if "claude" in model.lower():
@@ -72,6 +88,8 @@ class BaseAgent(ABC):
                 temperature=temperature,
                 max_tokens=max_tokens,
                 anthropic_api_key=config.anthropic_api_key,
+                max_retries=max_retries,
+                default_request_timeout=timeout,
             )
         elif "gemini" in model.lower():
             self.llm = ChatGoogleGenerativeAI(
@@ -79,6 +97,8 @@ class BaseAgent(ABC):
                 temperature=temperature,
                 max_output_tokens=max_tokens,
                 google_api_key=config.google_api_key,
+                max_retries=max_retries,
+                timeout=timeout,
             )
         else:
             raise ValueError(f"Unsupported model: {model}")
@@ -96,7 +116,7 @@ class BaseAgent(ABC):
         pass
 
     def invoke_llm(self, user_message: str, system_prompt: Optional[str] = None) -> str:
-        """Invoke the LLM with a message."""
+        """Invoke the LLM with a message, recording token/latency/cost telemetry."""
 
         if system_prompt is None:
             system_prompt = self.get_system_prompt()
@@ -107,11 +127,53 @@ class BaseAgent(ABC):
         ]
 
         try:
+            t0 = time.time()
             response = self.llm.invoke(messages)
+            latency = time.time() - t0
+            self._record_usage(response, latency)
             return response.content
         except Exception as e:
             logger.error(f"{self.role.value} agent error: {e}")
             raise
+
+    # ── usage telemetry ──────────────────────────────────────────────────────────
+
+    def _record_usage(self, response, latency: float) -> None:
+        """Capture token counts, latency and estimated cost for one LLM call."""
+        usage = getattr(response, "usage_metadata", None) or {}
+        in_tok = int(usage.get("input_tokens", 0) or 0)
+        out_tok = int(usage.get("output_tokens", 0) or 0)
+
+        pricing = _PRICING.get(self.model_name, {"input": 3.0, "output": 15.0})
+        cost = (in_tok / 1_000_000) * pricing["input"] + (out_tok / 1_000_000) * pricing["output"]
+
+        record = {
+            "agent": self.role.value,
+            "model": self.model_name,
+            "input_tokens": in_tok,
+            "output_tokens": out_tok,
+            "total_tokens": in_tok + out_tok,
+            "latency_s": round(latency, 3),
+            "cost_usd": round(cost, 6),
+        }
+        self.last_usage = record
+        self.usage_log.append(record)
+
+    def reset_usage(self) -> None:
+        """Clear accumulated usage telemetry (e.g. between queries)."""
+        self.usage_log = []
+        self.last_usage = {}
+
+    def usage_summary(self) -> Dict[str, Any]:
+        """Aggregate usage across all calls made by this agent instance."""
+        return {
+            "calls": len(self.usage_log),
+            "input_tokens": sum(u["input_tokens"] for u in self.usage_log),
+            "output_tokens": sum(u["output_tokens"] for u in self.usage_log),
+            "total_tokens": sum(u["total_tokens"] for u in self.usage_log),
+            "latency_s": round(sum(u["latency_s"] for u in self.usage_log), 3),
+            "cost_usd": round(sum(u["cost_usd"] for u in self.usage_log), 6),
+        }
 
     def log_input_output(self, agent_input: AgentInput, output: AgentOutput):
         """Log agent input and output for debugging."""

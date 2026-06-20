@@ -10,6 +10,7 @@ from pydantic import BaseModel, Field
 from loguru import logger
 
 from src.agents.base_agent import BaseAgent, AgentRole, AgentInput, AgentOutput
+from src.config import DEFAULT_MODEL
 
 
 class StructuredQuery(BaseModel):
@@ -34,7 +35,7 @@ class QueryUnderstandingAgent(BaseAgent):
     Technical Approach: Multilingual NLP using models like multilingual-e5-large
     """
 
-    def __init__(self, model: str = "claude-sonnet-4.5", temperature: float = 0.1):
+    def __init__(self, model: str = DEFAULT_MODEL, temperature: float = 0.1):
         super().__init__(
             role=AgentRole.QUERY_UNDERSTANDING,
             model=model,
