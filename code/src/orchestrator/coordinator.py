@@ -47,6 +47,9 @@ class LegalAIPipeline:
         vectorstore: Optional[Any] = None,
         load_vectorstore: bool = True,
         enforce_grounding: bool = False,
+        retrieval_strategy: str = "semantic",
+        use_reranking: bool = False,
+        skip_reasoning: bool = False,
     ):
         self.model = model
         self.temperature = temperature
@@ -55,6 +58,10 @@ class LegalAIPipeline:
         # When True, only corpus-grounded provisions reach the writing agent, so the
         # final memorandum cannot be built on hallucinated articles (trust-first).
         self.enforce_grounding = enforce_grounding
+        # Retrieval + pipeline knobs (for ablation studies; evidence-based defaults).
+        self.retrieval_strategy = retrieval_strategy
+        self.use_reranking = use_reranking
+        self.skip_reasoning = skip_reasoning
 
         logger.info(f"Initializing LegalAIPipeline (model={model})...")
 
@@ -126,6 +133,8 @@ class LegalAIPipeline:
                     query=user_query,
                     context={"structured_query": structured_query},
                     metadata={"k": self.top_k, "score_threshold": self.score_threshold,
+                              "retrieval_strategy": self.retrieval_strategy,
+                              "use_reranking": self.use_reranking,
                               "orchestrator": orch_meta},
                 )
             ))
@@ -145,17 +154,22 @@ class LegalAIPipeline:
                 return self._fail("analysis", out3.error, trace, timings)
             provisions = out3.result.get("provisions", [])
 
-            # Step 4 — Reasoning (non-fatal: continue with empty reasoning if it fails)
-            out4 = _run("reasoning", lambda: self.reasoning_agent.process(
-                AgentInput(
-                    query=user_query,
-                    context={"structured_query": structured_query,
-                             "research_results": out2.result,
-                             "analysis_results": out3.result},
-                    metadata={"orchestrator": orch_meta},
-                )
-            ))
-            reasoning_text = out4.result.get("reasoning", "") if out4.success else ""
+            # Step 4 — Reasoning (non-fatal; skippable for ablation studies)
+            if self.skip_reasoning:
+                reasoning_text = ""
+                timings["reasoning"] = 0.0
+                trace.append({"step": "reasoning", "success": True, "error": "skipped"})
+            else:
+                out4 = _run("reasoning", lambda: self.reasoning_agent.process(
+                    AgentInput(
+                        query=user_query,
+                        context={"structured_query": structured_query,
+                                 "research_results": out2.result,
+                                 "analysis_results": out3.result},
+                        metadata={"orchestrator": orch_meta},
+                    )
+                ))
+                reasoning_text = out4.result.get("reasoning", "") if out4.success else ""
 
             # Step 5 — Citation
             out5 = _run("citation", lambda: self.citation_agent.process(
@@ -164,7 +178,7 @@ class LegalAIPipeline:
                     context={"structured_query": structured_query,
                              "research_results": out2.result,
                              "analysis_results": out3.result,
-                             "reasoning_results": out4.result},
+                             "reasoning_results": {"reasoning": reasoning_text}},
                     metadata={"orchestrator": orch_meta},
                 )
             ))

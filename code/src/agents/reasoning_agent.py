@@ -25,11 +25,17 @@ class ReasoningAgent(BaseAgent):
     Technical Approach: Chain-of-thought reasoning using Claude Sonnet 4.5
     """
 
-    def __init__(self, model: str = DEFAULT_MODEL, temperature: float = 0.2):
+    def __init__(self, model: str = DEFAULT_MODEL, temperature: float = 0.2,
+                 max_tokens: int = 2000):
         super().__init__(
             role=AgentRole.REASONING,
             model=model,
             temperature=temperature,  # Slightly higher for nuanced reasoning
+            # Cap output: unbounded chain-of-thought was generating ~4k-token
+            # (~15k-char) reasoning that dominated end-to-end latency and inflated
+            # the writing agent's input. A focused 2k-token cap keeps the legal
+            # reasoning while making batch/statistical runs practical.
+            max_tokens=max_tokens,
         )
 
     def get_system_prompt(self) -> str:
@@ -200,7 +206,8 @@ Apply the provisions to the stated facts using chain-of-thought reasoning:
 5. State counterarguments and the strength of the case
 6. Conclude with the likely legal consequences
 
-Be thorough and systematic. Do not introduce any article that is not listed above."""
+Be precise and well-structured but concise — avoid repetition and filler; aim for
+a focused legal analysis, not exhaustive prose. Do not introduce any article that is not listed above."""
         else:
             user_message = f"""Legal reasoning task.
 
@@ -221,6 +228,7 @@ Using chain-of-thought reasoning:
 4. Address each legal question explicitly
 5. Conclude with a clear, direct statement of what the law provides
 
-Be thorough and precise. Do not introduce any article that is not listed above."""
+Be precise and well-structured but concise — avoid repetition and filler; aim for
+a focused legal analysis, not exhaustive prose. Do not introduce any article that is not listed above."""
 
         return self.invoke_llm(user_message)

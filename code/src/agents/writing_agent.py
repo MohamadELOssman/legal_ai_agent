@@ -14,8 +14,12 @@ from src.utils.prompt_loader import load_agent_prompt
 
 class WritingAgent(BaseAgent):
 
-    def __init__(self, model: str = DEFAULT_MODEL, temperature: float = 0.3):
-        super().__init__(role=AgentRole.WRITING, model=model, temperature=temperature)
+    def __init__(self, model: str = DEFAULT_MODEL, temperature: float = 0.3,
+                 max_tokens: int = 3000):
+        # Cap output: a full structured memo fits comfortably in ~3k tokens; the
+        # uncapped 4k budget made generation run ~240s and risked timeouts.
+        super().__init__(role=AgentRole.WRITING, model=model, temperature=temperature,
+                         max_tokens=max_tokens)
 
     def get_system_prompt(self) -> str:
         prompt = load_agent_prompt("writing")
@@ -119,6 +123,7 @@ Write a structured memorandum with these sections:
 5. الخلاصة / CONCLUSION — direct answer to the question
 
 Tone: {structured_query.get('legal_domain', 'educational')} — educational and clear.
+Keep it focused and professional — avoid filler and repetition.
 Cite every article you reference."""
 
         return self.invoke_llm(user_message)
@@ -190,6 +195,7 @@ Write a structured case assessment memorandum with these sections:
 6. الخلاصة والتوصيات / CONCLUSION & RECOMMENDATIONS — concrete advice for the client
 
 Tone: advisory — written for a lawyer advising a client.
+Keep it focused and professional — avoid filler and repetition.
 Cite every article and case you reference."""
 
         return self.invoke_llm(user_message)

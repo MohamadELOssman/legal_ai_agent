@@ -84,8 +84,11 @@ class SystemConfig(BaseSettings):
     chunk_overlap: int = 200
 
     # System
-    max_agent_retries: int = 3
-    agent_timeout: int = 60
+    max_agent_retries: int = 2
+    # Per-request timeout (seconds). Must accommodate long legal generation:
+    # the Analysis and Writing agents legitimately take 1-3 minutes, so a short
+    # timeout causes spurious timeouts + retries that fail the pipeline.
+    agent_timeout: int = 300
     debug: bool = False
     log_level: str = "INFO"
     log_file: str = "./logs/legal_ai.log"
