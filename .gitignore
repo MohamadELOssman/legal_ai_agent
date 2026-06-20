@@ -37,6 +37,7 @@ benchmark_*.json
 retrieval_eval_*.json
 embedding_study_*.json
 chunking_study_*.json
+study_*.json
 _smoke*.json
 
 # ── Derived artifacts (reproducible via scripts/build_index.py) ──

@@ -62,6 +62,59 @@ def extract_json(text: str) -> dict:
     return {}
 
 
+# ── Objective citation metrics (vs verified gold article numbers) ────────────────
+
+# Arabic-Indic digits -> ASCII, so "المادة ٥٤٧" matches gold "547".
+_AR_INDIC = str.maketrans("٠١٢٣٤٥٦٧٨٩", "0123456789")
+
+# A citation keyword (Arabic singular/dual/plural of "article", or English
+# article/art.) followed by a short run that may list several numbers joined by
+# connectors, e.g. "المواد 638 و 639", "Articles 453, 456 and 459".
+_CITE_KEYWORD = re.compile(
+    r"(?:الماد[ةتّ]\w*|الموادّ?|المواد|articles?|art\.?)\s*([0-9][0-9\s,،/\-وandAND&]{0,40})",
+    re.IGNORECASE,
+)
+_NUM = re.compile(r"\d{1,3}")
+
+
+def extract_cited_articles(text: str) -> set:
+    """Extract the set of article numbers a memorandum cites (AR + EN forms).
+
+    Normalizes Arabic-Indic digits and captures multiple numbers per reference
+    (e.g. "المواد 638 و 639") so the citation metric is not silently undercounted.
+    """
+    text = (text or "").translate(_AR_INDIC)
+    out = set()
+    for m in _CITE_KEYWORD.finditer(text):
+        out.update(_NUM.findall(m.group(1)))
+    return out
+
+
+def citation_metrics(cited: set, gold: set) -> dict:
+    """Precision / recall / F1 of cited articles against the gold article set."""
+    if not gold:
+        return {}
+    tp = len(cited & gold)
+    precision = tp / len(cited) if cited else 0.0
+    recall = tp / len(gold)
+    f1 = 2 * precision * recall / (precision + recall) if (precision + recall) else 0.0
+    return {
+        "citation_precision": round(precision, 3),
+        "citation_recall": round(recall, 3),
+        "citation_f1": round(f1, 3),
+        "cited_articles": sorted(cited),
+        "gold_articles": sorted(gold),
+    }
+
+
+def _attach_citation_metrics(rec: dict, tc: dict) -> dict:
+    """Add objective citation metrics to a record when the case carries gold."""
+    gold = set(tc.get("relevant_articles") or tc.get("gold_articles") or [])
+    if gold:
+        rec.update(citation_metrics(extract_cited_articles(rec.get("memorandum", "")), gold))
+    return rec
+
+
 def build_judge(model: str = DEFAULT_MODEL) -> Callable[[str, str], dict]:
     """Return a function that scores a memorandum for a query."""
     from langchain_anthropic import ChatAnthropic
@@ -107,6 +160,7 @@ def _run_multi_agent(cases, score_fn, vectorstore, model, progress) -> List[Dict
             "cost_usd": r.get("usage", {}).get("totals", {}).get("cost_usd"),
             "total_tokens": r.get("usage", {}).get("totals", {}).get("total_tokens"),
         }
+        _attach_citation_metrics(rec, tc)
         if score_fn:
             rec["judge"] = score_fn(tc["query"], rec["memorandum"])
         records.append(rec)
@@ -135,6 +189,7 @@ def _run_baseline(cases, score_fn, system, vectorstore, model, progress) -> List
             "latency_s": lat,
             "documents_retrieved": r.get("documents_retrieved"),
         }
+        _attach_citation_metrics(rec, tc)
         if score_fn:
             rec["judge"] = score_fn(tc["query"], rec["memorandum"])
         records.append(rec)
@@ -178,11 +233,20 @@ def summarize(records: List[Dict]) -> Dict[str, Dict]:
             vals = [r["judge"].get(d, 0) for r in recs if r.get("judge")]
             vals = [v for v in vals if v]
             dim_avgs[d] = round(sum(vals) / len(vals), 2) if vals else None
+
+        def _avg(key):
+            vals = [r[key] for r in recs if r.get(key) is not None]
+            return round(sum(vals) / len(vals), 3) if vals else None
+
         summary[system] = {
             "n": len(recs), "ok": len(ok),
             "avg_score": round(sum(scores) / len(scores), 2) if scores else None,
             "avg_latency_s": round(sum(lats) / len(lats), 2) if lats else None,
             "avg_cost_usd": round(sum(costs) / len(costs), 5) if costs else None,
+            # Objective citation metrics vs gold (when cases carry relevant_articles).
+            "citation_precision": _avg("citation_precision"),
+            "citation_recall": _avg("citation_recall"),
+            "citation_f1": _avg("citation_f1"),
             "dimension_averages": dim_avgs,
         }
     return summary
