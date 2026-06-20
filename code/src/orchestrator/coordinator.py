@@ -25,6 +25,7 @@ from loguru import logger
 
 from src.config import DEFAULT_MODEL
 from src.agents.base_agent import AgentInput, AgentOutput
+from src.utils.trust import compute_trust_report, filter_grounded_provisions
 from src.agents.orchestrator_agent import OrchestratorAgent
 from src.agents.query_understanding_agent import QueryUnderstandingAgent
 from src.agents.research_agent import ResearchAgent
@@ -45,11 +46,15 @@ class LegalAIPipeline:
         score_threshold: float = 0.3,
         vectorstore: Optional[Any] = None,
         load_vectorstore: bool = True,
+        enforce_grounding: bool = False,
     ):
         self.model = model
         self.temperature = temperature
         self.top_k = top_k
         self.score_threshold = score_threshold
+        # When True, only corpus-grounded provisions reach the writing agent, so the
+        # final memorandum cannot be built on hallucinated articles (trust-first).
+        self.enforce_grounding = enforce_grounding
 
         logger.info(f"Initializing LegalAIPipeline (model={model})...")
 
@@ -166,10 +171,15 @@ class LegalAIPipeline:
             citations = out5.result.get("citations", []) if out5.success else []
             validation_report = out5.result.get("validation_report", {}) if out5.success else {}
 
-            # Step 6 — Writing (same safe context construction as app.py)
+            # Step 6 — Writing (same safe context construction as app.py).
+            # Under grounding enforcement, only corpus-grounded provisions reach
+            # the writer so the memorandum cannot rest on hallucinated articles.
+            writing_provisions = (
+                filter_grounded_provisions(provisions) if self.enforce_grounding else provisions
+            )
             writing_ctx = {
                 "structured_query": structured_query,
-                "provisions": provisions,
+                "provisions": writing_provisions,
                 "reasoning": reasoning_text,
                 "citations": citations,
                 "similar_cases": out3.result.get("similar_cases", []),
@@ -195,6 +205,9 @@ class LegalAIPipeline:
                 "reasoning": reasoning_text,
                 "citations": citations,
                 "citation_validation": validation_report,
+                "trust_report": compute_trust_report(
+                    out3.metadata.get("grounding", {}), validation_report),
+                "enforce_grounding": self.enforce_grounding,
                 "memorandum": memorandum,
                 "memorandum_format": out6.result.get("format", "legal_explanation"),
                 "language": out6.result.get("language", structured_query.get("language", "ar")),

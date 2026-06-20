@@ -778,11 +778,29 @@ if st.session_state.active_tab == "Pipeline":
                 _tot_cost = round(sum(u["cost_usd"] for u in _usage.values()), 5)
                 _tot_tok = sum(u["total_tokens"] for u in _usage.values())
 
+                # Trustworthiness: combine grounding + citation verification.
+                from src.utils.trust import compute_trust_report
+                _trust = compute_trust_report(_grounding, _cit_report)
+                results['trust_report'] = _trust
+
                 sc1, sc2, sc3, sc4 = st.columns(4)
                 with sc1: st.metric("Query Type", _qt_label)
                 with sc2: st.metric("Documents Retrieved", len(output2.result.get('retrieved_documents', [])))
-                with sc3: st.metric("Total Tokens", f"{_tot_tok:,}")
+                with sc3: st.metric("Grounding Rate", f"{_trust['grounding_rate']:.0%}")
                 with sc4: st.metric("Est. Cost", f"${_tot_cost:.4f}")
+
+                sc5, sc6, sc7, sc8 = st.columns(4)
+                with sc5: st.metric("Total Tokens", f"{_tot_tok:,}")
+                with sc6: st.metric("Provisions ✓", f"{_trust['provisions_grounded']}/{_trust['provisions_total']}")
+                with sc7: st.metric("Citations ✓", f"{_trust['citations_verified']}/{_trust['citations_total']}")
+                with sc8: st.metric("Hallucination Rate", f"{_trust['hallucination_rate']:.0%}")
+
+                if _trust["hallucination_rate"] > 0:
+                    st.warning(f"⚠️ {_trust['provisions_ungrounded']} ungrounded provision(s) and "
+                               f"{_trust['citations_unverified']} unverified citation(s) — "
+                               "flagged above with ⚠️. Verify these against the source before relying on them.")
+                elif _trust["provisions_total"] > 0:
+                    st.success("✅ All provisions grounded and all citations verified against the corpus.")
 
                 with st.expander("💰 Cost & Performance Breakdown (per agent)", expanded=False):
                     st.dataframe(
