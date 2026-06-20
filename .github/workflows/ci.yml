@@ -1,0 +1,33 @@
+name: CI
+
+on:
+  push:
+    branches: [main, "feat/**"]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: code
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install dev dependencies
+        run: pip install -r requirements-dev.txt
+
+      - name: Lint (real-bug rules only)
+        # E9 syntax, F63/F7 logic, F82 undefined names — catch bugs without
+        # enforcing style on the legacy codebase.
+        run: ruff check src scripts tests --select E9,F63,F7,F82
+
+      - name: Run unit tests
+        env:
+          ANTHROPIC_API_KEY: test-dummy-key
+        run: python -m pytest tests -q

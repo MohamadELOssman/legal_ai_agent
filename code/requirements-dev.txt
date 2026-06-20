@@ -1,0 +1,11 @@
+# Lightweight dependencies for CI (unit tests + lint).
+# The full runtime stack (torch, chromadb, langchain, ...) is in requirements.txt;
+# the unit tests only exercise pure logic, so CI installs just what they import.
+pytest
+ruff
+pydantic
+pydantic-settings
+pyyaml
+loguru
+scipy
+pymupdf
