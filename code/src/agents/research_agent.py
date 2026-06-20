@@ -65,6 +65,14 @@ Your task is to retrieve relevant Lebanese Penal Code articles and court rulings
             top_k = agent_input.metadata.get("k") or agent_input.context.get("top_k", 5)
             score_threshold = agent_input.metadata.get("score_threshold", 0.3)
 
+            # Retrieval strategy is configurable so the evaluation harness can A/B
+            # semantic vs bm25 vs hybrid and rerank on/off. Defaults are EVIDENCE-BASED:
+            # scripts/eval_retrieval.py on the gold set shows plain semantic wins
+            # (nDCG@5 0.64, MRR 0.76); the English-only cross-encoder reranker degrades
+            # this Arabic/legal corpus (hybrid+rerank nDCG@5 drops to 0.25).
+            strategy = agent_input.metadata.get("retrieval_strategy", "semantic")
+            use_reranking = agent_input.metadata.get("use_reranking", False)
+
             orch = agent_input.metadata.get("orchestrator", {})
             research_mode = orch.get("research", {}).get("mode", "articles_and_cases")
 
@@ -73,6 +81,8 @@ Your task is to retrieve relevant Lebanese Penal Code articles and court rulings
                 top_k=top_k,
                 score_threshold=score_threshold,
                 research_mode=research_mode,
+                strategy=strategy,
+                use_reranking=use_reranking,
             )
 
             logger.info(f"Retrieved {len(retrieved_documents)} legal documents")
@@ -85,7 +95,8 @@ Your task is to retrieve relevant Lebanese Penal Code articles and court rulings
                 },
                 metadata={
                     "agent": self.role.value,
-                    "retrieval_strategy": "semantic",
+                    "retrieval_strategy": strategy,
+                    "use_reranking": use_reranking,
                     "top_k": top_k,
                     "score_threshold": score_threshold,
                 },
@@ -110,12 +121,17 @@ Your task is to retrieve relevant Lebanese Penal Code articles and court rulings
         top_k: int = 5,
         score_threshold: float = 0.3,
         research_mode: str = "articles_and_cases",
+        strategy: str = "semantic",
+        use_reranking: bool = False,
     ) -> List[Dict[str, Any]]:
         """
-        Single-pass semantic search with separate pools for articles and rulings.
+        Retrieve with separate pools for articles and rulings.
 
           articles_only       — legal_code pool only
           articles_and_cases  — legal_code pool + court_ruling pool
+
+        strategy: "semantic" | "bm25" | "hybrid" (BM25 + dense).
+        use_reranking: apply cross-encoder reranking to the candidate set.
         """
         article_docs = []
         ruling_docs  = []
@@ -125,8 +141,8 @@ Your task is to retrieve relevant Lebanese Penal Code articles and court rulings
             results = self.vectorstore.search(
                 query=query,
                 k=top_k,
-                strategy="semantic",
-                use_reranking=False,
+                strategy=strategy,
+                use_reranking=use_reranking,
                 score_threshold=score_threshold,
                 filter_dict={"source_type": "legal_code"},
             )
@@ -148,8 +164,8 @@ Your task is to retrieve relevant Lebanese Penal Code articles and court rulings
                 results = self.vectorstore.search(
                     query=query,
                     k=4,
-                    strategy="semantic",
-                    use_reranking=False,
+                    strategy=strategy,
+                    use_reranking=use_reranking,
                     score_threshold=0.3,
                     filter_dict={"source_type": "court_ruling"},
                 )

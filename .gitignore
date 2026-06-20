@@ -34,4 +34,10 @@ logs/
 eval_*.json
 comparison_*.json
 benchmark_*.json
+retrieval_eval_*.json
 _smoke*.json
+
+# ── Derived artifacts (reproducible via scripts/build_index.py) ──
+# The Chroma vector store is rebuilt from the processed JSON sources; don't track
+# its large, churning binaries.
+code/data_processed/vectorstore/

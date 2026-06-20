@@ -1,0 +1,20 @@
+{
+  "_description": "Retrieval ground truth for the Lebanese Penal Code corpus. relevant_articles = the Penal Code article numbers that correctly answer the query (language-agnostic: an article is relevant whether retrieved in Arabic or English). Used by scripts/eval_retrieval.py to compute precision@k, recall@k, MRR, nDCG.",
+  "cases": [
+    {"id": "RT1", "query": "ما العقوبة التي يستحقها من قتل إنساناً قصداً بالأشغال الشاقة؟", "lang": "ar", "relevant_articles": ["547", "549"]},
+    {"id": "RT2", "query": "ما هي حالات القتل العمد المشددة التي تستوجب الإعدام أو الأشغال الشاقة المؤبدة؟", "lang": "ar", "relevant_articles": ["548", "549"]},
+    {"id": "RT3", "query": "ما هي الأفعال التي تُعدّ دفاعاً مشروعاً عن النفس والأموال؟", "lang": "ar", "relevant_articles": ["563"]},
+    {"id": "RT4", "query": "ما عقوبة من يُكره شخصاً على الجماع بالعنف أو التهديد؟", "lang": "ar", "relevant_articles": ["503", "504"]},
+    {"id": "RT5", "query": "ما هي عقوبة السرقة المشددة بالكسر والخلع؟", "lang": "ar", "relevant_articles": ["638", "639"]},
+    {"id": "RT6", "query": "ما هي عقوبة تزوير الأوراق الرسمية؟", "lang": "ar", "relevant_articles": ["453", "456", "459"]},
+    {"id": "RT7", "query": "ما هي أركان جريمة الاحتيال؟", "lang": "ar", "relevant_articles": ["655", "656"]},
+    {"id": "RT8", "query": "هل يستفيد من العذر المخفف من يفاجئ زوجه في جرم الزنا المشهود؟", "lang": "ar", "relevant_articles": ["562"]},
+    {"id": "RT9", "query": "ما هي عقوبة القتل غير العمد الناتج عن الإهمال؟", "lang": "ar", "relevant_articles": ["564", "565"]},
+    {"id": "RT10", "query": "ما عقوبة القتل العمد قصداً؟", "lang": "ar", "relevant_articles": ["547", "549"]},
+    {"id": "RT11", "query": "What is the penalty for premeditated murder?", "lang": "en", "relevant_articles": ["549"]},
+    {"id": "RT12", "query": "What is the penalty for intentional homicide?", "lang": "en", "relevant_articles": ["547", "549"]},
+    {"id": "RT13", "query": "What are the conditions for legitimate self-defence?", "lang": "en", "relevant_articles": ["563"]},
+    {"id": "RT14", "query": "What is the punishment for forgery of official documents?", "lang": "en", "relevant_articles": ["453", "456", "459"]},
+    {"id": "RT15", "query": "What is the penalty for fraud and swindling?", "lang": "en", "relevant_articles": ["655", "656"]}
+  ]
+}

@@ -1,0 +1,23 @@
+{
+  "built_at": "2026-06-20T14:16:50",
+  "total_documents": 713,
+  "articles": 659,
+  "rulings": 54,
+  "per_source": {
+    "panel_code_AR.json": 417,
+    "penal_code_EN.json": 242,
+    "use_cases.json": 54
+  },
+  "by_language": {
+    "ar": 471,
+    "en": 242
+  },
+  "by_type": {
+    "penal_code": 659,
+    "court_ruling": 54
+  },
+  "article_index_counts": {
+    "penal_code": 553
+  },
+  "vectorstore_dir": "data_processed/vectorstore"
+}
