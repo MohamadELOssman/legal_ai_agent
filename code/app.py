@@ -1517,6 +1517,7 @@ Return ONLY valid JSON — no prose, no markdown, no code fences:
                                         _scores.get("retrieval_completeness", 0),
                                     ]) / 5, 2),
                                     "explanation": _scores.get("explanation", ""),
+                                    "retrieved_documents": _docs,
                                 })
                             else:
                                 entry.update({"status": "failed", "error": _out.error,
@@ -1607,6 +1608,27 @@ Return ONLY valid JSON — no prose, no markdown, no code fences:
                         with st.expander(f"📝 {r['id']} — {r['query'][:55]}…"):
                             st.markdown(f"**Score:** {r.get('avg_score','N/A')} / 5")
                             st.markdown(f"**Explanation:** {r.get('explanation','')}")
+
+                            # Agent 2: show the actual chunks the judge scored.
+                            _r_docs = r.get("retrieved_documents", [])
+                            if _r_docs:
+                                st.markdown(f"**Retrieved chunks ({len(_r_docs)}):**")
+                                for _i, _d in enumerate(_r_docs, 1):
+                                    _m = _d.get("metadata", {})
+                                    _is_ruling = _d.get("result_type") == "court_ruling"
+                                    _icon = "⚖️" if _is_ruling else "📄"
+                                    _label = (_m.get("case_number") or _m.get("document_id", "N/A")
+                                              if _is_ruling
+                                              else f"Art. {_m.get('article_number', 'N/A')}")
+                                    _lang = _m.get("document_language", "")
+                                    _content = _d.get("content", "")
+                                    st.markdown(
+                                        f"**{_i}. {_icon} {_label}**  "
+                                        f"·  `{_m.get('source_type', '?')}`  ·  `{_lang}`"
+                                    )
+                                    st.text(_content[:400] + ("…" if len(_content) > 400 else ""))
+
+                            # Agent 1: show the structured output.
                             if "agent_output" in r:
                                 st.json(r["agent_output"])
 
