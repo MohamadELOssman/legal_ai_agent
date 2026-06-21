@@ -74,7 +74,10 @@ Your task is to retrieve relevant Lebanese Penal Code articles and court rulings
             use_reranking = agent_input.metadata.get("use_reranking", False)
 
             orch = agent_input.metadata.get("orchestrator", {})
-            research_mode = orch.get("research", {}).get("mode", "articles_and_cases")
+            # Default to articles_only when no orchestrator decision is supplied
+            # (standalone / benchmark calls), so the retrieved count is predictable
+            # (== top_k). The end-to-end pipeline always sets the mode explicitly.
+            research_mode = orch.get("research", {}).get("mode", "articles_only")
 
             retrieved_documents = self._retrieve_documents(
                 query=query,
@@ -163,10 +166,10 @@ Your task is to retrieve relevant Lebanese Penal Code articles and court rulings
             try:
                 results = self.vectorstore.search(
                     query=query,
-                    k=4,
+                    k=top_k,  # same budget as the article pool (was hardcoded 4)
                     strategy=strategy,
                     use_reranking=use_reranking,
-                    score_threshold=0.3,
+                    score_threshold=score_threshold,
                     filter_dict={"source_type": "court_ruling"},
                 )
                 ruling_docs = [

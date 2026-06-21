@@ -454,7 +454,7 @@ if st.session_state.active_tab == "Pipeline":
                                     help="0 = deterministic · 1 = creative")
         with c3:
             num_documents = st.slider("Documents", 1, 20, 5, key="pipe_docs",
-                                      help="Chunks retrieved per query")
+                                      help="Article chunks to retrieve. Case-analysis queries also retrieve up to this many court rulings.")
         with c4:
             similarity_threshold = st.slider("Threshold", 0.0, 1.0, 0.3, 0.05, key="pipe_thresh",
                                              help="Min cosine similarity for article retrieval")
@@ -859,7 +859,7 @@ elif st.session_state.active_tab == "Agents":
             temperature = st.slider("Temperature", 0.0, 1.0, 0.1, 0.05, key="agent_temp")
         with a3:
             num_documents = st.slider("Documents", 1, 20, 5, key="agent_docs",
-                                      help="Chunks retrieved (Agent 2 only)")
+                                      help="Article chunks to retrieve (Agent 2). Standalone runs retrieve articles only.")
         with a4:
             similarity_threshold = st.slider("Threshold", 0.0, 1.0, 0.3, 0.05, key="agent_thresh",
                                              help="Min cosine similarity for article retrieval")
@@ -1159,7 +1159,7 @@ elif st.session_state.active_tab == "Bench":
                     help="Model the agent will use")
             with bc4:
                 num_documents = st.slider("Documents", 1, 20, 5, key="bench_docs",
-                    help="Chunks retrieved (Agent 2)")
+                    help="Article chunks to retrieve (Agent 2). Standalone benchmark retrieves articles only, so this is the total.")
             with bc5:
                 similarity_threshold = st.slider("Threshold", 0.0, 1.0, 0.6, 0.05, key="bench_thresh",
                     help="Min cosine similarity (Agent 2)")
