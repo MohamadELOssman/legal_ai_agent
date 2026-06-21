@@ -12,6 +12,41 @@ from src.config import DEFAULT_MODEL
 from src.utils.prompt_loader import load_agent_prompt
 
 
+# Human-readable language names for the strict single-language instruction.
+LANG_NAME = {
+    "ar": "Arabic (العربية الفصحى)",
+    "fr": "French (français)",
+    "en": "English",
+}
+
+# Section headings per language — the memorandum is written entirely in the query
+# language, so headings must match it (no bilingual "الموضوع / SUBJECT" mixing).
+SECTIONS_EXPLANATION = {
+    "ar": ["الموضوع", "الإطار القانوني", "الشروط والأحكام", "العقوبات والآثار", "الخلاصة"],
+    "fr": ["Objet", "Cadre juridique", "Conditions et règles", "Peines et conséquences", "Conclusion"],
+    "en": ["Subject", "Legal Framework", "Conditions & Rules", "Penalties & Consequences", "Conclusion"],
+}
+SECTIONS_ASSESSMENT = {
+    "ar": ["الموضوع", "وقائع القضية", "النصوص القانونية المنطبقة",
+           "مقارنة بالسوابق القضائية", "التقدير القانوني", "الخلاصة والتوصيات"],
+    "fr": ["Objet", "Faits", "Dispositions applicables",
+           "Comparaison avec la jurisprudence", "Appréciation juridique", "Conclusion et recommandations"],
+    "en": ["Subject", "Facts", "Applicable Law",
+           "Precedent Comparison", "Legal Assessment", "Conclusion & Recommendations"],
+}
+
+
+def _language_directive(language: str) -> str:
+    """A strict instruction to write the whole memo in one language only."""
+    name = LANG_NAME.get(language, LANG_NAME["ar"])
+    return (f"Write the ENTIRE memorandum — including every section heading — in {name} ONLY. "
+            f"Do NOT produce bilingual text, and do NOT translate or duplicate headings in another language.")
+
+
+def _numbered_sections(sections: list) -> str:
+    return "\n".join(f"{i}. {s}" for i, s in enumerate(sections, 1))
+
+
 class WritingAgent(BaseAgent):
 
     def __init__(self, model: str = DEFAULT_MODEL, temperature: float = 0.3,
@@ -82,11 +117,8 @@ Only cite articles that are supplied to you; never invent legal references."""
         self, structured_query, provisions, reasoning, citations, language
     ) -> str:
 
-        lang_rule = {
-            "ar": "Write entirely in formal classical Arabic (الفصحى). Use proper Lebanese legal terminology.",
-            "fr": "Write entirely in formal French legal style.",
-            "en": "Write entirely in professional legal English.",
-        }.get(language, "Write in formal Arabic.")
+        lang = language if language in SECTIONS_EXPLANATION else "ar"
+        sections = _numbered_sections(SECTIONS_EXPLANATION[lang])
 
         provisions_text = "\n\n".join(
             f"Article {p.get('article_number', '')}: {p.get('provision_text', '')[:300]}\n"
@@ -102,9 +134,10 @@ Only cite articles that are supplied to you; never invent legal references."""
 
         user_message = f"""Write a legal explanation memorandum.
 
+{_language_directive(lang)}
+
 QUERY: {structured_query.get('original_query', '')}
 LEGAL DOMAIN: {structured_query.get('legal_domain', '')}
-LANGUAGE RULE: {lang_rule}
 
 APPLICABLE PROVISIONS:
 {provisions_text or 'No provisions retrieved.'}
@@ -115,15 +148,10 @@ LEGAL REASONING:
 CITATIONS:
 {citations_text or 'None.'}
 
-Write a structured memorandum with these sections:
-1. الموضوع / SUBJECT — one line stating the topic
-2. الإطار القانوني / LEGAL FRAMEWORK — list the applicable articles and what they establish
-3. الشروط والأحكام / CONDITIONS & RULES — explain the conditions, requirements, and limitations clearly
-4. العقوبات والآثار / PENALTIES & CONSEQUENCES — what the law prescribes
-5. الخلاصة / CONCLUSION — direct answer to the question
+Structure the memorandum with exactly these sections (use these headings verbatim, in order):
+{sections}
 
-Tone: {structured_query.get('legal_domain', 'educational')} — educational and clear.
-Keep it focused and professional — avoid filler and repetition.
+Tone: educational and clear. Keep it focused and professional — avoid filler and repetition.
 Cite every article you reference."""
 
         return self.invoke_llm(user_message)
@@ -135,11 +163,8 @@ Cite every article you reference."""
         similar_cases, case_assessment, extracted_facts, language
     ) -> str:
 
-        lang_rule = {
-            "ar": "Write entirely in formal classical Arabic (الفصحى). Use proper Lebanese legal terminology.",
-            "fr": "Write entirely in formal French legal style.",
-            "en": "Write entirely in professional legal English.",
-        }.get(language, "Write in formal Arabic.")
+        lang = language if language in SECTIONS_ASSESSMENT else "ar"
+        sections = _numbered_sections(SECTIONS_ASSESSMENT[lang])
 
         facts_text = "\n".join(f"- {f}" for f in extracted_facts) if extracted_facts else "See original query."
 
@@ -161,11 +186,12 @@ Cite every article you reference."""
 
         user_message = f"""Write a legal case assessment memorandum for a lawyer.
 
+{_language_directive(lang)}
+
 CASE FACTS:
 {facts_text}
 
 ORIGINAL QUERY: {structured_query.get('original_query', '')}
-LANGUAGE RULE: {lang_rule}
 
 APPLICABLE LEGAL PROVISIONS:
 {applicable or 'No directly applicable provisions identified.'}
@@ -186,13 +212,8 @@ PRELIMINARY ASSESSMENT:
 CITATIONS:
 {citations_text or 'None.'}
 
-Write a structured case assessment memorandum with these sections:
-1. الموضوع / SUBJECT — one line describing the case situation
-2. وقائع القضية / FACTS — concise summary of the relevant facts
-3. النصوص القانونية المنطبقة / APPLICABLE LAW — each article with explanation of why it applies
-4. مقارنة بالسوابق القضائية / PRECEDENT COMPARISON — compare with similar rulings, note key similarities/differences
-5. التقدير القانوني / LEGAL ASSESSMENT — strength of case, likely outcome based on law and precedent
-6. الخلاصة والتوصيات / CONCLUSION & RECOMMENDATIONS — concrete advice for the client
+Structure the memorandum with exactly these sections (use these headings verbatim, in order):
+{sections}
 
 Tone: advisory — written for a lawyer advising a client.
 Keep it focused and professional — avoid filler and repetition.

@@ -13,6 +13,32 @@ warnings.filterwarnings('ignore', message='.*Accessing `__path__`.*')
 warnings.filterwarnings('ignore', category=FutureWarning, module='transformers')
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
+try:
+    import markdown as _md
+    _MD_AVAILABLE = True
+except Exception:
+    _MD_AVAILABLE = False
+
+
+def render_legal_document(memo: str, language: str = "ar"):
+    """Render a memorandum as a clean, direction-aware legal document card.
+
+    Converts markdown to HTML so it can be wrapped with the correct text
+    direction (RTL for Arabic) and styled as a professional document — instead
+    of Streamlit's default left-aligned markdown with heading-anchor clutter.
+    """
+    rtl = (language or "ar") == "ar"
+    direction = "rtl" if rtl else "ltr"
+    align = "right" if rtl else "left"
+    if _MD_AVAILABLE:
+        body = _md.markdown(memo or "", extensions=["extra", "sane_lists", "nl2br"])
+    else:
+        body = (memo or "").replace("\n", "<br>")
+    st.markdown(
+        f'<div class="legal-doc" dir="{direction}" style="text-align:{align}">{body}</div>',
+        unsafe_allow_html=True,
+    )
+
 
 # ── Utilities ──────────────────────────────────────────────────────────────────
 
@@ -320,10 +346,45 @@ h4 { color: #475569; font-weight: 600; }
 .footer-sub   { color: #64748b; font-size: 0.82rem; margin-bottom: 0.75rem; }
 .footer-tags  { display: flex; justify-content: center; gap: 2rem; font-size: 0.8rem; color: #94a3b8; flex-wrap: wrap; }
 
+/* ── Legal document card (direction-aware memorandum) ── */
+.legal-doc {
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 0.75rem;
+    padding: 2.25rem 2.5rem;
+    margin: 0.5rem 0 1rem 0;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+    color: #1e293b;
+    font-size: 1rem;
+    line-height: 1.95;
+    font-family: 'Inter', 'Segoe UI', system-ui, sans-serif;
+}
+.legal-doc h1 { font-size: 1.45rem; font-weight: 800; color: #0f172a; margin: 0 0 0.4rem 0; border: none; padding: 0; }
+.legal-doc h2 {
+    font-size: 1.12rem; font-weight: 700; color: #1e3a5f;
+    margin: 1.6rem 0 0.6rem 0; padding-bottom: 0.35rem;
+    border-bottom: 2px solid #eef2f7;
+}
+.legal-doc h3 { font-size: 1rem; font-weight: 700; color: #334155; margin: 1.1rem 0 0.4rem 0; }
+.legal-doc p { margin: 0.5rem 0; }
+.legal-doc ul, .legal-doc ol { margin: 0.4rem 0; }
+.legal-doc[dir="rtl"] ul, .legal-doc[dir="rtl"] ol { padding-right: 1.5rem; padding-left: 0; }
+.legal-doc[dir="ltr"] ul, .legal-doc[dir="ltr"] ol { padding-left: 1.5rem; }
+.legal-doc li { margin: 0.3rem 0; }
+.legal-doc strong { color: #0f172a; }
+.legal-doc hr { border: none; border-top: 1px solid #eef2f7; margin: 1.25rem 0; }
+
+/* Sources footer (verified-citation list), direction-aware */
+.sources-box {
+    background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 0.75rem;
+    padding: 1rem 1.25rem; margin-top: 1rem; font-size: 0.9rem; line-height: 1.9;
+}
+
 @media (max-width: 768px) {
     .block-container { padding: 1rem !important; }
     .app-header { padding: 1rem; flex-direction: column; gap: 0.75rem; }
     .footer-tags { gap: 1rem; }
+    .legal-doc { padding: 1.5rem 1.25rem; }
 }
 </style>
 """, unsafe_allow_html=True)
@@ -752,14 +813,20 @@ if st.session_state.active_tab == "Pipeline":
                         f'<span class="status-pill {_fmt_color}">{_fmt_label}</span>',
                         unsafe_allow_html=True,
                     )
-                    st.markdown("---")
-                    st.markdown(memorandum)
+                    render_legal_document(memorandum, memo_lang)
                     if _cits:
-                        st.markdown("---")
-                        st.markdown("**Sources cited**")
-                        for c in _cits:
-                            _badge = "✅" if c.get("verified", False) else "⚠️"
-                            st.markdown(f"{_badge} {c.get('citation_text', '')}")
+                        _dir = "rtl" if memo_lang == "ar" else "ltr"
+                        _align = "right" if memo_lang == "ar" else "left"
+                        _src_title = {"ar": "المصادر المذكورة", "fr": "Sources citées"}.get(memo_lang, "Sources cited")
+                        _rows = "".join(
+                            f'<div>{"✅" if c.get("verified", False) else "⚠️"} {c.get("citation_text", "")}</div>'
+                            for c in _cits
+                        )
+                        st.markdown(
+                            f'<div class="sources-box" dir="{_dir}" style="text-align:{_align}">'
+                            f'<strong>{_src_title}</strong>{_rows}</div>',
+                            unsafe_allow_html=True,
+                        )
                         st.caption("✅ verified against the Lebanese Penal Code corpus · "
                                    "⚠️ not found in corpus (verify manually)")
 
@@ -1102,7 +1169,7 @@ elif st.session_state.active_tab == "Agents":
                         with c3: st.metric("Status",     "✓ Complete")
                         st.markdown("---")
                         st.markdown("#### Legal Memorandum")
-                        st.markdown(memorandum)
+                        render_legal_document(memorandum, language)
                         st.download_button(
                             "📥 Download Memorandum",
                             data=memorandum,
