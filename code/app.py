@@ -420,7 +420,8 @@ for _k, _v in [
 
 _MODELS = {
     "claude-sonnet-4-5":          "Sonnet 4.5  ★",
-    "claude-opus-4-8":            "Opus 4.8",
+    "claude-sonnet-4-6":          "Sonnet 4.6",
+    "claude-opus-4-6":            "Opus 4.6",
     "claude-haiku-4-5-20251001":  "Haiku 4.5",
 }
 
@@ -1218,8 +1219,8 @@ elif st.session_state.active_tab == "Bench":
                     key="bench_target")
             with bc2:
                 judge_model = st.selectbox("Judge Model",
-                    ["claude-sonnet-4-5", "claude-opus-4-8"], key="bench_judge_model",
-                    help="Model used to score outputs")
+                    ["claude-sonnet-4-5", "claude-sonnet-4-6", "claude-opus-4-6"],
+                    key="bench_judge_model", help="Model used to score outputs")
             with bc3:
                 bench_model = st.selectbox("Agent Model", list(_MODELS),
                     format_func=lambda x: _MODELS[x], key="bench_agent_model",
