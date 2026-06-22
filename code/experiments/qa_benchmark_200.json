@@ -1,0 +1,2288 @@
+{
+  "generated_at": "2026-06-21T17:41:13",
+  "model": "claude-sonnet-4-5",
+  "count": 196,
+  "distribution": {
+    "by_lang": {
+      "ar": 69,
+      "en": 65,
+      "fr": 62
+    },
+    "by_type": {
+      "general_legal_query": 72,
+      "case_analysis": 124
+    },
+    "by_source": {
+      "article": 148,
+      "ruling": 48
+    }
+  },
+  "cases": [
+    {
+      "query": "ما هي العقوبة المنصوص عليها في القانون اللبناني إذا أدى الاعتداء إلى بتر أحد الأطراف أو تعطيل إحدى الحواس؟",
+      "lang": "ar",
+      "type": "general_legal_query",
+      "relevant_articles": [
+        "557"
+      ],
+      "topic": "Penalties for severe bodily harm",
+      "source": "article",
+      "id": "BQ001"
+    },
+    {
+      "query": "شخص دخل إلى منزل جاره ليلاً بعد كسر الباب الخلفي دون إذنه. ما هي العقوبة التي يواجهها وفقاً للقانون اللبناني؟",
+      "lang": "ar",
+      "type": "case_analysis",
+      "relevant_articles": [
+        "571"
+      ],
+      "topic": "Illegal entry at night with breaking",
+      "source": "article",
+      "id": "BQ002"
+    },
+    {
+      "query": "كيف يعرّف القانون الجزائي اللبناني مصطلح 'الرحل' وما هي الفئات المشمولة بهذا التعريف؟",
+      "lang": "ar",
+      "type": "general_legal_query",
+      "relevant_articles": [
+        "619"
+      ],
+      "topic": "Definition of nomads",
+      "source": "article",
+      "id": "BQ003"
+    },
+    {
+      "query": "جار قام بتخريب سياج حديقة جاره عمداً، وكانت قيمة الضرر تقدر بخمسة وثلاثين ألف ليرة. ما هي العقوبات الممكنة بحقه؟",
+      "lang": "ar",
+      "type": "case_analysis",
+      "relevant_articles": [
+        "733"
+      ],
+      "topic": "Intentional property damage",
+      "source": "article",
+      "id": "BQ004"
+    },
+    {
+      "query": "ما هو المبدأ القانوني المتعلق بتطبيق القوانين الجديدة التي تعدل شروط التجريم بشكل ينفع المتهم في القانون اللبناني؟",
+      "lang": "ar",
+      "type": "general_legal_query",
+      "relevant_articles": [
+        "3"
+      ],
+      "topic": "Retroactive application of favorable laws",
+      "source": "article",
+      "id": "BQ005"
+    },
+    {
+      "query": "شخص هدد آخر شفهياً بارتكاب جناية ضده لكن دون أن يتضمن التهديد أي أمر محدد. ما هي العقوبة المحتملة لهذا الفعل؟",
+      "lang": "ar",
+      "type": "case_analysis",
+      "relevant_articles": [
+        "575"
+      ],
+      "topic": "Verbal threats without conditions",
+      "source": "article",
+      "id": "BQ006"
+    },
+    {
+      "query": "What constitutes forgery under Lebanese law, and what are the key elements that must be present for an act to be considered forgery?",
+      "lang": "en",
+      "type": "general_legal_query",
+      "relevant_articles": [
+        "453"
+      ],
+      "topic": "Definition of forgery",
+      "source": "article",
+      "id": "BQ007"
+    },
+    {
+      "query": "A shopkeeper knowingly sold cooking oil that had been adulterated with cheaper substances to increase his profit margin. What penalties does he face under the Penal Code?",
+      "lang": "en",
+      "type": "case_analysis",
+      "relevant_articles": [
+        "607"
+      ],
+      "topic": "Food adulteration",
+      "source": "article",
+      "id": "BQ008"
+    },
+    {
+      "query": "What are the penalties for someone who inappropriately touches a 13-year-old child in an indecent manner without consent?",
+      "lang": "en",
+      "type": "general_legal_query",
+      "relevant_articles": [
+        "519"
+      ],
+      "topic": "Indecent acts with minors",
+      "source": "article",
+      "id": "BQ009"
+    },
+    {
+      "query": "During a bankruptcy proceeding, a creditor secretly negotiated with the bankrupt debtor to receive additional payment from the debtor's assets in exchange for voting favorably. What criminal liability does this creditor face?",
+      "lang": "en",
+      "type": "case_analysis",
+      "relevant_articles": [
+        "696"
+      ],
+      "topic": "Bankruptcy fraud",
+      "source": "article",
+      "id": "BQ010"
+    },
+    {
+      "query": "Which games are specifically classified as games of chance under the Lebanese Penal Code, and what is the legal criterion that distinguishes gambling games from other games?",
+      "lang": "en",
+      "type": "general_legal_query",
+      "relevant_articles": [
+        "632"
+      ],
+      "topic": "Gambling games definition",
+      "source": "article",
+      "id": "BQ011"
+    },
+    {
+      "query": "A man broke into a residential building at night and stole jewelry from an apartment. He was later caught pickpocketing a pedestrian on the street. How would the theft penalties differ for these two incidents?",
+      "lang": "en",
+      "type": "case_analysis",
+      "relevant_articles": [
+        "636"
+      ],
+      "topic": "Aggravated theft circumstances",
+      "source": "article",
+      "id": "BQ012"
+    },
+    {
+      "query": "Quelles sont les peines prévues par le Code pénal libanais pour une personne qui prive autrui de sa liberté personnelle par enlèvement ou tout autre moyen ?",
+      "lang": "fr",
+      "type": "general_legal_query",
+      "relevant_articles": [
+        "569"
+      ],
+      "topic": "Kidnapping and deprivation of liberty",
+      "source": "article",
+      "id": "BQ013"
+    },
+    {
+      "query": "Un commerçant a vendu des produits portant une marque contrefaite appartenant à une autre entreprise. Il affirme qu'il ignorait que la marque était contrefaite. Quelle est la responsabilité pénale dans ce cas selon le droit libanais ?",
+      "lang": "fr",
+      "type": "case_analysis",
+      "relevant_articles": [
+        "702"
+      ],
+      "topic": "Trademark counterfeiting",
+      "source": "article",
+      "id": "BQ014"
+    },
+    {
+      "query": "Quelles sont les sanctions applicables à une personne trouvée en possession d'instruments ou d'outils destinés à la fabrication de monnaie ou de billets de banque libanais de manière illicite ?",
+      "lang": "fr",
+      "type": "general_legal_query",
+      "relevant_articles": [
+        "449"
+      ],
+      "topic": "Possession of counterfeiting tools",
+      "source": "article",
+      "id": "BQ015"
+    },
+    {
+      "query": "Un conducteur a causé la mort d'un piéton en raison de sa négligence et du non-respect du code de la route. Quelle peine risque-t-il selon le Code pénal libanais ?",
+      "lang": "fr",
+      "type": "case_analysis",
+      "relevant_articles": [
+        "564"
+      ],
+      "topic": "Involuntary manslaughter",
+      "source": "article",
+      "id": "BQ016"
+    },
+    {
+      "query": "Un vendeur a trompé son client sur la composition essentielle d'une marchandise lors d'une transaction commerciale. Quelles sont les peines prévues pour cette infraction de tromperie ?",
+      "lang": "fr",
+      "type": "case_analysis",
+      "relevant_articles": [
+        "682"
+      ],
+      "topic": "Commercial fraud",
+      "source": "article",
+      "id": "BQ017"
+    },
+    {
+      "query": "Quelles sont les peines accessoires ou complémentaires énumérées dans le Code pénal libanais qui peuvent accompagner une condamnation principale ?",
+      "lang": "fr",
+      "type": "general_legal_query",
+      "relevant_articles": [
+        "42"
+      ],
+      "topic": "Accessory penalties",
+      "source": "article",
+      "id": "BQ018"
+    },
+    {
+      "query": "ما هي العقوبة المنصوص عليها في القانون اللبناني لمن يبيع مواد غذائية فاسدة ضارة بصحة الإنسان؟",
+      "lang": "ar",
+      "type": "general_legal_query",
+      "relevant_articles": [
+        "608"
+      ],
+      "topic": "Sale of harmful adulterated products",
+      "source": "article",
+      "id": "BQ019"
+    },
+    {
+      "query": "صاحب محل تجاري نسب لنفسه جوائز صناعية وهمية ووضعها على واجهة متجره بهدف جذب الزبائن وخداعهم. ما هي العقوبة التي يمكن أن يواجهها وفقاً للقانون اللبناني؟",
+      "lang": "ar",
+      "type": "case_analysis",
+      "relevant_articles": [
+        "718"
+      ],
+      "topic": "Fraudulent attribution of industrial awards",
+      "source": "article",
+      "id": "BQ020"
+    },
+    {
+      "query": "هل يمكن تطبيق قانون جديد يعدل طريقة تنفيذ عقوبة ما على أفعال ارتكبت قبل نفاذه؟ وما هي الشروط؟",
+      "lang": "ar",
+      "type": "general_legal_query",
+      "relevant_articles": [
+        "10"
+      ],
+      "topic": "Retroactive application of penalty execution",
+      "source": "article",
+      "id": "BQ021"
+    },
+    {
+      "query": "مزارع قام بهدم سور حجري يفصل بين أرضه وأرض جاره، ثم نزع علامات الحدود التي كانت تشير إلى الفصل بين الملكيتين. ما العقوبة التي يواجهها بموجب القانون الجزائي اللبناني؟",
+      "lang": "ar",
+      "type": "case_analysis",
+      "relevant_articles": [
+        "735"
+      ],
+      "topic": "Destruction of boundary markers",
+      "source": "article",
+      "id": "BQ022"
+    },
+    {
+      "query": "ما هو الحد الأدنى والأعلى لعقوبة الأشغال الشاقة المؤقتة في القانون اللبناني إذا لم ينص القانون على خلاف ذلك؟",
+      "lang": "ar",
+      "type": "general_legal_query",
+      "relevant_articles": [
+        "44"
+      ],
+      "topic": "Duration limits of temporary hard labor",
+      "source": "article",
+      "id": "BQ023"
+    },
+    {
+      "query": "تاجر باع لزبون علبة حليب فاسدة تسببت بتسمم غذائي، علماً أن الزبون كان يعلم أن المنتج منتهي الصلاحية لكنه اشتراه بسعر مخفض. هل يعفى التاجر من العقوبة بحجة أن المشتري كان على علم بالفساد؟",
+      "lang": "ar",
+      "type": "case_analysis",
+      "relevant_articles": [
+        "608"
+      ],
+      "topic": "Sale of harmful products with buyer knowledge",
+      "source": "article",
+      "id": "BQ024"
+    },
+    {
+      "query": "What does Lebanese law say about the confiscation of objects used in or resulting from intentional crimes?",
+      "lang": "en",
+      "type": "general_legal_query",
+      "relevant_articles": [
+        "69"
+      ],
+      "topic": "confiscation of crime-related objects",
+      "source": "article",
+      "id": "BQ025"
+    },
+    {
+      "query": "A medical student took a deceased person's body from a hospital morgue without permission to practice dissection techniques at home for educational purposes. What penalties could he face under Lebanese law?",
+      "lang": "en",
+      "type": "case_analysis",
+      "relevant_articles": [
+        "480"
+      ],
+      "topic": "unauthorized use of corpse",
+      "source": "article",
+      "id": "BQ026"
+    },
+    {
+      "query": "What is the punishment prescribed by the Lebanese Penal Code for ordinary individuals who commit forgery in official documents?",
+      "lang": "en",
+      "type": "general_legal_query",
+      "relevant_articles": [
+        "459"
+      ],
+      "topic": "forgery in official documents",
+      "source": "article",
+      "id": "BQ027"
+    },
+    {
+      "query": "During a public demonstration, a person loudly mocked and ridiculed religious rituals that were being performed openly in a public square, encouraging bystanders to despise those practices. What criminal liability does this person face?",
+      "lang": "en",
+      "type": "case_analysis",
+      "relevant_articles": [
+        "474"
+      ],
+      "topic": "contempt of religious rites",
+      "source": "article",
+      "id": "BQ028"
+    },
+    {
+      "query": "A warehouse manager who was entrusted with storing valuable merchandise deliberately sold the goods for personal profit instead of returning them to the owner. Under which article would he be prosecuted and what are the legal consequences?",
+      "lang": "en",
+      "type": "case_analysis",
+      "relevant_articles": [
+        "670"
+      ],
+      "topic": "breach of trust and embezzlement",
+      "source": "article",
+      "id": "BQ029"
+    },
+    {
+      "query": "What are the penalties under Lebanese law for someone who manipulates stock market prices by spreading false information or making fictitious offers to buy or sell?",
+      "lang": "en",
+      "type": "general_legal_query",
+      "relevant_articles": [
+        "685"
+      ],
+      "topic": "market manipulation and fraud",
+      "source": "article",
+      "id": "BQ030"
+    },
+    {
+      "query": "Quelles sont les peines prévues par le Code pénal libanais pour une personne trouvée en état d'ivresse manifeste dans un lieu public ?",
+      "lang": "fr",
+      "type": "general_legal_query",
+      "relevant_articles": [
+        "622"
+      ],
+      "topic": "public drunkenness penalties",
+      "source": "article",
+      "id": "BQ031"
+    },
+    {
+      "query": "Un homme a falsifié son permis de conduire en modifiant la date d'expiration. Avant que le document ne soit utilisé ou qu'une poursuite ne soit engagée, il a avoué son acte aux autorités. Peut-il bénéficier d'une exemption de peine ?",
+      "lang": "fr",
+      "type": "case_analysis",
+      "relevant_articles": [
+        "464",
+        "472"
+      ],
+      "topic": "forgery confession before use",
+      "source": "article",
+      "id": "BQ032"
+    },
+    {
+      "query": "Dans quelles circonstances le meurtre intentionnel est-il puni de la peine de mort selon le droit pénal libanais ?",
+      "lang": "fr",
+      "type": "general_legal_query",
+      "relevant_articles": [
+        "549"
+      ],
+      "topic": "intentional murder death penalty",
+      "source": "article",
+      "id": "BQ033"
+    },
+    {
+      "query": "Marie a reçu une lettre anonyme la menaçant de vandaliser sa voiture si elle ne quitte pas son emploi. La menace porte sur un délit et contient un ordre précis. Quelle sanction encourt l'auteur de cette menace écrite ?",
+      "lang": "fr",
+      "type": "case_analysis",
+      "relevant_articles": [
+        "577"
+      ],
+      "topic": "written threat with demand",
+      "source": "article",
+      "id": "BQ034"
+    },
+    {
+      "query": "Un mari commet l'adultère avec sa maîtresse dans le domicile conjugal. Quelles sont les sanctions pénales applicables au mari et à sa complice selon la loi libanaise ?",
+      "lang": "fr",
+      "type": "case_analysis",
+      "relevant_articles": [
+        "488"
+      ],
+      "topic": "adultery in marital home",
+      "source": "article",
+      "id": "BQ035"
+    },
+    {
+      "query": "Que risque un détenu condamné qui s'évade de l'établissement pénitentiaire où il est incarcéré ?",
+      "lang": "fr",
+      "type": "general_legal_query",
+      "relevant_articles": [
+        "78"
+      ],
+      "topic": "prison escape penalties",
+      "source": "article",
+      "id": "BQ036"
+    },
+    {
+      "query": "ما هي العقوبة المقررة في القانون اللبناني لمن يقوم بإجراء عملية إجهاض لامرأة برضاها؟",
+      "lang": "ar",
+      "type": "general_legal_query",
+      "relevant_articles": [
+        "542"
+      ],
+      "topic": "abortion penalties",
+      "source": "article",
+      "id": "BQ037"
+    },
+    {
+      "query": "شخص قام بسرقة جثة متوفى من المقبرة بهدف إخفاء معالم الوفاة والتستر على ملابسات الحادث. ما هي العقوبة التي يواجهها وفقاً للقانون اللبناني؟",
+      "lang": "ar",
+      "type": "case_analysis",
+      "relevant_articles": [
+        "479"
+      ],
+      "topic": "corpse theft to conceal death",
+      "source": "article",
+      "id": "BQ038"
+    },
+    {
+      "query": "هل يعاقب القانون اللبناني على ممارسة التنجيم وقراءة الطالع بقصد الربح؟ وما هي العقوبات المنصوص عليها؟",
+      "lang": "ar",
+      "type": "general_legal_query",
+      "relevant_articles": [
+        "768"
+      ],
+      "topic": "fortune-telling for profit",
+      "source": "article",
+      "id": "BQ039"
+    },
+    {
+      "query": "تاجر استلم مبلغاً من المال من زبون لاستيراد بضاعة معينة، لكنه تصرف بالمبلغ في أمور شخصية رغم علمه أنه لن يتمكن من إعادته، ولم يرد المبلغ رغم الإنذار الموجه إليه. ما هو التكييف القانوني لهذا الفعل والعقوبة المترتبة عليه؟",
+      "lang": "ar",
+      "type": "case_analysis",
+      "relevant_articles": [
+        "671"
+      ],
+      "topic": "misappropriation of funds",
+      "source": "article",
+      "id": "BQ040"
+    },
+    {
+      "query": "ما الفرق بين المراباة العادية وجريمة اعتياد المراباة من حيث الشروط والعقوبات في القانون اللبناني؟",
+      "lang": "ar",
+      "type": "general_legal_query",
+      "relevant_articles": [
+        "663"
+      ],
+      "topic": "habitual usury",
+      "source": "article",
+      "id": "BQ041"
+    },
+    {
+      "query": "شخص نصب طاولة على الرصيف في شارع عام وبدأ بتنظيم ألعاب يانصيب للمارة دون الحصول على أي ترخيص رسمي. ما هي العقوبة التي يتعرض لها؟ وماذا يحصل للأدوات المستخدمة؟",
+      "lang": "ar",
+      "type": "case_analysis",
+      "relevant_articles": [
+        "760"
+      ],
+      "topic": "unlicensed lottery on public road",
+      "source": "article",
+      "id": "BQ042"
+    },
+    {
+      "query": "What penalties does the Lebanese Penal Code impose on someone who unlawfully uses another person's property without intending to steal it?",
+      "lang": "en",
+      "type": "general_legal_query",
+      "relevant_articles": [
+        "651"
+      ],
+      "topic": "unlawful use of property",
+      "source": "article",
+      "id": "BQ043"
+    },
+    {
+      "query": "A parent left their 5-year-old child alone in a busy shopping mall for several hours while they went to meet friends. What criminal liability might they face under Lebanese law?",
+      "lang": "en",
+      "type": "case_analysis",
+      "relevant_articles": [
+        "498"
+      ],
+      "topic": "child abandonment",
+      "source": "article",
+      "id": "BQ044"
+    },
+    {
+      "query": "What are the conditions and procedures that the Public Prosecutor must follow when handling an extradition request in Lebanon?",
+      "lang": "en",
+      "type": "general_legal_query",
+      "relevant_articles": [
+        "35"
+      ],
+      "topic": "extradition procedures",
+      "source": "article",
+      "id": "BQ045"
+    },
+    {
+      "query": "During a street altercation, someone punched another person, causing injuries that required the victim to miss work for 15 days due to medical treatment. If the victim later decides to drop the complaint, how does this affect the criminal penalties?",
+      "lang": "en",
+      "type": "case_analysis",
+      "relevant_articles": [
+        "555"
+      ],
+      "topic": "assault causing work disability",
+      "source": "article",
+      "id": "BQ046"
+    },
+    {
+      "query": "What specific violations can a religious cleric commit when performing a marriage ceremony, and what are the corresponding penalties under Lebanese criminal law?",
+      "lang": "en",
+      "type": "general_legal_query",
+      "relevant_articles": [
+        "483",
+        "484"
+      ],
+      "topic": "unlawful marriage procedures",
+      "source": "article",
+      "id": "BQ047"
+    },
+    {
+      "query": "A religious official conducted a marriage ceremony for a 17-year-old minor without documenting the consent of the legal guardian in the marriage contract and without obtaining a judge's authorization. What penalty does Lebanese law prescribe for this offense?",
+      "lang": "en",
+      "type": "case_analysis",
+      "relevant_articles": [
+        "483"
+      ],
+      "topic": "marriage of minor without consent",
+      "source": "article",
+      "id": "BQ048"
+    },
+    {
+      "query": "Quelles sont les conditions prévues par le Code pénal libanais pour qu'une personne puisse être extradée vers un État étranger ?",
+      "lang": "fr",
+      "type": "general_legal_query",
+      "relevant_articles": [
+        "30"
+      ],
+      "topic": "Extradition conditions",
+      "source": "article",
+      "id": "BQ049"
+    },
+    {
+      "query": "Un commerçant a reçu par erreur des billets de banque libanais retirés de la circulation. Sachant que ces billets ne sont plus valables, il les a quand même utilisés pour payer ses fournisseurs. Quelle est la qualification juridique de cet acte et quelle sanction encourt-il ?",
+      "lang": "fr",
+      "type": "case_analysis",
+      "relevant_articles": [
+        "447"
+      ],
+      "topic": "Use of invalid currency",
+      "source": "article",
+      "id": "BQ050"
+    },
+    {
+      "query": "Quelle est la durée de la peine d'emprisonnement contraventionnel selon le Code pénal libanais et quelles sont les conditions de son exécution ?",
+      "lang": "fr",
+      "type": "general_legal_query",
+      "relevant_articles": [
+        "60"
+      ],
+      "topic": "Contraventional imprisonment duration",
+      "source": "article",
+      "id": "BQ051"
+    },
+    {
+      "query": "Lors d'une cérémonie religieuse dans une église, un individu a délibérément perturbé l'office en criant et en proférant des menaces contre les fidèles présents. Quelle infraction a-t-il commise et quelle peine risque-t-il selon le droit pénal libanais ?",
+      "lang": "fr",
+      "type": "case_analysis",
+      "relevant_articles": [
+        "475"
+      ],
+      "topic": "Disruption of religious ceremony",
+      "source": "article",
+      "id": "BQ052"
+    },
+    {
+      "query": "Une personne a été condamnée pour vol à main armée commis avec violence. Quelles sont les conséquences automatiques de cette condamnation concernant le droit de port d'armes ?",
+      "lang": "fr",
+      "type": "case_analysis",
+      "relevant_articles": [
+        "97"
+      ],
+      "topic": "Weapons ban after conviction",
+      "source": "article",
+      "id": "BQ053"
+    },
+    {
+      "query": "Quelles sont les peines prévues en cas de piraterie maritime lorsque plusieurs personnes armées commettent l'infraction en utilisant ou en menaçant d'utiliser leurs armes, et que se passe-t-il si l'acte entraîne le naufrage du navire et la mort de passagers ?",
+      "lang": "fr",
+      "type": "general_legal_query",
+      "relevant_articles": [
+        "642"
+      ],
+      "topic": "Maritime piracy penalties",
+      "source": "article",
+      "id": "BQ054"
+    },
+    {
+      "query": "ما هي العقوبة المقررة لمن يقلد عملة ذهبية أو فضية متداولة قانوناً بقصد ترويجها في لبنان؟",
+      "lang": "ar",
+      "type": "general_legal_query",
+      "relevant_articles": [
+        "440"
+      ],
+      "topic": "counterfeiting currency",
+      "source": "article",
+      "id": "BQ055"
+    },
+    {
+      "query": "شخص أصيب بالجنون أثناء تنفيذ عقوبة الحبس المحكوم بها عليه. ماذا ينص القانون بشأن التعامل مع هذه الحالة؟",
+      "lang": "ar",
+      "type": "case_analysis",
+      "relevant_articles": [
+        "76"
+      ],
+      "topic": "insanity during sentence",
+      "source": "article",
+      "id": "BQ056"
+    },
+    {
+      "query": "ما هي أنواع العقوبات الجناحية العادية المنصوص عليها في القانون اللبناني؟",
+      "lang": "ar",
+      "type": "general_legal_query",
+      "relevant_articles": [
+        "39"
+      ],
+      "topic": "misdemeanor penalties",
+      "source": "article",
+      "id": "BQ057"
+    },
+    {
+      "query": "امرأة تعمل في الدعارة السرية وتسهلها للآخرين. ما هي العقوبة التي يمكن أن تواجهها بموجب القانون اللبناني؟",
+      "lang": "ar",
+      "type": "case_analysis",
+      "relevant_articles": [
+        "523"
+      ],
+      "topic": "prostitution",
+      "source": "article",
+      "id": "BQ058"
+    },
+    {
+      "query": "محكوم عليه بالمراقبة استمر في التملص من الأحكام المفروضة عليه بشكل متكرر. ما الجزاء الذي يواجهه؟",
+      "lang": "ar",
+      "type": "case_analysis",
+      "relevant_articles": [
+        "86"
+      ],
+      "topic": "surveillance violation",
+      "source": "article",
+      "id": "BQ059"
+    },
+    {
+      "query": "رجل أضرم النار عمداً في مبنى سكني مأهول في إحدى القرى اللبنانية. ما هو التكييف القانوني لهذا الفعل والعقوبة المترتبة عليه؟",
+      "lang": "ar",
+      "type": "case_analysis",
+      "relevant_articles": [
+        "587"
+      ],
+      "topic": "arson",
+      "source": "article",
+      "id": "BQ060"
+    },
+    {
+      "query": "Under what circumstances can a Lebanese or foreign national avoid prosecution in Lebanon for bankruptcy-related offenses?",
+      "lang": "en",
+      "type": "general_legal_query",
+      "relevant_articles": [
+        "27"
+      ],
+      "topic": "Exemptions from prosecution for bankruptcy",
+      "source": "article",
+      "id": "BQ061"
+    },
+    {
+      "query": "A contractor damaged a public water pipeline while performing excavation work, creating a hazard to public safety. What criminal liability does the contractor face under Lebanese law?",
+      "lang": "en",
+      "type": "case_analysis",
+      "relevant_articles": [
+        "595"
+      ],
+      "topic": "Damage to public infrastructure",
+      "source": "article",
+      "id": "BQ062"
+    },
+    {
+      "query": "What are the penalties for someone who lives off the earnings from another person's prostitution without actually engaging in prostitution themselves?",
+      "lang": "en",
+      "type": "general_legal_query",
+      "relevant_articles": [
+        "527"
+      ],
+      "topic": "Living off prostitution earnings",
+      "source": "article",
+      "id": "BQ063"
+    },
+    {
+      "query": "A person was convicted of a felony and sentenced by the criminal court. Where must the court decision be publicly posted and for how long?",
+      "lang": "en",
+      "type": "case_analysis",
+      "relevant_articles": [
+        "67"
+      ],
+      "topic": "Publication of criminal judgments",
+      "source": "article",
+      "id": "BQ064"
+    },
+    {
+      "query": "If a defendant is fined but fails to pay the fine within the legal deadline, how is the fine converted into imprisonment and what is the conversion rate?",
+      "lang": "en",
+      "type": "general_legal_query",
+      "relevant_articles": [
+        "54"
+      ],
+      "topic": "Conversion of fines to imprisonment",
+      "source": "article",
+      "id": "BQ065"
+    },
+    {
+      "query": "An individual used explosives to partially destroy a public monument. What legal provisions apply to the use of explosive materials to damage property mentioned in prior articles?",
+      "lang": "en",
+      "type": "case_analysis",
+      "relevant_articles": [
+        "592"
+      ],
+      "topic": "Destruction using explosives",
+      "source": "article",
+      "id": "BQ066"
+    },
+    {
+      "query": "Un homme s'est déguisé en femme pour entrer dans les toilettes réservées aux femmes d'un centre commercial. Quelle infraction a-t-il commise selon le droit pénal libanais et quelle peine encourt-il ?",
+      "lang": "fr",
+      "type": "case_analysis",
+      "relevant_articles": [
+        "521"
+      ],
+      "topic": "Entering gender-restricted spaces in disguise",
+      "source": "article",
+      "id": "BQ067"
+    },
+    {
+      "query": "Quelles sont les mesures de sûreté réelles énumérées dans le Code pénal libanais ?",
+      "lang": "fr",
+      "type": "general_legal_query",
+      "relevant_articles": [
+        "73"
+      ],
+      "topic": "Precautionary measures in rem",
+      "source": "article",
+      "id": "BQ068"
+    },
+    {
+      "query": "Un propriétaire de restaurant a utilisé une médaille commerciale obtenue lors d'une exposition sans mentionner le nom exact de l'exposition, l'autorité qui l'a décernée ni la date complète. Quelle sanction risque-t-il selon la loi libanaise ?",
+      "lang": "fr",
+      "type": "case_analysis",
+      "relevant_articles": [
+        "719"
+      ],
+      "topic": "Misuse of commercial awards",
+      "source": "article",
+      "id": "BQ069"
+    },
+    {
+      "query": "Quelles sont les sanctions prévues pour atteinte aux bonnes mœurs commise par l'un des moyens mentionnés dans le premier paragraphe de l'article 209 du Code pénal libanais ?",
+      "lang": "fr",
+      "type": "general_legal_query",
+      "relevant_articles": [
+        "531"
+      ],
+      "topic": "Offenses against public morals",
+      "source": "article",
+      "id": "BQ070"
+    },
+    {
+      "query": "Un pharmacien a, par négligence, vendu un médicament contaminé qui a provoqué la propagation d'une maladie épidémique dans son quartier. Il ignorait que le produit était contaminé. Quelle peine encourt-il en vertu du Code pénal libanais ?",
+      "lang": "fr",
+      "type": "case_analysis",
+      "relevant_articles": [
+        "604"
+      ],
+      "topic": "Negligent spread of epidemic disease",
+      "source": "article",
+      "id": "BQ071"
+    },
+    {
+      "query": "ما هي العقوبة المقررة لمن يتسلل إلى منزل الغير بالقوة ويبقى فيه رغم إرادة صاحبه؟ وهل يمكن ملاحقته تلقائياً؟",
+      "lang": "ar",
+      "type": "general_legal_query",
+      "relevant_articles": [
+        "572"
+      ],
+      "topic": "Trespassing penalties",
+      "source": "article",
+      "id": "BQ072"
+    },
+    {
+      "query": "أجنبي صدر بحقه قرار إخراج إداري من لبنان لكنه لم يغادر البلاد خلال المهلة القانونية وبقي فيها لمدة شهرين. ما هي المسؤولية الجزائية المترتبة عليه؟",
+      "lang": "ar",
+      "type": "case_analysis",
+      "relevant_articles": [
+        "89"
+      ],
+      "topic": "Violation of expulsion order",
+      "source": "article",
+      "id": "BQ073"
+    },
+    {
+      "query": "ما هي مدة عقوبة العزلة وفقاً للقانون اللبناني؟ وأين تنفذ هذه العقوبة؟",
+      "lang": "ar",
+      "type": "general_legal_query",
+      "relevant_articles": [
+        "77"
+      ],
+      "topic": "Isolation penalty duration and execution",
+      "source": "article",
+      "id": "BQ074"
+    },
+    {
+      "query": "شخص استغل حالة عقلية ضعيفة لدى امرأة وارتكب معها فعلاً منافياً للحشمة. ما هي العقوبة التي يواجهها وفقاً لقانون العقوبات اللبناني؟",
+      "lang": "ar",
+      "type": "case_analysis",
+      "relevant_articles": [
+        "508"
+      ],
+      "topic": "Indecent act using deception or mental incapacity",
+      "source": "article",
+      "id": "BQ075"
+    },
+    {
+      "query": "ما هي الجرائم المتعلقة بتزوير الوثائق الرسمية كجواز السفر أو تذكرة الهوية، وما هي العقوبة المنصوص عليها؟",
+      "lang": "ar",
+      "type": "general_legal_query",
+      "relevant_articles": [
+        "463"
+      ],
+      "topic": "Forgery of identity documents",
+      "source": "article",
+      "id": "BQ076"
+    },
+    {
+      "query": "رجل قادر على العمل وله دخل بسيط لكنه يتسول في الشوارع بشكل علني لجمع المال لنفسه. هل يعاقب على ذلك؟ وما نوع العقوبة؟",
+      "lang": "ar",
+      "type": "case_analysis",
+      "relevant_articles": [
+        "610"
+      ],
+      "topic": "Begging with means of income",
+      "source": "article",
+      "id": "BQ077"
+    },
+    {
+      "query": "What civil rights does a person lose while serving a prison sentence for a misdemeanor offense?",
+      "lang": "en",
+      "type": "general_legal_query",
+      "relevant_articles": [
+        "65"
+      ],
+      "topic": "civil rights deprivation during imprisonment",
+      "source": "article",
+      "id": "BQ078"
+    },
+    {
+      "query": "A driver ran a red light and accidentally hit a pedestrian, causing injuries that required hospitalization for two weeks. The driver had no intention to harm anyone. What criminal liability does the driver face under Lebanese law?",
+      "lang": "en",
+      "type": "case_analysis",
+      "relevant_articles": [
+        "565"
+      ],
+      "topic": "unintentional injury",
+      "source": "article",
+      "id": "BQ079"
+    },
+    {
+      "query": "Under what circumstances can a court impose a ban on exercising certain civil rights as part of a misdemeanor sentence, and for how long can this ban last?",
+      "lang": "en",
+      "type": "general_legal_query",
+      "relevant_articles": [
+        "66"
+      ],
+      "topic": "discretionary rights deprivation",
+      "source": "article",
+      "id": "BQ080"
+    },
+    {
+      "query": "During a heated argument, a man pushed his neighbor down the stairs without intending to kill him. The neighbor fell and died from the impact. What is the minimum punishment the man could face?",
+      "lang": "en",
+      "type": "case_analysis",
+      "relevant_articles": [
+        "550"
+      ],
+      "topic": "unintentional homicide",
+      "source": "article",
+      "id": "BQ081"
+    },
+    {
+      "query": "A Lebanese man knowingly married a foreign woman while still legally married to his first wife, with the purpose of helping her obtain Lebanese citizenship. What are the potential criminal consequences?",
+      "lang": "en",
+      "type": "case_analysis",
+      "relevant_articles": [
+        "485"
+      ],
+      "topic": "fraudulent marriage for citizenship",
+      "source": "article",
+      "id": "BQ082"
+    },
+    {
+      "query": "If death or injury results from multiple independent causes that the perpetrator was unaware of, how can the penalty be modified?",
+      "lang": "en",
+      "type": "general_legal_query",
+      "relevant_articles": [
+        "568"
+      ],
+      "topic": "mitigation for unforeseen contributing causes",
+      "source": "article",
+      "id": "BQ083"
+    },
+    {
+      "query": "Quelles sont les mesures de sûreté privatives de liberté prévues par le Code pénal libanais ?",
+      "lang": "fr",
+      "type": "general_legal_query",
+      "relevant_articles": [
+        "70"
+      ],
+      "topic": "preventive security measures",
+      "source": "article",
+      "id": "BQ084"
+    },
+    {
+      "query": "Un commerçant étranger a été condamné pour avoir tenu un établissement de jeux de hasard illégaux à Beyrouth. Le juge peut-il ordonner son expulsion du territoire libanais en plus de la fermeture de son établissement ?",
+      "lang": "fr",
+      "type": "case_analysis",
+      "relevant_articles": [
+        "530"
+      ],
+      "topic": "expulsion and business closure",
+      "source": "article",
+      "id": "BQ085"
+    },
+    {
+      "query": "Une nouvelle loi plus sévère vient d'entrer en vigueur. S'applique-t-elle aux infractions continues et habituelles qui sont toujours en cours d'exécution ?",
+      "lang": "fr",
+      "type": "general_legal_query",
+      "relevant_articles": [
+        "7"
+      ],
+      "topic": "temporal application of criminal law",
+      "source": "article",
+      "id": "BQ086"
+    },
+    {
+      "query": "Un fabricant de badges a été surpris en train de produire des insignes portant des images obscènes et contraires à la moralité publique. Quelles sanctions encourt-il et le juge peut-il confisquer les badges même sans condamnation ?",
+      "lang": "fr",
+      "type": "case_analysis",
+      "relevant_articles": [
+        "705"
+      ],
+      "topic": "obscene badges and confiscation",
+      "source": "article",
+      "id": "BQ087"
+    },
+    {
+      "query": "Quelles sont les peines applicables à une personne condamnée qui viole une interdiction professionnelle, même si elle exerce l'activité interdite par l'intermédiaire d'un tiers ?",
+      "lang": "fr",
+      "type": "general_legal_query",
+      "relevant_articles": [
+        "95",
+        "107"
+      ],
+      "topic": "violation of professional prohibition",
+      "source": "article",
+      "id": "BQ088"
+    },
+    {
+      "query": "Un ressortissant syrien vient d'être reconnu coupable d'atteinte à la moralité publique selon les dispositions du chapitre concerné. Le tribunal peut-il prononcer son expulsion du Liban dans le cadre de cette condamnation ?",
+      "lang": "fr",
+      "type": "case_analysis",
+      "relevant_articles": [
+        "621"
+      ],
+      "topic": "expulsion of foreigners",
+      "source": "article",
+      "id": "BQ089"
+    },
+    {
+      "query": "ما هي العقوبات الجنائية السياسية المنصوص عليها في القانون اللبناني؟",
+      "lang": "ar",
+      "type": "general_legal_query",
+      "relevant_articles": [
+        "38"
+      ],
+      "topic": "Political criminal penalties",
+      "source": "article",
+      "id": "BQ090"
+    },
+    {
+      "query": "سائق تسبب بحادث سير وأصاب شخصاً لكنه غادر مكان الحادث فوراً دون أن يتوقف أو يساعد المصاب. ما هي العقوبة التي يواجهها؟",
+      "lang": "ar",
+      "type": "case_analysis",
+      "relevant_articles": [
+        "566"
+      ],
+      "topic": "Hit and run accident",
+      "source": "article",
+      "id": "BQ091"
+    },
+    {
+      "query": "هل ينطبق القانون الجديد الذي يفرض عقوبة أخف على الجرائم المرتكبة قبل نفاذه؟",
+      "lang": "ar",
+      "type": "general_legal_query",
+      "relevant_articles": [
+        "8"
+      ],
+      "topic": "Retroactive application of lighter penalties",
+      "source": "article",
+      "id": "BQ092"
+    },
+    {
+      "query": "صاحب مقهى قدم مشروبات كحولية لشاب عمره 16 سنة حتى وصل إلى حالة السكر. ما هو الحكم القانوني في هذه الحالة؟",
+      "lang": "ar",
+      "type": "case_analysis",
+      "relevant_articles": [
+        "625"
+      ],
+      "topic": "Providing alcohol to minors",
+      "source": "article",
+      "id": "BQ093"
+    },
+    {
+      "query": "ما هي الإجراءات الطبية المطلوبة لمتابعة حالة المحكوم عليه بالحجز في المأوى؟",
+      "lang": "ar",
+      "type": "general_legal_query",
+      "relevant_articles": [
+        "75"
+      ],
+      "topic": "Medical monitoring of detained persons",
+      "source": "article",
+      "id": "BQ094"
+    },
+    {
+      "query": "شخص قام بإحداث فوضى وتشويش في جنازة وهدد الحاضرين مما أدى إلى عرقلة سير المراسم. ما العقوبة المقررة لهذا الفعل؟",
+      "lang": "ar",
+      "type": "case_analysis",
+      "relevant_articles": [
+        "478"
+      ],
+      "topic": "Disrupting funerals",
+      "source": "article",
+      "id": "BQ095"
+    },
+    {
+      "query": "What does Lebanese law say about deliberately setting fires to cause harm or gain illegal profit?",
+      "lang": "en",
+      "type": "general_legal_query",
+      "relevant_articles": [
+        "590"
+      ],
+      "topic": "Arson offenses",
+      "source": "article",
+      "id": "BQ096"
+    },
+    {
+      "query": "A 16-year-old inherited a valuable property from his deceased grandfather. His uncle, knowing the teenager was inexperienced in business matters, convinced him to sign documents selling the property at far below market value, causing significant financial loss to the minor. What criminal liability might the uncle face under Lebanese law?",
+      "lang": "en",
+      "type": "case_analysis",
+      "relevant_articles": [
+        "657"
+      ],
+      "topic": "Exploitation of minors",
+      "source": "article",
+      "id": "BQ097"
+    },
+    {
+      "query": "What are the penalties under Lebanese Penal Code for acts of maritime piracy, unlawful seizure of ships, or forcing a ship captain to change course through threats?",
+      "lang": "en",
+      "type": "general_legal_query",
+      "relevant_articles": [
+        "641"
+      ],
+      "topic": "Maritime piracy and ship seizure",
+      "source": "article",
+      "id": "BQ098"
+    },
+    {
+      "query": "A man deliberately destroyed birth certificates and other civil status documents belonging to his neighbor in order to create confusion about the neighbor's identity and marital status. How does Lebanese law address such actions aimed at removing or falsifying evidence related to personal status?",
+      "lang": "en",
+      "type": "case_analysis",
+      "relevant_articles": [
+        "494"
+      ],
+      "topic": "Falsification of personal status evidence",
+      "source": "article",
+      "id": "BQ099"
+    },
+    {
+      "query": "Can a professional be prohibited from practicing their profession in Lebanon if convicted of a crime related to violating professional duties, and under what conditions?",
+      "lang": "en",
+      "type": "general_legal_query",
+      "relevant_articles": [
+        "94"
+      ],
+      "topic": "Professional prohibition",
+      "source": "article",
+      "id": "BQ100"
+    },
+    {
+      "query": "Two parents abandoned their 12-year-old child, leaving him to wander the streets without food or shelter, even though they both had stable jobs and could afford to support him. What criminal penalties do they face under Lebanese law?",
+      "lang": "en",
+      "type": "case_analysis",
+      "relevant_articles": [
+        "617"
+      ],
+      "topic": "Child abandonment by parents",
+      "source": "article",
+      "id": "BQ101"
+    },
+    {
+      "query": "Quelles sont les sanctions prévues par le Code pénal libanais pour une femme qui provoque volontairement son propre avortement ?",
+      "lang": "fr",
+      "type": "general_legal_query",
+      "relevant_articles": [
+        "541"
+      ],
+      "topic": "Abortion penalties",
+      "source": "article",
+      "id": "BQ102"
+    },
+    {
+      "query": "Un enseignant de 45 ans commet un acte contraire à la pudeur avec un élève âgé de 16 ans. Quelle est la peine encourue selon le Code pénal libanais ?",
+      "lang": "fr",
+      "type": "case_analysis",
+      "relevant_articles": [
+        "510"
+      ],
+      "topic": "Sexual offenses against minors",
+      "source": "article",
+      "id": "BQ103"
+    },
+    {
+      "query": "Dans quelles circonstances le tribunal peut-il imposer une caution préventive à une personne condamnée au Liban ?",
+      "lang": "fr",
+      "type": "general_legal_query",
+      "relevant_articles": [
+        "101"
+      ],
+      "topic": "Preventive bail conditions",
+      "source": "article",
+      "id": "BQ104"
+    },
+    {
+      "query": "Une personne témoin d'un accident de voiture voit une victime gravement blessée sur le bord de la route. Elle peut appeler les secours sans danger mais décide de ne rien faire et continue son chemin. Quelles sont les conséquences pénales de son inaction ?",
+      "lang": "fr",
+      "type": "case_analysis",
+      "relevant_articles": [
+        "567"
+      ],
+      "topic": "Failure to assist person in danger",
+      "source": "article",
+      "id": "BQ105"
+    },
+    {
+      "query": "Quelles sont les peines applicables à une personne qui contrefait de la monnaie en circulation au Liban en réduisant son poids ou en la plaquant pour la faire paraître plus précieuse ?",
+      "lang": "fr",
+      "type": "general_legal_query",
+      "relevant_articles": [
+        "442"
+      ],
+      "topic": "Currency counterfeiting",
+      "source": "article",
+      "id": "BQ106"
+    },
+    {
+      "query": "Un récidiviste est condamné pour une infraction professionnelle couverte par le chapitre correspondant du Code pénal. Quelles mesures supplémentaires le tribunal peut-il ordonner concernant la publication du jugement et l'exercice de sa profession ?",
+      "lang": "fr",
+      "type": "case_analysis",
+      "relevant_articles": [
+        "688"
+      ],
+      "topic": "Repeat offender professional sanctions",
+      "source": "article",
+      "id": "BQ107"
+    },
+    {
+      "query": "ما هي العقوبة المقررة قانوناً لمن يدير محلاً للمقامرة أو ينظم ألعاب القمار الممنوعة في لبنان؟",
+      "lang": "ar",
+      "type": "general_legal_query",
+      "relevant_articles": [
+        "633"
+      ],
+      "topic": "gambling penalties",
+      "source": "article",
+      "id": "BQ108"
+    },
+    {
+      "query": "شخص قام بفتح رسالة مرسلة إلى جاره وقراءة محتواها دون إذنه. هل يشكل هذا الفعل جريمة بموجب القانون اللبناني وما هي العقوبة المحتملة؟",
+      "lang": "ar",
+      "type": "case_analysis",
+      "relevant_articles": [
+        "581"
+      ],
+      "topic": "privacy violation - correspondence",
+      "source": "article",
+      "id": "BQ109"
+    },
+    {
+      "query": "ما هي الأشياء التي يجب مصادرتها بموجب القانون الجنائي اللبناني حتى لو لم تكن ملكاً للمتهم؟",
+      "lang": "ar",
+      "type": "general_legal_query",
+      "relevant_articles": [
+        "98"
+      ],
+      "topic": "confiscation of illegal items",
+      "source": "article",
+      "id": "BQ110"
+    },
+    {
+      "query": "تاجر قام باستيراد مجموعة من الصور والأفلام المخلة بالحياء بقصد بيعها وتوزيعها في السوق المحلي. ما هو الوصف القانوني لهذا الفعل والعقوبة المترتبة عليه؟",
+      "lang": "ar",
+      "type": "case_analysis",
+      "relevant_articles": [
+        "533"
+      ],
+      "topic": "obscene materials trafficking",
+      "source": "article",
+      "id": "BQ111"
+    },
+    {
+      "query": "كيف يعرف القانون الجنائي اللبناني العلامات الفارقة للصناعة أو التجارة وما هي الأمثلة عليها؟",
+      "lang": "ar",
+      "type": "general_legal_query",
+      "relevant_articles": [
+        "701"
+      ],
+      "topic": "trademarks definition",
+      "source": "article",
+      "id": "BQ112"
+    },
+    {
+      "query": "شاب قام بتحطيم شواهد القبور في مقبرة قديمة وكتب عبارات مسيئة على النصب التذكارية. ما هي الجريمة المرتكبة والعقوبة التي يواجهها وفقاً للقانون اللبناني؟",
+      "lang": "ar",
+      "type": "case_analysis",
+      "relevant_articles": [
+        "481"
+      ],
+      "topic": "desecration of graves",
+      "source": "article",
+      "id": "BQ113"
+    },
+    {
+      "query": "What is the penalty under Lebanese law for counterfeiting Lebanese or foreign banknotes with the intent to circulate them?",
+      "lang": "en",
+      "type": "general_legal_query",
+      "relevant_articles": [
+        "443"
+      ],
+      "topic": "Counterfeiting currency",
+      "source": "article",
+      "id": "BQ114"
+    },
+    {
+      "query": "A charity director was entrusted with funds donated to the organization but used a portion of those funds for personal expenses. What criminal liability does this director face under the Penal Code?",
+      "lang": "en",
+      "type": "case_analysis",
+      "relevant_articles": [
+        "672"
+      ],
+      "topic": "Breach of trust by charity director",
+      "source": "article",
+      "id": "BQ115"
+    },
+    {
+      "query": "How does the Lebanese Penal Code treat a mother who kills her newborn child born out of wedlock to avoid dishonor? What are the possible sentences?",
+      "lang": "en",
+      "type": "general_legal_query",
+      "relevant_articles": [
+        "551"
+      ],
+      "topic": "Infanticide to avoid dishonor",
+      "source": "article",
+      "id": "BQ116"
+    },
+    {
+      "query": "A man threatened a business owner with violence unless he signed a document waiving a debt owed to him. The owner, fearing for his safety, signed the waiver. What charges could be brought against the man who made the threats?",
+      "lang": "en",
+      "type": "case_analysis",
+      "relevant_articles": [
+        "649"
+      ],
+      "topic": "Extortion by threat",
+      "source": "article",
+      "id": "BQ117"
+    },
+    {
+      "query": "What penalties does the law impose on someone who sexually assaults a person who cannot resist due to a physical or mental disability?",
+      "lang": "en",
+      "type": "general_legal_query",
+      "relevant_articles": [
+        "504"
+      ],
+      "topic": "Sexual assault of vulnerable person",
+      "source": "article",
+      "id": "BQ118"
+    },
+    {
+      "query": "A merchant sold what was advertised as pure olive oil, but laboratory tests revealed it was mixed with cheaper vegetable oil. The buyer purchased it specifically because they believed it was pure olive oil. What offense has the merchant committed and what is the potential punishment?",
+      "lang": "en",
+      "type": "case_analysis",
+      "relevant_articles": [
+        "680"
+      ],
+      "topic": "Fraud in commercial transactions",
+      "source": "article",
+      "id": "BQ119"
+    },
+    {
+      "query": "Quelles sont les conditions pour qu'un Libanais puisse être poursuivi pour une infraction commise à l'étranger selon le Code pénal libanais ?",
+      "lang": "fr",
+      "type": "general_legal_query",
+      "relevant_articles": [
+        "20"
+      ],
+      "topic": "Extraterritorial jurisdiction",
+      "source": "article",
+      "id": "BQ120"
+    },
+    {
+      "query": "Un père de famille a abandonné son enfant mineur dans un lieu public. Quelles dispositions du Code pénal s'appliquent concernant l'aggravation de la peine en raison de la qualité de l'auteur ?",
+      "lang": "fr",
+      "type": "case_analysis",
+      "relevant_articles": [
+        "500"
+      ],
+      "topic": "Aggravated child abandonment",
+      "source": "article",
+      "id": "BQ121"
+    },
+    {
+      "query": "Une entreprise a découvert qu'un concurrent utilise son nom commercial sur des produits manufacturés et des emballages. Quelle infraction est prévue par le Code pénal et quelle en est la sanction ?",
+      "lang": "fr",
+      "type": "case_analysis",
+      "relevant_articles": [
+        "716"
+      ],
+      "topic": "Trademark usurpation",
+      "source": "article",
+      "id": "BQ122"
+    },
+    {
+      "query": "Dans quels cas les peines pour les crimes sexuels sont-elles aggravées selon le Code pénal libanais ?",
+      "lang": "fr",
+      "type": "general_legal_query",
+      "relevant_articles": [
+        "512"
+      ],
+      "topic": "Aggravated sexual offenses",
+      "source": "article",
+      "id": "BQ123"
+    },
+    {
+      "query": "Un médecin a mis fin à la vie d'un patient en phase terminale qui le suppliait de mettre fin à ses souffrances. Quelle est la qualification juridique de cet acte et quelle peine encourt-il ?",
+      "lang": "fr",
+      "type": "case_analysis",
+      "relevant_articles": [
+        "552"
+      ],
+      "topic": "Mercy killing",
+      "source": "article",
+      "id": "BQ124"
+    },
+    {
+      "query": "À partir de quelle date commence à courir la période de déchéance civile lorsqu'un jugement est rendu par contumace ?",
+      "lang": "fr",
+      "type": "general_legal_query",
+      "relevant_articles": [
+        "114"
+      ],
+      "topic": "Civil disqualification period",
+      "source": "article",
+      "id": "BQ125"
+    },
+    {
+      "query": "ما هي العقوبة المنصوص عليها في القانون اللبناني لمن يقلد خاتم أو طابع خاص بإدارة عامة؟",
+      "lang": "ar",
+      "type": "general_legal_query",
+      "relevant_articles": [
+        "438"
+      ],
+      "topic": "Forgery of official seals",
+      "source": "article",
+      "id": "BQ126"
+    },
+    {
+      "query": "شخص قام بتهديد جاره بنشر صور محرجة له على وسائل التواصل الاجتماعي إن لم يدفع له مبلغ خمسة ملايين ليرة. ما هو التكييف القانوني لهذا الفعل والعقوبة المترتبة عليه؟",
+      "lang": "ar",
+      "type": "case_analysis",
+      "relevant_articles": [
+        "650"
+      ],
+      "topic": "Blackmail and extortion",
+      "source": "article",
+      "id": "BQ127"
+    },
+    {
+      "query": "هل يعاقب القانون اللبناني المتشرد الذي يحمل سلاحاً أو أدوات تستخدم في ارتكاب الجرائم؟ وما هي العقوبة المقررة؟",
+      "lang": "ar",
+      "type": "general_legal_query",
+      "relevant_articles": [
+        "615"
+      ],
+      "topic": "Armed vagrancy",
+      "source": "article",
+      "id": "BQ128"
+    },
+    {
+      "query": "رجل أضرم النار في مستودع وكان يتوقع أن يؤدي ذلك إلى وفاة الحارس الليلي لكنه قبل بالمخاطرة، وبالفعل توفي الحارس. ما هي العقوبة التي يواجهها؟",
+      "lang": "ar",
+      "type": "case_analysis",
+      "relevant_articles": [
+        "591"
+      ],
+      "topic": "Arson resulting in death",
+      "source": "article",
+      "id": "BQ129"
+    },
+    {
+      "query": "صاحب مطعم أهمل تنظيف وتصليح مدخنة الفرن لمدة طويلة رغم تحذيرات الجيران. ما هي المسؤولية الجزائية المترتبة على هذا الإهمال؟",
+      "lang": "ar",
+      "type": "case_analysis",
+      "relevant_articles": [
+        "756"
+      ],
+      "topic": "Negligence in chimney maintenance",
+      "source": "article",
+      "id": "BQ130"
+    },
+    {
+      "query": "ما هي الحالة التي يعفى فيها الشخص من العقوبة بموجب المادة 712 من قانون العقوبات اللبناني؟",
+      "lang": "ar",
+      "type": "general_legal_query",
+      "relevant_articles": [
+        "712"
+      ],
+      "topic": "Exemption from penalty",
+      "source": "article",
+      "id": "BQ131"
+    },
+    {
+      "query": "What are the penalties under Lebanese law for advertising or promoting abortion methods or devices?",
+      "lang": "en",
+      "type": "general_legal_query",
+      "relevant_articles": [
+        "539"
+      ],
+      "topic": "Abortion advertising penalties",
+      "source": "article",
+      "id": "BQ132"
+    },
+    {
+      "query": "A man was caught swimming naked at a public beach in Beirut in full view of passersby. What charges could he face and what are the possible penalties?",
+      "lang": "en",
+      "type": "case_analysis",
+      "relevant_articles": [
+        "757"
+      ],
+      "topic": "Public indecency",
+      "source": "article",
+      "id": "BQ133"
+    },
+    {
+      "query": "If someone is convicted abroad for a crime that falls under Article 19 or was committed on Lebanese territory, can they still be prosecuted in Lebanon? Are there any exceptions?",
+      "lang": "en",
+      "type": "general_legal_query",
+      "relevant_articles": [
+        "28"
+      ],
+      "topic": "Foreign judgments and double jeopardy",
+      "source": "article",
+      "id": "BQ134"
+    },
+    {
+      "query": "A travel agent fabricated stories about a tourist destination and promised benefits to convince a client to travel to a different country than originally intended. What offense has been committed and what is the applicable penalty?",
+      "lang": "en",
+      "type": "case_analysis",
+      "relevant_articles": [
+        "668"
+      ],
+      "topic": "Fraud in travel inducement",
+      "source": "article",
+      "id": "BQ135"
+    },
+    {
+      "query": "Who has the legal standing to file a defamation lawsuit if the defamatory statements were made against a deceased person?",
+      "lang": "en",
+      "type": "general_legal_query",
+      "relevant_articles": [
+        "586"
+      ],
+      "topic": "Defamation of deceased persons",
+      "source": "article",
+      "id": "BQ136"
+    },
+    {
+      "query": "Police raided an illegal gambling house and found several people actively playing cards for money. What fine can be imposed on the participants who were caught gambling at the premises?",
+      "lang": "en",
+      "type": "case_analysis",
+      "relevant_articles": [
+        "634"
+      ],
+      "topic": "Illegal gambling participation",
+      "source": "article",
+      "id": "BQ137"
+    },
+    {
+      "query": "Un homme a trouvé un portefeuille contenant 2000 dollars dans la rue et l'a gardé sans essayer de retrouver son propriétaire. Quelles sont les conséquences juridiques de son acte selon le droit libanais ?",
+      "lang": "fr",
+      "type": "case_analysis",
+      "relevant_articles": [
+        "673"
+      ],
+      "topic": "Found property retention",
+      "source": "article",
+      "id": "BQ138"
+    },
+    {
+      "query": "Dans quelles circonstances le droit libanais permet-il de priver un père ou une mère de l'autorité parentale ?",
+      "lang": "fr",
+      "type": "general_legal_query",
+      "relevant_articles": [
+        "91"
+      ],
+      "topic": "Parental authority deprivation",
+      "source": "article",
+      "id": "BQ139"
+    },
+    {
+      "query": "Des cambrioleurs ont pénétré dans une maison en cassant la porte d'entrée et en utilisant une fausse clé pour ouvrir un coffre-fort. Quelle peine risquent-ils en vertu du Code pénal libanais ?",
+      "lang": "fr",
+      "type": "case_analysis",
+      "relevant_articles": [
+        "639"
+      ],
+      "topic": "Aggravated burglary with breaking",
+      "source": "article",
+      "id": "BQ140"
+    },
+    {
+      "query": "Comment la loi libanaise détermine-t-elle quelle loi personnelle appliquer lorsqu'un élément constitutif d'un crime est soumis à des règles spécifiques de statut personnel ou de capacité ?",
+      "lang": "fr",
+      "type": "general_legal_query",
+      "relevant_articles": [
+        "26"
+      ],
+      "topic": "Personal law application in crimes",
+      "source": "article",
+      "id": "BQ141"
+    },
+    {
+      "query": "Une société anonyme libanaise fait faillite. Le directeur général et deux membres du conseil d'administration ont commis des actes frauduleux. Peuvent-ils être poursuivis pénalement et sur quelle base légale ?",
+      "lang": "fr",
+      "type": "case_analysis",
+      "relevant_articles": [
+        "692"
+      ],
+      "topic": "Corporate bankruptcy fraud liability",
+      "source": "article",
+      "id": "BQ142"
+    },
+    {
+      "query": "ما هي العقوبة المنصوص عليها في القانون اللبناني لمن يرفض إحضار قاصر دون الثامنة عشرة بناءً على أمر القاضي؟",
+      "lang": "ar",
+      "type": "general_legal_query",
+      "relevant_articles": [
+        "496"
+      ],
+      "topic": "Refusal to present minor to court",
+      "source": "article",
+      "id": "BQ143"
+    },
+    {
+      "query": "تعرض أحمد لضرب من قبل جاره وأدى ذلك إلى إصابته بكدمات بسيطة وتوقف عن العمل لمدة خمسة أيام فقط. هل يستطيع أحمد تقديم شكوى؟ وما هي العقوبة المحتملة للجاني؟",
+      "lang": "ar",
+      "type": "case_analysis",
+      "relevant_articles": [
+        "554"
+      ],
+      "topic": "Minor assault causing brief work absence",
+      "source": "article",
+      "id": "BQ144"
+    },
+    {
+      "query": "ما هي الآثار القانونية للتجريد المدني على الوظائف والمعاشات حسب قانون العقوبات اللبناني؟",
+      "lang": "ar",
+      "type": "general_legal_query",
+      "relevant_articles": [
+        "49"
+      ],
+      "topic": "Civil deprivation consequences",
+      "source": "article",
+      "id": "BQ145"
+    },
+    {
+      "query": "قام شخص بهدم نصب تذكاري له قيمة تاريخية كان مملوكاً له شخصياً. هل يعاقب على هذا الفعل رغم أنه مالك النصب؟",
+      "lang": "ar",
+      "type": "case_analysis",
+      "relevant_articles": [
+        "731"
+      ],
+      "topic": "Destruction of historical monument by owner",
+      "source": "article",
+      "id": "BQ146"
+    },
+    {
+      "query": "متى يتم ملاحقة جريمة السفاح بدون شكوى من الأقارب أو الأصهار؟",
+      "lang": "ar",
+      "type": "general_legal_query",
+      "relevant_articles": [
+        "491"
+      ],
+      "topic": "Prosecution of adultery without complaint",
+      "source": "article",
+      "id": "BQ147"
+    },
+    {
+      "query": "حُكم على شخص بالأشغال الشاقة المؤقتة لمدة عشر سنوات في جناية. متى ينتهي التجريد المدني المترتب على هذا الحكم؟",
+      "lang": "ar",
+      "type": "case_analysis",
+      "relevant_articles": [
+        "49",
+        "63"
+      ],
+      "topic": "Duration of civil deprivation after temporary hard labor",
+      "source": "article",
+      "id": "BQ148"
+    },
+    {
+      "query": "My client is accused of killing her own child by administering poison over a period of time. The prosecution claims it was premeditated and planned. She has confessed to the act but showed remorse and the court is considering mitigating circumstances. What penalties could she face under Lebanese law for this type of filicide?",
+      "lang": "en",
+      "type": "case_analysis",
+      "relevant_articles": [
+        "252",
+        "253",
+        "549"
+      ],
+      "topic": "Premeditated filicide by poisoning",
+      "source": "ruling",
+      "id": "BQ149"
+    },
+    {
+      "query": "I represent a client who was arrested with counterfeit US dollar banknotes. He not only possessed these forged bills but also used them in commercial transactions at several shops. The investigation confirmed he knew they were fake. The court may apply mitigating circumstances due to his cooperation. What are the potential sentences for currency forgery and use of forged money in Lebanon?",
+      "lang": "en",
+      "type": "case_analysis",
+      "relevant_articles": [
+        "49",
+        "98",
+        "253"
+      ],
+      "topic": "Currency forgery and use of counterfeit banknotes",
+      "source": "ruling",
+      "id": "BQ150"
+    },
+    {
+      "query": "My client was caught trafficking psychotropic substances, specifically Ritalin and Rivotrile, without proper authorization. There is a jurisdictional question about whether this should be prosecuted under the Narcotics Law or the Pharmacy Law. The quantities involved suggest commercial distribution rather than personal use. How should this case be classified and what court has jurisdiction over trafficking in controlled psychotropic medications?",
+      "lang": "en",
+      "type": "case_analysis",
+      "relevant_articles": [
+        "86",
+        "128",
+        "129",
+        "130"
+      ],
+      "topic": "Psychotropic drug trafficking jurisdiction",
+      "source": "ruling",
+      "id": "BQ151"
+    },
+    {
+      "query": "Mon client a été arrêté pour avoir volé une voiture garée dans la rue et l'avoir revendue à un tiers. Ce dernier savait que le véhicule était volé mais l'a quand même acheté à un prix bien inférieur à sa valeur. Quels articles du Code pénal libanais s'appliquent dans cette affaire et quelles peines risquent-ils respectivement ?",
+      "lang": "fr",
+      "type": "case_analysis",
+      "relevant_articles": [
+        "63",
+        "219",
+        "221",
+        "638"
+      ],
+      "topic": "Vehicle theft and receiving stolen goods",
+      "source": "ruling",
+      "id": "BQ152"
+    },
+    {
+      "query": "Je représente une compagnie d'assurance qui a été victime d'une fraude orchestrée par des cadres internes. Ces derniers ont détourné des fonds qui leur étaient confiés et ont falsifié des documents comptables pour dissimuler leurs actes. La société réclame des dommages et intérêts importants. Quels sont les articles pertinents du Code pénal et quelle est la nature des sanctions possibles ?",
+      "lang": "fr",
+      "type": "case_analysis",
+      "relevant_articles": [
+        "655",
+        "670",
+        "671",
+        "700",
+        "705"
+      ],
+      "topic": "Insurance fraud and forgery by insiders",
+      "source": "ruling",
+      "id": "BQ153"
+    },
+    {
+      "query": "Mon client a été condamné pour une infraction au Code de la route ainsi qu'une violation réglementaire pénale. Le tribunal a prononcé une amende unique fusionnant les deux infractions. Est-ce que l'article 605 du Code pénal libanais s'applique dans ce type de situation et comment la peine est-elle déterminée ?",
+      "lang": "fr",
+      "type": "case_analysis",
+      "relevant_articles": [
+        "605"
+      ],
+      "topic": "Traffic and penal regulatory violation",
+      "source": "ruling",
+      "id": "BQ154"
+    },
+    {
+      "query": "موكلي متهم بسرقة سيارة وبيعها لشخص آخر كان يعلم أنها مسروقة، كما قام بتزوير عدة وثائق تتعلق بملكية السيارة ورخصة القيادة. ما هي المواد القانونية التي يمكن أن تطبق على هذه القضية وما العقوبات المحتملة؟",
+      "lang": "ar",
+      "type": "case_analysis",
+      "relevant_articles": [
+        "277",
+        "454",
+        "459",
+        "463",
+        "471",
+        "638"
+      ],
+      "topic": "Vehicle theft and document forgery",
+      "source": "ruling",
+      "id": "BQ155"
+    },
+    {
+      "query": "عميلتي رفعت دعوى جزائية مباشرة ضد شخص بتهمة التزوير واستعمال المزور، لكن المحكمة ردت الدعوى ورفضت طلب التعويض المدني. هل يمكن الطعن في هذا القرار وما هي المواد القانونية ذات الصلة؟",
+      "lang": "ar",
+      "type": "case_analysis",
+      "relevant_articles": [
+        "61",
+        "404",
+        "605"
+      ],
+      "topic": "Forgery direct criminal action dismissal",
+      "source": "ruling",
+      "id": "BQ156"
+    },
+    {
+      "query": "موكلي اتهم بالسرقة المشددة بعد أن انتحل صفة موظف في شركة الكهرباء ودخل إلى منزل ضحية وسرق منه أموالاً ومجوهرات. هل يمكن تطبيق وقف التنفيذ في مثل هذه الحالة إذا صدر حكم بالإدانة؟",
+      "lang": "ar",
+      "type": "case_analysis",
+      "relevant_articles": [
+        "205",
+        "629"
+      ],
+      "topic": "Aggravated theft by impersonation",
+      "source": "ruling",
+      "id": "BQ157"
+    },
+    {
+      "query": "My client was driving his vehicle when he accidentally struck a pedestrian, resulting in the pedestrian's death. There was no intent to harm, but the prosecution is arguing that negligence was involved. The incident occurred on a main road during evening hours. What charges is my client likely facing under Lebanese law, and what are the potential penalties if convicted?",
+      "lang": "en",
+      "type": "case_analysis",
+      "relevant_articles": [
+        "97",
+        "211",
+        "547",
+        "548",
+        "556"
+      ],
+      "topic": "vehicular homicide",
+      "source": "ruling",
+      "id": "BQ158"
+    },
+    {
+      "query": "I'm representing a defendant who is accused of breaking into a residential home and stealing valuable items. The prosecution claims he used deception to gain access and was carrying a weapon at the time. He entered the property without the owner's consent and took jewelry worth approximately 30 million Lebanese pounds. What are the applicable criminal provisions for this type of armed theft with forced entry, and what sentence range should we expect?",
+      "lang": "en",
+      "type": "case_analysis",
+      "relevant_articles": [
+        "72",
+        "88",
+        "205",
+        "639",
+        "640"
+      ],
+      "topic": "armed residential theft",
+      "source": "ruling",
+      "id": "BQ159"
+    },
+    {
+      "query": "Mon client est propriétaire d'un appartement loué depuis plusieurs années. Le locataire a quitté le Liban il y a trois ans pour s'installer définitivement aux États-Unis avec sa famille, mais il continue de payer le loyer et refuse de libérer les lieux. Nous disposons de preuves de son départ matériel et de son établissement permanent à l'étranger. Pouvons-nous obtenir l'éviction du locataire sur cette base ?",
+      "lang": "fr",
+      "type": "case_analysis",
+      "relevant_articles": [
+        "10"
+      ],
+      "topic": "Rental eviction - tenant departure abroad",
+      "source": "ruling",
+      "id": "BQ160"
+    },
+    {
+      "query": "Ma cliente a été victime d'une escroquerie. Un homme d'affaires l'a convaincue d'investir dans un projet d'importation de produits alimentaires en lui présentant de faux documents et de fausses garanties. Elle lui a versé 68 000 dollars américains, mais le projet n'existait pas et l'argent a disparu. L'accusé a maintenant fui le pays. Quelles sont les poursuites pénales possibles et quelles peines risque-t-il s'il est jugé ?",
+      "lang": "fr",
+      "type": "case_analysis",
+      "relevant_articles": [
+        "654",
+        "659"
+      ],
+      "topic": "Fraud by false pretenses",
+      "source": "ruling",
+      "id": "BQ161"
+    },
+    {
+      "query": "موكلي موظف في وزارة المالية متهم بتزوير مستندات رسمية للحصول على معاش تقاعدي بشكل احتيالي. تم ضبطه وهو يستخدم وثائق مزورة لصرف مبالغ مالية من الخزينة العامة. ما هي العقوبات المحتملة التي قد يواجهها في حال إدانته؟",
+      "lang": "ar",
+      "type": "case_analysis",
+      "relevant_articles": [
+        "205",
+        "253",
+        "459",
+        "655",
+        "659"
+      ],
+      "topic": "pension fraud and document forgery",
+      "source": "ruling",
+      "id": "BQ162"
+    },
+    {
+      "query": "موكلتي متهمة بقتل شخص لكن النيابة العامة تدعي أن القتل كان مع سبق الإصرار والترصد. الدفاع يرى أن الفعل لم يكن مخططاً له وأن الظروف لا تثبت التصميم المسبق. في حال رفض القاضي تهمة القتل قصداً مع سبق الإصرار، ما هي التهم البديلة الممكنة والعقوبات المترتبة عليها؟",
+      "lang": "ar",
+      "type": "case_analysis",
+      "relevant_articles": [
+        "549"
+      ],
+      "topic": "premeditated murder charge reduction",
+      "source": "ruling",
+      "id": "BQ163"
+    },
+    {
+      "query": "موكلي متهم بارتكاب جريمة قتل قصد داخل مخيم عين الحلوة للاجئين الفلسطينيين. الادعاء يقول إن القتل كان مع سبق الإصرار والترصد وأن موكلي خطط للجريمة مسبقاً. ما هي العقوبة القصوى التي يمكن أن تفرض في مثل هذه القضية وهل هناك أي ظروف مخففة يمكن الاستناد إليها؟",
+      "lang": "ar",
+      "type": "case_analysis",
+      "relevant_articles": [
+        "79",
+        "205",
+        "549"
+      ],
+      "topic": "premeditated murder in Palestinian camp",
+      "source": "ruling",
+      "id": "BQ164"
+    },
+    {
+      "query": "My client is accused of fatally shooting someone during a violent political demonstration. The prosecution claims it was premeditated because he brought a firearm to the protest. He admits firing the weapon but says he felt threatened by the crowd and didn't plan to kill anyone beforehand. What charges is he likely facing and what are the potential penalties under Lebanese law?",
+      "lang": "en",
+      "type": "case_analysis",
+      "relevant_articles": [
+        "72",
+        "205",
+        "549"
+      ],
+      "topic": "Premeditated murder at demonstration",
+      "source": "ruling",
+      "id": "BQ165"
+    },
+    {
+      "query": "I'm representing a man who got into a fight at a bar and stabbed the other person with a knife. The victim survived but suffered serious injuries requiring surgery. Initially the prosecutor charged him with attempted murder, but we argued there was no intent to kill, just to injure during a heated altercation. The victim has since reconciled with my client and dropped the civil claim. What conviction might result and what sentence should we expect?",
+      "lang": "en",
+      "type": "case_analysis",
+      "relevant_articles": [
+        "73",
+        "184",
+        "205",
+        "254",
+        "556"
+      ],
+      "topic": "Stabbing with serious injury",
+      "source": "ruling",
+      "id": "BQ166"
+    },
+    {
+      "query": "A client came to me after his brother was stabbed multiple times in vital areas of the body, including the chest and abdomen. The attacker clearly intended to kill him and had planned the assault. My client's brother survived but the attacker has now fled the country and cannot be located. If the attacker is tried and convicted in his absence, what sentence would the court likely impose for this kind of premeditated attempted murder?",
+      "lang": "en",
+      "type": "case_analysis",
+      "relevant_articles": [
+        "36",
+        "205"
+      ],
+      "topic": "Attempted premeditated murder - defendant absconded",
+      "source": "ruling",
+      "id": "BQ167"
+    },
+    {
+      "query": "Mon client est accusé d'avoir participé à une organisation armée et de détention d'armes, mais le procureur l'accuse également de double meurtre avec préméditation. Les preuves du meurtre sont faibles et reposent principalement sur des témoignages contradictoires. Quels articles du Code pénal s'appliquent dans ce type d'affaire, et est-il possible d'être acquitté des charges de meurtre tout en étant condamné pour les infractions liées aux armes et à l'organisation armée?",
+      "lang": "fr",
+      "type": "case_analysis",
+      "relevant_articles": [
+        "205",
+        "549",
+        "672"
+      ],
+      "topic": "Armed organisation and murder charges",
+      "source": "ruling",
+      "id": "BQ168"
+    },
+    {
+      "query": "J'ai un client qui a été condamné par contumace à 20 ans de travaux forcés pour tentative de meurtre après avoir poignardé quelqu'un lors d'une altercation. Il n'était pas présent au procès et souhaite maintenant faire appel. Quelles dispositions du Code pénal libanais régissent la tentative de meurtre par arme blanche, et quelles sont ses options juridiques suite à une condamnation par contumace?",
+      "lang": "fr",
+      "type": "case_analysis",
+      "relevant_articles": [
+        "36"
+      ],
+      "topic": "Attempted murder by stabbing in absentia",
+      "source": "ruling",
+      "id": "BQ169"
+    },
+    {
+      "query": "Ma cliente a été condamnée en première instance pour violation de marque déposée et contrefaçon selon l'article 666 du Code pénal libanais. La partie civile a maintenant renoncé à ses poursuites et souhaite abandonner l'affaire. Est-ce que cette renonciation civile peut entraîner l'abandon des poursuites pénales et l'annulation de la condamnation en appel? Quels sont les articles pertinents du Code pénal dans ce contexte?",
+      "lang": "fr",
+      "type": "case_analysis",
+      "relevant_articles": [
+        "217",
+        "666"
+      ],
+      "topic": "Trademark violation and civil waiver",
+      "source": "ruling",
+      "id": "BQ170"
+    },
+    {
+      "query": "موكلي صاحب علامة تجارية مسجلة، وقد اكتشف أن شخصاً آخر يستخدم نفس العلامة على منتجات مشابهة دون إذنه. قدمنا شكوى جزائية ضد المخالف، لكن موكلي الآن يرغب في التنازل عن حقه الشخصي والتوصل إلى تسوية مع المدعى عليه. هل يمكن أن يؤدي هذا التنازل إلى إسقاط الملاحقة الجزائية؟ وما هي الآثار القانونية لهذا التنازل على الحكم الصادر بحق المخالف؟",
+      "lang": "ar",
+      "type": "case_analysis",
+      "relevant_articles": [
+        "254",
+        "667"
+      ],
+      "topic": "IP/trademark violation and civil waiver",
+      "source": "ruling",
+      "id": "BQ171"
+    },
+    {
+      "query": "عميلي استثمر مبلغ 10,000 دولار أمريكي في مشروع طبي بناءً على وعود ووثائق قدمها له المدعى عليه. اتضح لاحقاً أن المشروع كان وهمياً وأن بعض المستندات كانت مزورة. تم الحكم على المدعى عليه في محكمة الدرجة الأولى، لكنه استأنف القرار. السؤال: هل يمكن أن يسقط بعض الجرائم بالتقادم؟ وما هي فرص الحصول على التعويض المدني في مثل هذه القضايا؟",
+      "lang": "ar",
+      "type": "case_analysis",
+      "relevant_articles": [
+        "454",
+        "471",
+        "655",
+        "656",
+        "666",
+        "670"
+      ],
+      "topic": "Investment fraud and forgery",
+      "source": "ruling",
+      "id": "BQ172"
+    },
+    {
+      "query": "موكلتي سلّمت مبلغاً من المال لمحاميها لغرض محدد يتعلق بقضيتها، لكن المحامي لم يعد المبلغ رغم مرور وقت طويل وعدم إنجاز المهمة المتفق عليها. حاولت موكلتي مراراً استرداد أموالها دون جدوى. هل يشكل هذا جريمة خيانة أمانة؟ وما هي العقوبات المحتملة في حال إدانة المحامي؟ وهل يمكن الحكم بغرامة مالية بالإضافة إلى العقوبة بالحبس؟",
+      "lang": "ar",
+      "type": "case_analysis",
+      "relevant_articles": [
+        "54",
+        "671",
+        "672"
+      ],
+      "topic": "Breach of trust by attorney",
+      "source": "ruling",
+      "id": "BQ173"
+    },
+    {
+      "query": "My client purchased a motorcycle from someone at a very low price. He claims he didn't ask many questions about the origin of the bike because the deal seemed good. Later, police discovered the motorcycle was reported stolen. The prosecution argues he should have been suspicious given the unusually low price and lack of proper documentation. Can he be convicted of receiving stolen property even if he says he didn't know for certain it was stolen?",
+      "lang": "en",
+      "type": "case_analysis",
+      "relevant_articles": [
+        "54",
+        "221"
+      ],
+      "topic": "receiving stolen property",
+      "source": "ruling",
+      "id": "BQ174"
+    },
+    {
+      "query": "I'm representing someone who was arrested for drug possession and convicted with a 3-year prison sentence. However, he has now completed a full rehabilitation program at an accredited addiction treatment center and has documentation proving he successfully finished the treatment. Can we seek to have the prosecution permanently stayed and the sentence extinguished based on his completion of the addiction treatment program?",
+      "lang": "en",
+      "type": "case_analysis",
+      "relevant_articles": [
+        "127",
+        "195"
+      ],
+      "topic": "narcotics and addiction treatment",
+      "source": "ruling",
+      "id": "BQ175"
+    },
+    {
+      "query": "My client was accused by her neighbor of filing a false police report claiming the neighbor stole her jewelry. The neighbor is now suing her for false accusation and fabrication of evidence. While it's true that the jewelry was never found and the theft claim couldn't be proven, my client genuinely believed at the time that the neighbor took her items based on suspicious circumstances. There's no evidence she acted with malicious intent or knew the accusation was false. What are her chances of acquittal on the charges of false accusation?",
+      "lang": "en",
+      "type": "case_analysis",
+      "relevant_articles": [
+        "402",
+        "403"
+      ],
+      "topic": "false accusation",
+      "source": "ruling",
+      "id": "BQ176"
+    },
+    {
+      "query": "Mon client a été accusé d'avoir vendu des accessoires de contrefaçon dans sa boutique. La partie civile réclame des dommages-intérêts pour le préjudice subi. Bien que l'action pénale soit suspendue, le tribunal pourrait-il quand même condamner mon client à verser une indemnisation civile à la victime ?",
+      "lang": "fr",
+      "type": "case_analysis",
+      "relevant_articles": [
+        "408",
+        "702"
+      ],
+      "topic": "Counterfeit goods fraud",
+      "source": "ruling",
+      "id": "BQ177"
+    },
+    {
+      "query": "Je représente un homme accusé d'avoir participé à une fusillade sur un marché qui a causé la mort d'une personne. L'accusation parle de meurtre avec préméditation, mais les preuves sont principalement basées sur des témoignages contradictoires et il n'y a pas de preuve matérielle directe. Quelles sont les chances d'acquittement si les preuves restent insuffisantes ?",
+      "lang": "fr",
+      "type": "case_analysis",
+      "relevant_articles": [
+        "72",
+        "549"
+      ],
+      "topic": "Premeditated murder",
+      "source": "ruling",
+      "id": "BQ178"
+    },
+    {
+      "query": "Ma cliente a été victime d'un vol à son domicile. Deux individus sont entrés chez elle, l'ont menacée avec un couteau et ont volé ses bijoux et objets de valeur. Les accusés ont été arrêtés et des preuves les lient au crime. À quelle peine peuvent-ils s'attendre pour vol avec effraction et menace d'arme blanche ?",
+      "lang": "fr",
+      "type": "case_analysis",
+      "relevant_articles": [
+        "77",
+        "259",
+        "629"
+      ],
+      "topic": "Armed robbery with dwelling entry",
+      "source": "ruling",
+      "id": "BQ179"
+    },
+    {
+      "query": "موكلي متهم بالاتجار بالمخدرات، حيث ضبطت الشرطة بحوزته كميات من الحشيش والكوكايين كان ينوي بيعها. هل يمكن أن يواجه عقوبة الأشغال الشاقة المؤبدة؟ وما هي المواد القانونية التي قد تطبق على قضيته؟",
+      "lang": "ar",
+      "type": "case_analysis",
+      "relevant_articles": [
+        "125",
+        "126",
+        "127",
+        "205"
+      ],
+      "topic": "Drug trafficking",
+      "source": "ruling",
+      "id": "BQ180"
+    },
+    {
+      "query": "عميلي أجنبي طعن شخصاً بسكين في وجهه ورقبته بنية القتل، لكن المجني عليه نجا من الموت. كما أن موكلي يقيم بشكل غير قانوني في لبنان. ما هي العقوبات المحتملة التي قد يواجهها بموجب قانون العقوبات اللبناني وقانون الأجانب؟",
+      "lang": "ar",
+      "type": "case_analysis",
+      "relevant_articles": [
+        "36",
+        "205"
+      ],
+      "topic": "Attempted murder and illegal residence",
+      "source": "ruling",
+      "id": "BQ181"
+    },
+    {
+      "query": "لدي قضية تتعلق بخمسة طلاب سوريين قاموا بتزوير وثائق التسجيل في الجامعة اللبنانية باستخدام شهادات أكاديمية مزورة. ما هي المواد القانونية المطبقة على جريمة التزوير هذه وما العقوبة المتوقعة؟",
+      "lang": "ar",
+      "type": "case_analysis",
+      "relevant_articles": [
+        "205",
+        "459"
+      ],
+      "topic": "Document forgery",
+      "source": "ruling",
+      "id": "BQ182"
+    },
+    {
+      "query": "My client was caught riding a motorcycle that turned out to be stolen. He claims he bought it from someone on the street a few weeks ago for a very low price and didn't ask for any papers. The prosecutor initially charged him with vehicle theft, but now they're saying he should have known it was stolen based on the circumstances of the purchase. What are the potential charges and penalties he's facing?",
+      "lang": "en",
+      "type": "case_analysis",
+      "relevant_articles": [
+        "221",
+        "638"
+      ],
+      "topic": "Receiving stolen motorcycle",
+      "source": "ruling",
+      "id": "BQ183"
+    },
+    {
+      "query": "I have a client who works as a cleaning service employee. He's been accused of entering several apartments by telling residents he was there to perform maintenance work for the building management, when in fact he had no such authorization. Once inside, he allegedly stole valuable items from these homes. The prosecution is calling this burglary with deception. What legal provisions apply to this situation and what kind of sentence could he face?",
+      "lang": "en",
+      "type": "case_analysis",
+      "relevant_articles": [
+        "205",
+        "629"
+      ],
+      "topic": "Burglary by deception using false employment pretext",
+      "source": "ruling",
+      "id": "BQ184"
+    },
+    {
+      "query": "A family member is being prosecuted for allegedly forging a notarized power of attorney in someone else's name and using it to transfer property ownership through a fraudulent private contract. The victim claims they never signed any power of attorney and the signature is not theirs. The case involves both the forged notarial document and the subsequent property transfer contract. What charges would apply under Lebanese law and what penalties could result from a conviction?",
+      "lang": "en",
+      "type": "case_analysis",
+      "relevant_articles": [
+        "205",
+        "459",
+        "463"
+      ],
+      "topic": "Forgery of power of attorney for fraudulent property transfer",
+      "source": "ruling",
+      "id": "BQ185"
+    },
+    {
+      "query": "Mon client a été arrêté pour avoir prétendument falsifié des documents officiels relatifs à un permis de travail et de résidence afin d'obtenir des paiements d'un employeur. Cependant, les preuves sont faibles et reposent principalement sur des témoignages contradictoires. Quels articles du Code pénal libanais pourraient s'appliquer et quelles sont les chances d'acquittement si le doute raisonnable persiste?",
+      "lang": "fr",
+      "type": "case_analysis",
+      "relevant_articles": [
+        "459",
+        "655"
+      ],
+      "topic": "Forgery of official documents - work permit fraud",
+      "source": "ruling",
+      "id": "BQ186"
+    },
+    {
+      "query": "Un de mes clients est accusé d'avoir volé une motocyclette et d'avoir ensuite créé un faux contrat de vente privé pour légitimer la possession du véhicule. Un deuxième individu est impliqué pour avoir reçu le bien volé en connaissance de cause. Quels sont les articles applicables du Code pénal et quelles peines risquent-ils d'encourir?",
+      "lang": "fr",
+      "type": "case_analysis",
+      "relevant_articles": [
+        "54",
+        "205",
+        "221",
+        "253",
+        "254",
+        "471",
+        "638",
+        "655"
+      ],
+      "topic": "Vehicle theft and forgery of private documents",
+      "source": "ruling",
+      "id": "BQ187"
+    },
+    {
+      "query": "Ma cliente et son complice ont falsifié des documents officiels d'immatriculation automobile ainsi qu'un contrat de vente privé dans le cadre d'une fraude à la vente de véhicule. Les autorités ont des preuves solides de la falsification et de l'utilisation de ces faux documents. Quelles dispositions du Code pénal libanais s'appliquent et à quelles peines peuvent-ils s'attendre?",
+      "lang": "fr",
+      "type": "case_analysis",
+      "relevant_articles": [
+        "205",
+        "253",
+        "459",
+        "463"
+      ],
+      "topic": "Forgery of vehicle registration and sale fraud",
+      "source": "ruling",
+      "id": "BQ188"
+    },
+    {
+      "query": "موكلي يعمل في شركة استيراد مواد بناء، وقام بتزوير توقيع مدير الشركة على شيكات تجارية مسروقة لصالح مورّد أخشاب ومعدات. تم ضبطه وهو يستلم الشيكات المزورة ويستخدمها في معاملات احتيالية. المحكمة الجزائية في بيروت تنظر في القضية. ما هي المواد القانونية التي قد تُطبّق عليه وما العقوبة المحتملة؟",
+      "lang": "ar",
+      "type": "case_analysis",
+      "relevant_articles": [
+        "221",
+        "335",
+        "471",
+        "655"
+      ],
+      "topic": "forgery and fraud with stolen cheques",
+      "source": "ruling",
+      "id": "BQ189"
+    },
+    {
+      "query": "عميلي متهم بتزوير رخصة رسمية صادرة عن وزارة الداخلية تتعلق بتظليل زجاج السيارات، واستخدم هذه الرخصة المزورة لتجاوز الحواجز الأمنية في بيروت. القضية معروضة أمام محكمة الجنايات وهناك متهمان آخران معه. ما هي المواد الجزائية المطبقة على جرم تزوير المستندات الرسمية واستعمالها؟",
+      "lang": "ar",
+      "type": "case_analysis",
+      "relevant_articles": [
+        "36",
+        "227",
+        "459"
+      ],
+      "topic": "forging official permits",
+      "source": "ruling",
+      "id": "BQ190"
+    },
+    {
+      "query": "موكلتي وسيطة عقارية ويدّعي أحد الزبائن أنها ارتكبت خيانة أمانة بعدم تسليمه كامل عمولة صفقة عقارية. رفع دعوى جزائية ضدها بتهمة خيانة الأمانة أمام محكمة الجنح في جبل لبنان. هل هذا النزاع يُعتبر جرماً جزائياً أم مسألة مدنية تجارية تتعلق بالمحاسبة؟",
+      "lang": "ar",
+      "type": "case_analysis",
+      "relevant_articles": [
+        "198",
+        "671"
+      ],
+      "topic": "breach of trust in real estate commission",
+      "source": "ruling",
+      "id": "BQ191"
+    },
+    {
+      "query": "My client operates a small apartment where she houses several women who engage in prostitution. She collects a portion of their earnings in exchange for providing the space and arranging clients. Authorities raided the location and arrested her. What criminal charges is she likely facing under the Penal Code, and what are the potential penalties?",
+      "lang": "en",
+      "type": "case_analysis",
+      "relevant_articles": [
+        "54",
+        "523",
+        "527"
+      ],
+      "topic": "Prostitution exploitation",
+      "source": "ruling",
+      "id": "BQ192"
+    },
+    {
+      "query": "Two business partners are in a dispute. My client filed a complaint accusing the other of fraud and embezzlement. In response, the other party filed a counter-complaint alleging that my client defamed him and made false accusations to damage his reputation. Both parties have now accused each other of criminal conduct. Can my client invoke any legal protection given that the statements were made in the context of defending against the original business dispute?",
+      "lang": "en",
+      "type": "case_analysis",
+      "relevant_articles": [
+        "385",
+        "386",
+        "387",
+        "388",
+        "402",
+        "403",
+        "404",
+        "417",
+        "582",
+        "583",
+        "584"
+      ],
+      "topic": "Mutual defamation and legal shield",
+      "source": "ruling",
+      "id": "BQ193"
+    },
+    {
+      "query": "A family member used powers-of-attorney to transfer our late father's property to himself before the father died, effectively cutting out the other heirs from their inheritance shares. We believe these POAs were obtained fraudulently and used to manipulate the estate distribution. We want to challenge these transactions. What fraud provisions might apply, and can we seek both criminal prosecution and civil annulment of these powers-of-attorney?",
+      "lang": "en",
+      "type": "case_analysis",
+      "relevant_articles": [
+        "655"
+      ],
+      "topic": "Inheritance fraud via POA",
+      "source": "ruling",
+      "id": "BQ194"
+    },
+    {
+      "query": "Mon client a été arrêté pour avoir vendu des accessoires de contrefaçon dans sa boutique. La victime a porté plainte et réclame des dommages et intérêts pour le préjudice subi. Bien que le parquet ait décidé de ne pas poursuivre l'affaire pénale, la partie civile insiste pour obtenir une compensation financière. Quels sont les articles du code pénal applicables et quelles sont les chances que mon client soit condamné à verser des dommages-intérêts même en l'absence de poursuite pénale?",
+      "lang": "fr",
+      "type": "case_analysis",
+      "relevant_articles": [
+        "408",
+        "702"
+      ],
+      "topic": "Counterfeit accessories fraud",
+      "source": "ruling",
+      "id": "BQ195"
+    },
+    {
+      "query": "Ma cliente a été impliquée dans un accident de circulation où elle a dévié de sa voie par négligence et a heurté un autre véhicule. Paniquée, elle a quitté les lieux sans s'arrêter. La victime a subi des blessures et réclame maintenant une indemnisation importante. L'assurance de ma cliente refuse de couvrir l'intégralité des dommages réclamés. Quels articles du code pénal libanais s'appliquent à cette situation et quelle est la responsabilité conjointe de ma cliente et de sa compagnie d'assurance?",
+      "lang": "fr",
+      "type": "case_analysis",
+      "relevant_articles": [
+        "54",
+        "142",
+        "205",
+        "254",
+        "565",
+        "566"
+      ],
+      "topic": "Traffic accident with negligence and fleeing",
+      "source": "ruling",
+      "id": "BQ196"
+    }
+  ]
+}
