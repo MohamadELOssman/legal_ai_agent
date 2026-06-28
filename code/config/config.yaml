@@ -23,9 +23,9 @@ rag:
   collection_name: "lebanese_legal_docs"
 
   # Retrieval
-  # EVIDENCE-BASED default: scripts/eval_retrieval.py on the gold set shows plain
-  # semantic retrieval wins on this Arabic/EN penal corpus (nDCG@5 0.64, MRR 0.76).
-  retrieval_strategy: "semantic"  # hybrid, semantic, bm25
+  # EVIDENCE-BASED default: eval_retrieval.py on the 196-question benchmark shows
+  # HYBRID (BM25+dense) wins (recall@5 0.50 / nDCG 0.41) over semantic (0.43 / 0.36).
+  retrieval_strategy: "hybrid"  # hybrid, semantic, bm25
   top_k: 5
   similarity_threshold: 0.7
 

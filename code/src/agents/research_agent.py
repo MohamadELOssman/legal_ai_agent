@@ -67,10 +67,10 @@ Your task is to retrieve relevant Lebanese Penal Code articles and court rulings
 
             # Retrieval strategy is configurable so the evaluation harness can A/B
             # semantic vs bm25 vs hybrid and rerank on/off. Defaults are EVIDENCE-BASED:
-            # scripts/eval_retrieval.py on the gold set shows plain semantic wins
-            # (nDCG@5 0.64, MRR 0.76); the English-only cross-encoder reranker degrades
-            # this Arabic/legal corpus (hybrid+rerank nDCG@5 drops to 0.25).
-            strategy = agent_input.metadata.get("retrieval_strategy", "semantic")
+            # eval_retrieval.py on the 196-question benchmark shows HYBRID (BM25+dense)
+            # wins (recall@5 0.50 / nDCG 0.41) over semantic (0.43 / 0.36); the
+            # English-only cross-encoder reranker degrades this corpus, so it stays off.
+            strategy = agent_input.metadata.get("retrieval_strategy", "hybrid")
             use_reranking = agent_input.metadata.get("use_reranking", False)
 
             orch = agent_input.metadata.get("orchestrator", {})
@@ -124,7 +124,7 @@ Your task is to retrieve relevant Lebanese Penal Code articles and court rulings
         top_k: int = 5,
         score_threshold: float = 0.3,
         research_mode: str = "articles_and_cases",
-        strategy: str = "semantic",
+        strategy: str = "hybrid",
         use_reranking: bool = False,
     ) -> List[Dict[str, Any]]:
         """
