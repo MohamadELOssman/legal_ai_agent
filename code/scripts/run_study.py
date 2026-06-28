@@ -64,10 +64,12 @@ def main():
     ap.add_argument("--judge", dest="judge", action="store_true", default=True)
     ap.add_argument("--no-judge", dest="judge", action="store_false")
     ap.add_argument("--primary-metric", default="citation_f1", choices=METRICS)
+    ap.add_argument("--gold", type=str, default=str(GOLD_FILE),
+                    help="Gold dataset (cases[].query + relevant_articles)")
     ap.add_argument("--output", type=str, default=None)
     args = ap.parse_args()
 
-    cases = json.load(open(GOLD_FILE, encoding="utf-8"))["cases"]
+    cases = json.load(open(args.gold, encoding="utf-8"))["cases"]
     if args.limit:
         cases = cases[:args.limit]
 

@@ -162,12 +162,13 @@ class LegalVectorStore:
 
         logger.info(f"Building vector store with {len(documents)} documents...")
 
-        # Create Chroma vectorstore
+        # Create Chroma vectorstore — cosine distance so similarity = 1 - score is correct
         self.vectorstore = Chroma.from_documents(
             documents=documents,
             embedding=self.embeddings,
             persist_directory=str(self.persist_directory),
             collection_name="lebanese_legal_docs",
+            collection_metadata={"hnsw:space": "cosine"},
         )
 
         logger.info("Vector store built successfully")
@@ -207,6 +208,35 @@ class LegalVectorStore:
 
         logger.info("Hybrid retriever built successfully")
 
+    def _rebuild_hybrid_retriever_from_chroma(self) -> None:
+        """Rebuild BM25 + hybrid retriever using documents already in Chroma."""
+    
+        try:
+            logger.info("Rebuilding hybrid retriever from Chroma documents...")
+        
+            # Fetch all documents directly from the Chroma collection
+            collection = self.vectorstore._collection
+            result = collection.get(include=["documents", "metadatas"])
+        
+            if not result["documents"]:
+                logger.warning("No documents found in Chroma collection. Hybrid retriever not built.")
+                return
+        
+            # Reconstruct LangChain Document objects
+            documents = [
+                Document(page_content=text, metadata=meta or {})
+                for text, meta in zip(result["documents"], result["metadatas"])
+            ]
+        
+            logger.info(f"Retrieved {len(documents)} documents from Chroma for BM25 rebuild")
+        
+            # Rebuild BM25 + hybrid retriever
+            self.build_hybrid_retriever(documents, weights=(0.5, 0.5))
+            logger.info("✓ Hybrid retriever rebuilt successfully")
+        
+        except Exception as e:
+            logger.warning(f"Could not rebuild hybrid retriever: {e}. Falling back to semantic-only search.")
+
     def load_vectorstore(self) -> None:
         """Load existing vector store from disk."""
 
@@ -221,9 +251,11 @@ class LegalVectorStore:
             persist_directory=str(self.persist_directory),
             embedding_function=self.embeddings,
             collection_name="lebanese_legal_docs",
+            collection_metadata={"hnsw:space": "cosine"},
         )
 
         logger.info("Vector store loaded successfully")
+        self._rebuild_hybrid_retriever_from_chroma()
 
     def semantic_search(
         self, query: str, k: int = 5, filter_dict: Optional[Dict] = None, score_threshold: float = 0.6
@@ -244,7 +276,10 @@ class LegalVectorStore:
         # Get results with scores
         search_kwargs = {"k": k * 2}  # Retrieve more to filter by threshold
         if filter_dict:
-            search_kwargs["filter"] = filter_dict
+            # Chroma's similarity_search_with_score requires the $eq operator form
+            search_kwargs["filter"] = {
+                k: {"$eq": v} for k, v in filter_dict.items()
+            }
 
         results_with_scores = self.vectorstore.similarity_search_with_score(query, **search_kwargs)
 
@@ -319,9 +354,17 @@ class LegalVectorStore:
         if strategy == "semantic":
             results = self.semantic_search(query, k=retrieve_k, filter_dict=filter_dict, score_threshold=score_threshold)
         elif strategy == "hybrid":
-            # For hybrid, we can't easily apply threshold (BM25 doesn't have similarity scores)
-            # So we skip threshold filtering for hybrid and rely on reranking
-            results = self.hybrid_search(query, k=retrieve_k)
+            if self.hybrid_retriever is not None:
+                # BM25 doesn't support Chroma metadata filters; apply filter in Python after retrieval
+                results = self.hybrid_search(query, k=retrieve_k * 3 if filter_dict else retrieve_k)
+                if filter_dict:
+                    results = [
+                        d for d in results
+                        if all(d.metadata.get(k) == v for k, v in filter_dict.items())
+                    ]
+            else:
+                logger.warning("Hybrid retriever not available, falling back to semantic search.")
+                results = self.semantic_search(query, k=retrieve_k, filter_dict=filter_dict, score_threshold=score_threshold)
         elif strategy == "bm25":
             if self.bm25_retriever is None:
                 raise ValueError("BM25 retriever not built")
@@ -338,6 +381,47 @@ class LegalVectorStore:
             results = results[:k]
 
         return results
+
+    def multi_search(
+        self,
+        queries: List[str],
+        k: int = 5,
+        strategy: str = "hybrid",
+        filter_dict: Optional[Dict] = None,
+        use_reranking: bool = None,
+        score_threshold: float = 0.0,
+        rrf_k: int = 60,
+    ) -> List[Document]:
+        """Run several query variants and fuse the results with Reciprocal Rank Fusion.
+
+        RRF score(doc) = Σ_variants 1 / (rrf_k + rank). This boosts documents that
+        rank well across multiple phrasings/translations of the query — used for
+        cross-lingual and multi-query retrieval to lift recall.
+        """
+        queries = [q for q in queries if q and q.strip()]
+        if len(queries) <= 1:
+            return self.search(queries[0] if queries else "", k=k, strategy=strategy,
+                               filter_dict=filter_dict, use_reranking=use_reranking,
+                               score_threshold=score_threshold)
+
+        from collections import defaultdict
+        scores: Dict[str, float] = defaultdict(float)
+        docmap: Dict[str, Document] = {}
+        # Retrieve a deeper pool per variant so fusion has material to work with.
+        per_variant_k = max(k, 8)
+        for q in queries:
+            results = self.search(query=q, k=per_variant_k, strategy=strategy,
+                                  filter_dict=filter_dict, use_reranking=use_reranking,
+                                  score_threshold=score_threshold)
+            for rank, doc in enumerate(results, 1):
+                key = "|".join(str(doc.metadata.get(f, "")) for f in
+                               ("document_id", "article_number", "document_language")) \
+                      or doc.page_content[:80]
+                scores[key] += 1.0 / (rrf_k + rank)
+                docmap[key] = doc
+
+        ranked = sorted(scores, key=scores.get, reverse=True)
+        return [docmap[key] for key in ranked[:k]]
 
 
 def build_vectorstore_pipeline(

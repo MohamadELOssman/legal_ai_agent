@@ -79,8 +79,21 @@ Your task is to retrieve relevant Lebanese Penal Code articles and court rulings
             # (== top_k). The end-to-end pipeline always sets the mode explicitly.
             research_mode = orch.get("research", {}).get("mode", "articles_only")
 
+            # Cross-lingual retrieval (opt-in): for EN/FR queries, also search with
+            # an Arabic translation and fuse (RRF). OFF by default — it adds an LLM
+            # call per query and its benefit is not yet validated (the A/B run was
+            # invalidated by an API credit outage). Enable via metadata["cross_lingual"]
+            # = True to evaluate it once budget allows.
+            cross_lingual = agent_input.metadata.get("cross_lingual", False)
+            lang = (structured_query.get("language") or "").lower()
+            queries = [query]
+            if cross_lingual and lang and lang != "ar":
+                ar = self._translate_to_arabic(query)
+                if ar and ar != query:
+                    queries.append(ar)
+
             retrieved_documents = self._retrieve_documents(
-                query=query,
+                queries=queries,
                 top_k=top_k,
                 score_threshold=score_threshold,
                 research_mode=research_mode,
@@ -118,9 +131,27 @@ Your task is to retrieve relevant Lebanese Penal Code articles and court rulings
                 error=str(e),
             )
 
+    def _translate_to_arabic(self, query: str) -> str:
+        """Translate a non-Arabic query to Modern Standard Arabic for cross-lingual search."""
+        try:
+            sp = ("You are a legal translator. Translate the user's legal query into Modern "
+                  "Standard Arabic using correct Lebanese legal terminology. "
+                  "Output ONLY the translation, with no explanation or quotes.")
+            return self.invoke_llm(query, system_prompt=sp).strip()
+        except Exception as e:
+            logger.warning(f"Cross-lingual translation failed: {e}")
+            return ""
+
+    def _search_pool(self, queries, k, strategy, use_reranking, score_threshold, source_type):
+        """Search one source pool with RRF fusion across query variants."""
+        return self.vectorstore.multi_search(
+            queries=queries, k=k, strategy=strategy, use_reranking=use_reranking,
+            score_threshold=score_threshold, filter_dict={"source_type": source_type},
+        )
+
     def _retrieve_documents(
         self,
-        query: str,
+        queries: List[str],
         top_k: int = 5,
         score_threshold: float = 0.3,
         research_mode: str = "articles_and_cases",
@@ -128,7 +159,8 @@ Your task is to retrieve relevant Lebanese Penal Code articles and court rulings
         use_reranking: bool = False,
     ) -> List[Dict[str, Any]]:
         """
-        Retrieve with separate pools for articles and rulings.
+        Retrieve with separate pools for articles and rulings, fusing results
+        across the supplied query variants (cross-lingual / multi-query) via RRF.
 
           articles_only       — legal_code pool only
           articles_and_cases  — legal_code pool + court_ruling pool
@@ -138,24 +170,15 @@ Your task is to retrieve relevant Lebanese Penal Code articles and court rulings
         """
         article_docs = []
         ruling_docs  = []
+        primary = queries[0] if queries else ""
 
         # ── Part 1: Legal code articles ───────────────────────────────────────
         try:
-            results = self.vectorstore.search(
-                query=query,
-                k=top_k,
-                strategy=strategy,
-                use_reranking=use_reranking,
-                score_threshold=score_threshold,
-                filter_dict={"source_type": "legal_code"},
-            )
+            results = self._search_pool(queries, top_k, strategy, use_reranking,
+                                        score_threshold, "legal_code")
             article_docs = [
-                {
-                    "content":     doc.page_content,
-                    "metadata":    doc.metadata,
-                    "source_query": query,
-                    "result_type": "legal_article",
-                }
+                {"content": doc.page_content, "metadata": doc.metadata,
+                 "source_query": primary, "result_type": "legal_article"}
                 for doc in results
             ]
         except Exception as e:
@@ -164,28 +187,18 @@ Your task is to retrieve relevant Lebanese Penal Code articles and court rulings
         # ── Part 2: Court rulings (case_analysis mode only) ───────────────────
         if research_mode == "articles_and_cases":
             try:
-                results = self.vectorstore.search(
-                    query=query,
-                    k=top_k,  # same budget as the article pool (was hardcoded 4)
-                    strategy=strategy,
-                    use_reranking=use_reranking,
-                    score_threshold=score_threshold,
-                    filter_dict={"source_type": "court_ruling"},
-                )
+                results = self._search_pool(queries, top_k, strategy, use_reranking,
+                                            score_threshold, "court_ruling")
                 ruling_docs = [
-                    {
-                        "content":     doc.page_content,
-                        "metadata":    doc.metadata,
-                        "source_query": query,
-                        "result_type": "court_ruling",
-                    }
+                    {"content": doc.page_content, "metadata": doc.metadata,
+                     "source_query": primary, "result_type": "court_ruling"}
                     for doc in results
                 ]
             except Exception as e:
                 logger.warning(f"Court-ruling search failed: {e}")
 
         logger.info(
-            f"Research [{research_mode}]: "
+            f"Research [{research_mode}, {len(queries)} variant(s)]: "
             f"{len(article_docs)} articles + {len(ruling_docs)} rulings"
         )
         return article_docs + ruling_docs
