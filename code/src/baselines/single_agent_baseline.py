@@ -11,6 +11,7 @@ from langchain_core.messages import HumanMessage, SystemMessage
 
 from src.rag.vectorstore import LegalVectorStore
 from src.config import get_config
+from src.utils.retry import invoke_with_retry as _invoke_with_retry
 
 
 class SingleAgentBaseline:
@@ -31,6 +32,8 @@ class SingleAgentBaseline:
             temperature=0.2,
             max_tokens=4096,
             anthropic_api_key=config.anthropic_api_key,
+            max_retries=4,
+            default_request_timeout=300,
         )
 
         # Reuse a shared vector store if provided (avoids reloading), else load one.
@@ -93,7 +96,7 @@ Provide a complete legal analysis."""
                 HumanMessage(content=user_message),
             ]
 
-            response = self.llm.invoke(messages)
+            response = _invoke_with_retry(self.llm, messages)
             memorandum = response.content
 
             logger.info("[BASELINE] Analysis complete")

@@ -10,6 +10,7 @@ from langchain_anthropic import ChatAnthropic
 from langchain_core.messages import HumanMessage, SystemMessage
 
 from src.config import get_config
+from src.utils.retry import invoke_with_retry as _invoke_with_retry
 
 
 class NoRAGBaseline:
@@ -30,6 +31,8 @@ class NoRAGBaseline:
             temperature=0.2,
             max_tokens=4096,
             anthropic_api_key=config.anthropic_api_key,
+            max_retries=4,
+            default_request_timeout=300,
         )
 
         logger.info(f"Initialized no-RAG baseline with {model}")
@@ -71,7 +74,7 @@ Provide a complete legal analysis based on your knowledge of Lebanese law."""
                 HumanMessage(content=user_message),
             ]
 
-            response = self.llm.invoke(messages)
+            response = _invoke_with_retry(self.llm, messages)
             memorandum = response.content
 
             logger.info("[NO-RAG] Analysis complete")
