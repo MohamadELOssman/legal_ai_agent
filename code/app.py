@@ -1547,9 +1547,10 @@ elif st.session_state.active_tab == "Bench":
             )
 
             for i, tc in enumerate(all_test_cases):
-                bench_status.info(f"Evaluating {tc['id']} / {total}: {tc['desc']}…")
+                _tc_desc = tc.get("desc") or tc.get("topic", "")
+                bench_status.info(f"Evaluating {tc['id']} / {total}: {_tc_desc}…")
                 entry = {"id": tc["id"], "query": tc["query"],
-                         "language": tc["language"], "domain": tc["domain"]}
+                         "language": tc.get("language", ""), "domain": tc.get("domain", "")}
 
                 # Agent 1
                 if "Agent 1" in bench_target:
