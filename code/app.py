@@ -1235,6 +1235,49 @@ elif st.session_state.active_tab == "Bench":
         # ── Test dataset ──────────────────────────────────────────────────────
         st.markdown("### Test Dataset")
 
+        # ── On-the-fly question generator ─────────────────────────────────────
+        _LNAME = {"ar": "Arabic", "en": "English", "fr": "French"}
+        with st.expander("🧪 Generate Benchmark Questions on the Fly",
+                         expanded=not st.session_state.get("gen_cases")):
+            st.caption("Generates fresh questions grounded in the real Penal Code articles "
+                       "and court rulings — each with a validated gold answer. "
+                       "(~1 model call per 6 questions.)")
+            gc1, gc2 = st.columns([1, 2])
+            with gc1:
+                gen_n = st.number_input("Number of questions", min_value=5, max_value=100,
+                                        value=10, step=5, key="gen_n")
+            with gc2:
+                gen_langs = st.multiselect("Languages", ["ar", "en", "fr"],
+                                           default=["ar", "en", "fr"],
+                                           format_func=lambda x: _LNAME[x], key="gen_langs")
+
+            if st.button("✨  Generate Questions", type="primary", use_container_width=True, key="btn_gen"):
+                if not gen_langs:
+                    st.warning("Select at least one language.")
+                else:
+                    from src.evaluation.question_gen import generate_questions
+                    _pbar = st.progress(0.0); _pstat = st.empty()
+
+                    def _gcb(done, total, msg):
+                        _pstat.info(f"{msg}  ({done}/{total})")
+                        _pbar.progress(min(1.0, done / max(1, total)))
+
+                    try:
+                        _cases = generate_questions(int(gen_n), model=bench_model,
+                                                    langs=gen_langs, progress=_gcb)
+                        st.session_state["gen_cases"] = _cases
+                        st.session_state["gen_page"] = 0
+                        _pstat.success(f"Generated {len(_cases)} questions.")
+                        st.rerun()
+                    except Exception as _e:
+                        _pstat.error(f"Generation failed: {_e}")
+
+            if st.session_state.get("gen_cases"):
+                if st.button("🗑️ Clear generated questions", key="btn_gen_clear"):
+                    st.session_state.pop("gen_cases", None)
+                    st.session_state["gen_page"] = 0
+                    st.rerun()
+
         default_test_cases = [
             {"id": "TC1",
              "query": "ما العقوبة التي يستحقها من قتل إنساناً قصداً بالأشغال الشاقة؟",
@@ -1278,17 +1321,50 @@ elif st.session_state.active_tab == "Bench":
              "desc": "Death penalty for filicide / premeditated murder — Art. 549 (case analysis)"},
         ]
 
-        all_test_cases = default_test_cases + st.session_state['bench_extra_cases']
+        # Use generated questions if the user created some; otherwise the built-in set.
+        if st.session_state.get("gen_cases"):
+            all_test_cases = st.session_state["gen_cases"]
+            st.caption(f"Reviewing **{len(all_test_cases)} generated** questions — check them below, "
+                       "then run the evaluation.")
+        else:
+            all_test_cases = default_test_cases + st.session_state['bench_extra_cases']
+            st.caption(f"Using the built-in {len(all_test_cases)}-question set. "
+                       "Generate your own above to replace it.")
+
+        # ── Paginated viewer (10 per page) ────────────────────────────────────
+        _PER = 10
+        st.session_state.setdefault("gen_page", 0)
+        _total_pages = max(1, (len(all_test_cases) + _PER - 1) // _PER)
+        _page = min(st.session_state["gen_page"], _total_pages - 1)
+        _start = _page * _PER
+        _chunk = all_test_cases[_start:_start + _PER]
 
         st.dataframe(
             {
-                "ID":       [tc["id"]          for tc in all_test_cases],
-                "Query":    [tc["query"]        for tc in all_test_cases],
-                "Language": [tc["language"]     for tc in all_test_cases],
-                "Domain":   [tc["domain"]      for tc in all_test_cases],
+                "ID":       [tc.get("id", "")                                   for tc in _chunk],
+                "Query":    [tc.get("query", "")                                for tc in _chunk],
+                "Language": [tc.get("language", _LNAME.get(tc.get("lang", ""), "")) for tc in _chunk],
+                "Type":     [tc.get("type", "-")                               for tc in _chunk],
+                "Gold Articles": [", ".join(tc.get("relevant_articles", [])) or tc.get("desc", "-")
+                                  for tc in _chunk],
             },
             use_container_width=True,
         )
+
+        _nav1, _nav2, _nav3 = st.columns([1, 3, 1])
+        with _nav1:
+            if st.button("⬅️  Prev", disabled=(_page <= 0), use_container_width=True, key="pg_prev"):
+                st.session_state["gen_page"] = _page - 1; st.rerun()
+        with _nav2:
+            st.markdown(
+                f"<div style='text-align:center;padding-top:0.4rem;color:#64748b;'>"
+                f"Showing {_start + 1}–{min(_start + _PER, len(all_test_cases))} "
+                f"of {len(all_test_cases)}  ·  page {_page + 1} / {_total_pages}</div>",
+                unsafe_allow_html=True)
+        with _nav3:
+            if st.button("Next  ➡️", disabled=(_page >= _total_pages - 1),
+                         use_container_width=True, key="pg_next"):
+                st.session_state["gen_page"] = _page + 1; st.rerun()
 
         # ══════════════════════════════════════════════════════════════════════
         # MODE: Full Pipeline vs Baselines (system comparison, full-memo scoring)
