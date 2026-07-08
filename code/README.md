@@ -1,94 +1,113 @@
 # Multi-Agent Legal AI System for Lebanese Law
 
-**Author:** Hazem Harb  
-**Thesis:** Multi-Agent AI System for Lebanese Legal Research  
-**Focus:** Lebanese Contract Law (Arabic, French, English)
+**Thesis:** Multi-Agent, Retrieval-Augmented AI System for Lebanese Legal Research
+**Focus:** Lebanese **Penal Code** (Arabic + English corpus), with trilingual queries (Arabic / English / French)
 
-## Project Overview
+## Overview
 
-This system implements a 7-agent multi-agent architecture with RAG for Lebanese legal research, focusing on contract law with trilingual support.
+A pipeline of specialised AI agents answers legal questions by retrieving the
+relevant articles of the Lebanese Penal Code (and court rulings), then writing a
+structured legal memorandum. It grounds and verifies every citation, and reports
+a trust/hallucination indicator per answer.
 
-## Architecture
+### Agent pipeline
+0. **Orchestrator** – classify the query (general question vs. case to assess) and route it
+1. **Query Understanding** – detect language/domain, extract facts (structured output)
+2. **Research (RAG)** – retrieve relevant articles + rulings (hybrid search)
+3. **Analysis** – extract applicable provisions, grounded against the sources
+4. **Reasoning** – apply the law to the facts
+5. **Citation** – format and verify article citations against the corpus
+6. **Writing** – produce the memorandum in the question's language
 
-### Agent Pipeline
-1. **Query Understanding Agent** - Parse multilingual legal questions
-2. **Research Agent** - Retrieve relevant legal texts via RAG
-3. **Analysis Agent** - Extract key provisions from retrieved texts
-4. **Reasoning Agent** - Apply law to facts
-5. **Citation Agent** - Format legal citations
-6. **Writing Agent** - Generate legal memorandum
-7. **Coordinator Agent** - Orchestrate workflow and validate outputs
+## Requirements
 
-## Project Structure
+- Python 3.11+
+- An **Anthropic API key** (Claude)
 
-```
-code/
-├── src/
-│   ├── agents/           # 7 agent implementations
-│   ├── rag/              # RAG pipeline
-│   ├── data/             # Data processing
-│   ├── evaluation/       # Metrics and evaluation
-│   └── orchestrator/     # Multi-agent coordination
-├── data_processed/       # Processed legal documents
-├── experiments/          # Evaluation experiments
-├── notebooks/            # Jupyter notebooks for analysis
-├── ui/                   # Streamlit web interface
-├── tests/                # Unit tests
-├── config/               # Configuration files
-└── requirements.txt
-```
-
-## Installation
+## Setup
 
 ```bash
-# Create virtual environment
+cd code
+
+# 1. Virtual environment
 python -m venv venv
-source venv/bin/activate  # On Windows: venv\Scripts\activate
+source venv/bin/activate            # Windows: venv\Scripts\activate
 
-# Install dependencies
+# 2. Dependencies
 pip install -r requirements.txt
+
+# 3. API key
+cp .env.example .env
+# then edit .env and set:  ANTHROPIC_API_KEY=sk-ant-...
+
+# 4. Build the search index (required — the vector store is not committed)
+python scripts/build_index.py       # embeds the corpus into data_processed/vectorstore/
 ```
 
-## Usage
+## Run the web app
 
 ```bash
-# 1. Preprocess legal documents
-python src/data/preprocess.py
-
-# 2. Build RAG vector database
-python src/rag/build_vectorstore.py
-
-# 3. Run the system
-streamlit run ui/app.py
+cd code
+source venv/bin/activate
+streamlit run app.py                # opens http://localhost:8501
 ```
 
-## Evaluation
+The app has three tabs:
+- **End-to-End Pipeline** – ask a legal question (AR/EN/FR) → full 7-agent memorandum + sources + trust/cost.
+- **Individual Agents** – test one agent in isolation.
+- **Benchmarking** – score agents, generate benchmark questions on the fly, or run *Full Pipeline vs Baselines*.
+
+> First launch loads the embedding model (~15–20s). A full answer takes ~2–3 min.
+> If port 8501 is busy: `streamlit run app.py --server.port 8600`.
+
+## Evaluation (optional)
 
 ```bash
-# Run baseline comparison
-python experiments/baseline_comparison.py
+# Retrieval metrics on the benchmark (CPU only, no API cost)
+python scripts/eval_retrieval.py --gold experiments/qa_benchmark_200.json
 
-# Run expert evaluation
-python experiments/expert_evaluation.py
+# Multi-agent vs. baselines, with LLM-as-judge (uses the API)
+python scripts/run_evaluation.py --limit 10
+
+# Statistical study (mean ± CI + significance)
+python scripts/run_study.py --gold experiments/qa_benchmark_200.json --limit 20
+
+# (Re)generate a grounded benchmark dataset
+python scripts/generate_benchmark.py --n 200
+```
+
+## Tests
+
+```bash
+cd code
+python -m pytest tests -q
 ```
 
 ## Technologies
 
-- **LLMs:** Claude 4.5 Sonnet, Gemini 1.5 Pro
-- **Embeddings:** multilingual-e5-large-instruct
-- **Vector Store:** Chroma
-- **Framework:** LangChain
-- **UI:** Streamlit
-- **Language:** Python 3.11+
+- **LLM:** Claude Sonnet 4.5 (selectable: Sonnet 4.6, Opus 4.6, Haiku 4.5)
+- **Embeddings:** `sentence-transformers/paraphrase-multilingual-mpnet-base-v2` (local, free)
+- **Retrieval:** Hybrid (BM25 + dense), evidence-based default
+- **Vector store:** Chroma · **Framework:** LangChain · **UI:** Streamlit
 
-## Research Questions
+## Project structure
 
-1. What agent roles and collaboration protocols are optimal for legal research tasks?
-2. How can multi-agent systems effectively handle trilingual Lebanese legal texts?
-3. What retrieval strategies work best for Lebanese legal corpus in a RAG architecture?
-4. How do multi-agent systems compare to single-agent baselines (GPT-4)?
-5. What level of accuracy can be achieved with validation by Lebanese legal experts?
+```
+code/
+├── app.py                 # Streamlit web app
+├── src/
+│   ├── agents/            # agent implementations
+│   ├── rag/               # retrieval / vector store
+│   ├── evaluation/        # comparison, stats, question generation
+│   ├── orchestrator/      # headless end-to-end pipeline
+│   └── utils/             # trust, citation validation, cost tracking
+├── scripts/               # build_index, eval_retrieval, run_evaluation, run_study, ...
+├── data_processed/        # processed corpus (vector store is built locally, not committed)
+├── experiments/           # benchmark dataset + results
+├── tests/                 # unit tests
+└── config/                # configuration
+```
 
 ## License
 
-Academic Research - For thesis purposes only
+Academic Research — for thesis purposes only.
