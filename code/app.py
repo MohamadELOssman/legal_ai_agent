@@ -1241,7 +1241,8 @@ elif st.session_state.active_tab == "Bench":
                          expanded=not st.session_state.get("gen_cases")):
             st.caption("Generates fresh questions grounded in the real Penal Code articles "
                        "and court rulings — each with a validated gold answer. "
-                       "(~1 model call per 6 questions.)")
+                       "Questions are produced in batches (~10 per model call), so a set of "
+                       "30 needs only ~3 calls.")
             gc1, gc2 = st.columns([1, 2])
             with gc1:
                 gen_n = st.number_input("Number of questions", min_value=5, max_value=100,

@@ -95,9 +95,9 @@ def generate_questions(
     random.shuffle(ar)
 
     cfg = get_config()
-    llm = ChatAnthropic(model=model, temperature=0.7, max_tokens=2500,
+    llm = ChatAnthropic(model=model, temperature=0.7, max_tokens=4000,
                         anthropic_api_key=cfg.anthropic_api_key,
-                        default_request_timeout=90, max_retries=1).with_structured_output(GenBatch)
+                        default_request_timeout=120, max_retries=1).with_structured_output(GenBatch)
 
     n_rulings_target = min(len(rulings), n // 4)      # ~25% from rulings
     n_article_target = n - n_rulings_target
@@ -109,7 +109,9 @@ def generate_questions(
             progress(min(len(cases), n), n, msg)
 
     # ── Article-based ────────────────────────────────────────────────────────
-    ai, batch_size = 0, 7
+    # Larger batches = fewer model calls: each call is grounded in ~14 articles and
+    # returns up to 10 questions.
+    ai, batch_size, per_call = 0, 14, 10
     while len([c for c in cases if c.get("source") == "article"]) < n_article_target and ai < len(ar):
         subset = ar[ai:ai + batch_size]; ai += batch_size
         if not subset:
@@ -117,7 +119,7 @@ def generate_questions(
         lang = langs[li % len(langs)]; li += 1
         nums = [str(a["article_number"]) for a in subset]
         articles_txt = "\n".join(f"- Article {a['article_number']}: {(a.get('text') or '')[:280]}" for a in subset)
-        want = min(6, n_article_target - len([c for c in cases if c.get("source") == "article"]))
+        want = min(per_call, n_article_target - len([c for c in cases if c.get("source") == "article"]))
         msg = f"""From these Lebanese Penal Code articles:
 
 {articles_txt}
@@ -140,10 +142,11 @@ Generate {want} DIVERSE evaluation questions in {LANG_NAME[lang]}.
 
     # ── Ruling-based case questions ──────────────────────────────────────────
     rsel = rulings[:max(0, n_rulings_target)]
-    for j in range(0, len(rsel), 3):
+    ruling_batch = 5  # rulings per call (one case question each)
+    for j in range(0, len(rsel), ruling_batch):
         if len(cases) >= n:
             break
-        chunk = rsel[j:j + 3]
+        chunk = rsel[j:j + ruling_batch]
         lang = langs[li % len(langs)]; li += 1
         parts, allowed = [], set()
         for c in chunk:
