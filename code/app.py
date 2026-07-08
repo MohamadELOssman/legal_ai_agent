@@ -1239,10 +1239,7 @@ elif st.session_state.active_tab == "Bench":
         _LNAME = {"ar": "Arabic", "en": "English", "fr": "French"}
         with st.expander("🧪 Generate Benchmark Questions on the Fly",
                          expanded=not st.session_state.get("gen_cases")):
-            st.caption("Generates fresh questions grounded in the real Penal Code articles "
-                       "and court rulings — each with a validated gold answer. "
-                       "Questions are produced in batches (~10 per model call), so a set of "
-                       "30 needs only ~3 calls.")
+            st.caption("Generate questions.")
             gc1, gc2 = st.columns([1, 2])
             with gc1:
                 gen_n = st.number_input("Number of questions", min_value=5, max_value=100,
@@ -1346,8 +1343,6 @@ elif st.session_state.active_tab == "Bench":
                 "Query":    [tc.get("query", "")                                for tc in _chunk],
                 "Language": [tc.get("language", _LNAME.get(tc.get("lang", ""), "")) for tc in _chunk],
                 "Type":     [tc.get("type", "-")                               for tc in _chunk],
-                "Gold Articles": [", ".join(tc.get("relevant_articles", [])) or tc.get("desc", "-")
-                                  for tc in _chunk],
             },
             use_container_width=True,
         )
