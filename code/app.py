@@ -548,23 +548,25 @@ if st.session_state.active_tab == "Pipeline":
             st.session_state.example_query = "موكلي ضُبط وبحوزته سيارة مسروقة ويدّعي أنه اشتراها بحسن نية من شخص لم يكن يعلم أنه سارق. كيف يمكنني الدفاع عنه؟"
             st.rerun()
 
-    _role_col, _q_col = st.columns([1, 3])
-    with _role_col:
-        _ROLE_MAP = {"Auto-detect": None, "👤 Citizen": "citizen",
-                     "⚖️ Lawyer": "lawyer", "👨‍⚖️ Judge": "judge"}
-        _role_label = st.selectbox("I am a…", list(_ROLE_MAP), key="pipe_role",
-                                   help="Shapes the answer: citizen → plain answer · "
-                                        "lawyer → advisory memo · judge → written decision. "
-                                        "Auto-detect lets the Orchestrator infer it.")
-        user_role = _ROLE_MAP[_role_label]
-    with _q_col:
-        user_query = st.text_area(
-            "Legal Question",
-            value=st.session_state.example_query,
-            height=120,
-            placeholder="Ask in Arabic, French, or English — e.g. ما هي عقوبة السرقة في القانون اللبناني؟",
-            label_visibility="collapsed",
-        )
+    _ROLE_MAP = {"🔎 Auto-detect": None, "👤 Citizen": "citizen",
+                 "⚖️ Lawyer": "lawyer", "👨‍⚖️ Judge": "judge"}
+    st.markdown("<div style='font-size:0.85rem;font-weight:600;color:#334155;"
+                "margin-bottom:0.15rem;'>I am a…</div>", unsafe_allow_html=True)
+    _role_label = st.radio(
+        "I am a…", list(_ROLE_MAP), horizontal=True, key="pipe_role",
+        label_visibility="collapsed",
+        help="Shapes the answer — Citizen → plain answer · Lawyer → advisory memo · "
+             "Judge → written decision. Auto-detect lets the Orchestrator infer it.",
+    )
+    user_role = _ROLE_MAP[_role_label]
+
+    user_query = st.text_area(
+        "Legal Question",
+        value=st.session_state.example_query,
+        height=120,
+        placeholder="Ask in Arabic, French, or English — e.g. ما هي عقوبة السرقة في القانون اللبناني؟",
+        label_visibility="collapsed",
+    )
 
     if st.button("🚀  Run Complete 7-Agent Pipeline", type="primary", use_container_width=True):
         if not user_query.strip():
