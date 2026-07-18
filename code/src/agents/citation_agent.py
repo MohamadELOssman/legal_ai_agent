@@ -94,12 +94,19 @@ an article that is not present in the provided provisions."""
             # Default legal source for the active corpus is the Penal Code.
             default_doc_type = self._default_doc_type(structured_query)
 
-            citations = self._format_citations(provisions, language, default_doc_type)
+            # Cite only DIRECTLY-APPLICABLE, grounded provisions (precision > recall):
+            # the earlier benchmark showed over-citation of loosely-related neighbours.
+            applicable = self._select_applicable(provisions)
+            citations = self._format_citations(applicable, language, default_doc_type)
             validated_citations, report = self._validate_citations(citations)
+            # Keep the tight top set so the memorandum does not over-cite.
+            validated_citations = validated_citations[:self.MAX_CITATIONS]
+            report["kept"] = len(validated_citations)
 
             logger.info(
                 f"CitationAgent — {len(validated_citations)} citations "
-                f"({report['verified']} verified, {report['unverified']} unverified)"
+                f"({report['verified']} verified, {report['unverified']} unverified; "
+                f"{len(provisions)}→{len(applicable)} provisions applicable)"
             )
 
             output = AgentOutput(
@@ -123,6 +130,23 @@ an article that is not present in the provided provisions."""
                 success=False,
                 error=str(e),
             )
+
+    # Cap the number of citations so the final memorandum stays precise.
+    MAX_CITATIONS = 6
+
+    # ── selection ────────────────────────────────────────────────────────────────
+
+    def _select_applicable(self, provisions: List[Dict]) -> List[Dict]:
+        """Keep only directly-applicable, corpus-grounded provisions.
+
+        Prefers grounded provisions; among those, prefers ones the analysis marked
+        as applying to the case (`applies_to_case`). Falls back gracefully so an
+        answer is never left with zero citations when provisions exist.
+        """
+        grounded = [p for p in provisions if p.get("grounded", True)]
+        pool = grounded or provisions
+        applicable = [p for p in pool if p.get("applies_to_case", True)]
+        return applicable or pool
 
     # ── formatting ───────────────────────────────────────────────────────────────
 

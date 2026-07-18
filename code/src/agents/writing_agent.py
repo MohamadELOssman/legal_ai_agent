@@ -75,6 +75,23 @@ You write in formal Arabic, French, or English depending on the query language.
 Your memoranda are precise, well-structured, and legally grounded.
 Only cite articles that are supplied to you; never invent legal references."""
 
+    def _citation_constraint(self, citations) -> str:
+        """Restrict the memo to the verified article set (precision over recall).
+
+        Passing the allowed article numbers and forbidding others keeps the final
+        memorandum from citing loosely-related neighbours it wasn't given.
+        """
+        allowed = sorted(
+            {str(c.get("article_number", "")) for c in citations
+             if c.get("article_number") and c.get("verified", True)},
+            key=lambda x: int(x) if x.isdigit() else 0,
+        )
+        if not allowed:
+            return ""
+        return ("\n\nCITATION CONSTRAINT: You may cite ONLY these article numbers: "
+                + ", ".join(allowed) +
+                ". Do NOT mention or cite any other article number, even if related.")
+
     def process(self, agent_input: AgentInput) -> AgentOutput:
         try:
             orch         = agent_input.metadata.get("orchestrator", {})
@@ -173,7 +190,7 @@ Structure the memorandum with exactly these sections (use these headings verbati
 Tone: educational and clear. Keep it focused and professional — avoid filler and repetition.
 Cite every article you reference."""
 
-        return self.invoke_llm(user_message)
+        return self.invoke_llm(user_message + self._citation_constraint(citations))
 
     # ── format 2: case assessment ──────────────────────────────────────────────
 
@@ -238,7 +255,7 @@ Tone: advisory — written for a lawyer advising a client.
 Keep it focused and professional — avoid filler and repetition.
 Cite every article and case you reference."""
 
-        return self.invoke_llm(user_message)
+        return self.invoke_llm(user_message + self._citation_constraint(citations))
 
     # ── format 3: plain answer (citizen) ───────────────────────────────────────
 
@@ -272,7 +289,7 @@ Write a clear, direct answer that an ordinary person (not a lawyer) can understa
 
 Only rely on the law provided above; never invent article numbers."""
 
-        return self.invoke_llm(user_message)
+        return self.invoke_llm(user_message + self._citation_constraint(citations))
 
     # ── format 4: judicial decision (judge) ────────────────────────────────────
 
@@ -336,4 +353,4 @@ Requirements:
 - Only rely on the law and facts provided; never invent article numbers.
 - Note that this is an AI-drafted decision for the judge's review, not a binding judgment."""
 
-        return self.invoke_llm(user_message)
+        return self.invoke_llm(user_message + self._citation_constraint(citations))
