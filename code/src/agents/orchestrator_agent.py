@@ -2,17 +2,24 @@
 Agent 0: Orchestrator Agent
 Classifies user input and routes to the appropriate pipeline configuration.
 
-Two query types:
-  general_legal_query — abstract question about the law
-  case_analysis       — description of a real/hypothetical situation needing assessment
+It identifies:
+  • query_type — general_legal_query | case_analysis
+  • user_type  — citizen | lawyer | judge  (who is asking → which OUTPUT SHAPE)
+
+Output shape (writing format) by user type:
+  citizen  → plain_answer      (a simple, clear answer)
+  lawyer   → legal_explanation (general question) / case_assessment (a client's case)
+  judge    → judicial_decision (facts given → the ruling is written)
 """
 
-from typing import List
+from typing import List, Optional
 from pydantic import BaseModel, Field
 from loguru import logger
 
 from src.agents.base_agent import BaseAgent, AgentRole, AgentInput, AgentOutput
 from src.config import DEFAULT_MODEL
+
+USER_TYPES = ("citizen", "lawyer", "judge")
 
 
 # ── Structured-output schema (enforced via tool use; no regex JSON parsing) ──────
@@ -28,8 +35,9 @@ class _AnalysisCfg(BaseModel):
 
 
 class _WritingCfg(BaseModel):
-    format: str = Field("legal_explanation", description="legal_explanation | case_assessment")
-    tone: str = Field("educational", description="educational | advisory")
+    format: str = Field("legal_explanation",
+                        description="plain_answer | legal_explanation | case_assessment | judicial_decision")
+    tone: str = Field("educational", description="plain | educational | advisory | judicial")
 
 
 class _PipelineConfig(BaseModel):
@@ -41,6 +49,7 @@ class _PipelineConfig(BaseModel):
 class RoutingDecision(BaseModel):
     """Routing decision for the legal pipeline."""
     query_type: str = Field(description="general_legal_query | case_analysis")
+    user_type: str = Field("citizen", description="citizen | lawyer | judge — who is asking")
     detected_language: str = Field("ar", description="ar | fr | en")
     confidence: float = 0.5
     reasoning: str = Field("", description="one sentence explaining the classification")
@@ -57,52 +66,50 @@ class OrchestratorAgent(BaseAgent):
     """
 
     def __init__(self, model: str = DEFAULT_MODEL, temperature: float = 0.0):
-        super().__init__(
-            role=AgentRole.ORCHESTRATOR,
-            model=model,
-            temperature=temperature,
-        )
+        super().__init__(role=AgentRole.ORCHESTRATOR, model=model, temperature=temperature)
 
     def get_system_prompt(self) -> str:
         return """You are the Orchestrator of a Lebanese Legal AI system.
 
-Your sole job is to read the user's input, classify it, and return a routing
-decision as a JSON object. You never answer legal questions directly.
+Read the user's input, classify it, and return a routing decision. You never
+answer legal questions directly.
 
-Two query types exist:
+Classify TWO things:
 
-1. general_legal_query
-   The user asks an abstract question about what the law says.
-   No specific facts or parties are described.
-   Examples:
-     - "ما هي شروط الدفاع الشرعي؟"
-     - "What is the penalty for premeditated murder in Lebanese law?"
-     - "Quelles sont les conditions de validité d'un contrat?"
+A) query_type:
+   • general_legal_query — an abstract question about what the law says (no facts/parties).
+   • case_analysis       — a real/hypothetical situation with facts to assess.
 
-2. case_analysis
-   The user describes a real or hypothetical situation with facts, parties,
-   and events that need to be assessed against the law.
-   Examples:
-     - "موكلي ضُبط وبحوزته سيارة مسروقة ويدّعي أنه اشتراها بحسن نية..."
-     - "My client was arrested after a fight where he injured someone claiming self-defense..."
-     - "Une personne a vendu un bien immobilier sans le consentement de son épouse..."
+B) user_type — WHO is asking (this decides the shape of the final answer):
+   • citizen — an ordinary person asking a legal question in plain terms.
+       e.g. "شو عقوبة السرقة؟", "Can my landlord evict me without notice?"
+   • lawyer  — a legal professional; often mentions "my client / my defendant",
+       asks for an assessment or a defence strategy.
+       e.g. "موكلي ضُبط وبحوزته سيارة مسروقة، كيف أدافع عنه؟"
+   • judge   — presents the facts of a case and expects the DECISION/ruling to be written.
+       e.g. "المدعى عليه قتل المجني عليه عمداً... أصدر الحكم", "Given these facts, render the verdict."
 
 Return ONLY valid JSON — no prose, no markdown."""
 
     def process(self, agent_input: AgentInput) -> AgentOutput:
         try:
-            routing = self._classify(agent_input.query)
+            override = agent_input.metadata.get("user_role")
+            if override not in USER_TYPES:
+                override = None
+            routing = self._classify(agent_input.query, user_role=override)
             logger.info(
-                f"Orchestrator → {routing['query_type']} "
+                f"Orchestrator → {routing['query_type']} / user={routing['user_type']} "
+                f"→ writing={routing['pipeline_config']['writing']['format']} "
                 f"(confidence={routing.get('confidence', '?')})"
             )
             return AgentOutput(
                 result=routing,
-                metadata={"agent": self.role.value, "query_type": routing["query_type"]},
+                metadata={"agent": self.role.value, "query_type": routing["query_type"],
+                          "user_type": routing["user_type"]},
                 success=True,
             )
         except Exception as e:
-            logger.error(f"Orchestrator classification failed: {e} — defaulting to general_legal_query")
+            logger.error(f"Orchestrator classification failed: {e} — defaulting to citizen/general")
             return AgentOutput(
                 result=self._fallback_routing(),
                 metadata={"agent": self.role.value, "query_type": "general_legal_query"},
@@ -112,60 +119,62 @@ Return ONLY valid JSON — no prose, no markdown."""
 
     # ── private ───────────────────────────────────────────────────────────────
 
-    def _classify(self, query: str) -> dict:
+    def _classify(self, query: str, user_role: Optional[str] = None) -> dict:
+        role_line = (f"\nThe user's role is KNOWN to be: {user_role}. Set user_type to '{user_role}'."
+                     if user_role else "")
         user_message = f"""Classify this input and produce the routing decision.
 
-Input: "{query}"
+Input: "{query}"{role_line}
 
-Rules:
-- general_legal_query (abstract question about the law) → research.mode=articles_only,
-  analysis.mode=legal_explanation, writing.format=legal_explanation, tone=educational.
-- case_analysis (a described situation/facts to assess) → research.mode=articles_and_cases,
-  analysis.mode=case_assessment, writing.format=case_assessment, tone=advisory.
-- For case_analysis, populate extracted_facts with the key facts from the description.
-- key_entities: legal concepts, crimes, parties extracted from the input."""
+Set query_type (general_legal_query | case_analysis) and user_type (citizen | lawyer | judge).
+For case_analysis, populate extracted_facts with the key facts from the description.
+key_entities: legal concepts, crimes, parties extracted from the input."""
 
-        routing = self.invoke_structured(user_message, RoutingDecision)
-        return self._normalize_routing(routing.model_dump())
+        routing = self.invoke_structured(user_message, RoutingDecision).model_dump()
+        if user_role:
+            routing["user_type"] = user_role
+        return self._normalize_routing(routing)
 
     def _normalize_routing(self, routing: dict) -> dict:
-        """Validate the routing and enforce a consistent pipeline_config.
-
-        The downstream agents branch on these modes, so we guarantee the
-        invariant tying query_type to research/analysis/writing modes regardless
-        of any inconsistency in the LLM output.
-        """
+        """Validate and enforce a consistent pipeline_config from (user_type, query_type)."""
         query_type = routing.get("query_type")
         if query_type not in ("general_legal_query", "case_analysis"):
             query_type = "general_legal_query"
         routing["query_type"] = query_type
 
-        if query_type == "case_analysis":
-            research_mode, analysis_mode, writing_fmt, tone = (
-                "articles_and_cases", "case_assessment", "case_assessment", "advisory",
-            )
+        user_type = routing.get("user_type")
+        if user_type not in USER_TYPES:
+            user_type = "citizen"
+        routing["user_type"] = user_type
+
+        is_case = query_type == "case_analysis"
+
+        # Research + analysis: a judge and any case need articles + precedent cases.
+        if user_type == "judge" or is_case:
+            research_mode, analysis_mode = "articles_and_cases", "case_assessment"
         else:
-            research_mode, analysis_mode, writing_fmt, tone = (
-                "articles_only", "legal_explanation", "legal_explanation", "educational",
-            )
+            research_mode, analysis_mode = "articles_only", "legal_explanation"
+
+        # Writing format (the OUTPUT SHAPE) depends on who is asking.
+        if user_type == "judge":
+            writing_fmt, tone = "judicial_decision", "judicial"
+        elif user_type == "citizen":
+            writing_fmt, tone = "plain_answer", "plain"
+        else:  # lawyer
+            writing_fmt, tone = ("case_assessment", "advisory") if is_case else ("legal_explanation", "educational")
 
         cfg = routing.get("pipeline_config") or {}
         research = cfg.get("research") or {}
         analysis = cfg.get("analysis") or {}
         writing = cfg.get("writing") or {}
-
         research["mode"] = research_mode
         research.setdefault("emphasis", "Retrieve the applicable legal articles")
         analysis["mode"] = analysis_mode
         analysis.setdefault("instructions", "Analyze the applicable law")
         writing["format"] = writing_fmt
         writing["tone"] = tone
+        routing["pipeline_config"] = {"research": research, "analysis": analysis, "writing": writing}
 
-        routing["pipeline_config"] = {
-            "research": research, "analysis": analysis, "writing": writing,
-        }
-
-        # Guarantee the fields the rest of the pipeline reads exist.
         routing.setdefault("detected_language", "ar")
         routing.setdefault("legal_domain", "other")
         routing.setdefault("key_entities", [])
@@ -177,6 +186,7 @@ Rules:
     def _fallback_routing(self) -> dict:
         return {
             "query_type": "general_legal_query",
+            "user_type": "citizen",
             "detected_language": "ar",
             "confidence": 0.5,
             "reasoning": "Fallback — classification failed",
@@ -184,17 +194,8 @@ Rules:
             "key_entities": [],
             "extracted_facts": [],
             "pipeline_config": {
-                "research": {
-                    "mode": "articles_only",
-                    "emphasis": "Retrieve applicable legal articles",
-                },
-                "analysis": {
-                    "mode": "legal_explanation",
-                    "instructions": "Explain the applicable law clearly",
-                },
-                "writing": {
-                    "format": "legal_explanation",
-                    "tone": "educational",
-                },
+                "research": {"mode": "articles_only", "emphasis": "Retrieve applicable legal articles"},
+                "analysis": {"mode": "legal_explanation", "instructions": "Explain the applicable law clearly"},
+                "writing": {"format": "plain_answer", "tone": "plain"},
             },
         }

@@ -50,6 +50,7 @@ class LegalAIPipeline:
         retrieval_strategy: str = "semantic",
         use_reranking: bool = False,
         skip_reasoning: bool = False,
+        user_role: Optional[str] = None,
     ):
         self.model = model
         self.temperature = temperature
@@ -62,6 +63,8 @@ class LegalAIPipeline:
         self.retrieval_strategy = retrieval_strategy
         self.use_reranking = use_reranking
         self.skip_reasoning = skip_reasoning
+        # Optional forced user role (citizen | lawyer | judge); None = auto-detect.
+        self.user_role = user_role
 
         logger.info(f"Initializing LegalAIPipeline (model={model})...")
 
@@ -112,7 +115,7 @@ class LegalAIPipeline:
         try:
             # Step 0 — Orchestrator
             out0 = _run("orchestrator", lambda: self.orchestrator.process(
-                AgentInput(query=user_query, context={}, metadata={})
+                AgentInput(query=user_query, context={}, metadata={"user_role": self.user_role})
             ))
             routing = out0.result
             query_type = routing.get("query_type", "general_legal_query")

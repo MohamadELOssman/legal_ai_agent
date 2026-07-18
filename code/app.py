@@ -548,13 +548,23 @@ if st.session_state.active_tab == "Pipeline":
             st.session_state.example_query = "موكلي ضُبط وبحوزته سيارة مسروقة ويدّعي أنه اشتراها بحسن نية من شخص لم يكن يعلم أنه سارق. كيف يمكنني الدفاع عنه؟"
             st.rerun()
 
-    user_query = st.text_area(
-        "Legal Question",
-        value=st.session_state.example_query,
-        height=120,
-        placeholder="Ask in Arabic, French, or English — e.g. ما هي عقوبة السرقة في القانون اللبناني؟",
-        label_visibility="collapsed",
-    )
+    _role_col, _q_col = st.columns([1, 3])
+    with _role_col:
+        _ROLE_MAP = {"Auto-detect": None, "👤 Citizen": "citizen",
+                     "⚖️ Lawyer": "lawyer", "👨‍⚖️ Judge": "judge"}
+        _role_label = st.selectbox("I am a…", list(_ROLE_MAP), key="pipe_role",
+                                   help="Shapes the answer: citizen → plain answer · "
+                                        "lawyer → advisory memo · judge → written decision. "
+                                        "Auto-detect lets the Orchestrator infer it.")
+        user_role = _ROLE_MAP[_role_label]
+    with _q_col:
+        user_query = st.text_area(
+            "Legal Question",
+            value=st.session_state.example_query,
+            height=120,
+            placeholder="Ask in Arabic, French, or English — e.g. ما هي عقوبة السرقة في القانون اللبناني؟",
+            label_visibility="collapsed",
+        )
 
     if st.button("🚀  Run Complete 7-Agent Pipeline", type="primary", use_container_width=True):
         if not user_query.strip():
@@ -579,7 +589,8 @@ if st.session_state.active_tab == "Pipeline":
                 status_text.info("**Step 0 / 7** — Orchestrator: Classifying query...")
                 with st.spinner("Classifying query type and configuring pipeline..."):
                     agent0 = OrchestratorAgent(model=model_choice)
-                    input0 = AgentInput(query=user_query, context={}, metadata={})
+                    input0 = AgentInput(query=user_query, context={},
+                                        metadata={"user_role": user_role})
                     _t0 = _time.time()
                     output0 = agent0.process(input0)
                     _t1 = _time.time()
@@ -592,12 +603,15 @@ if st.session_state.active_tab == "Pipeline":
 
                 _qt_label = "Case Analysis" if query_type == "case_analysis" else "General Legal Query"
                 _qt_color = "s-amber"       if query_type == "case_analysis" else "s-blue"
+                _user_type = routing.get("user_type", "citizen")
+                _USER_LABEL = {"citizen": "👤 Citizen", "lawyer": "⚖️ Lawyer", "judge": "👨‍⚖️ Judge"}
 
                 with st.expander(f"🧭 Step 0: Orchestrator  ✅  ({_t1-_t0:.1f}s)", expanded=True):
                     col_r1, col_r2 = st.columns([3, 2])
                     with col_r1:
                         st.markdown(f"""
 <div class="info-banner">
+<strong>User:</strong>&nbsp;<span class="status-pill s-green">{_USER_LABEL.get(_user_type, _user_type)}</span>&nbsp;&nbsp;
 <strong>Query Type:</strong>&nbsp;<span class="status-pill {_qt_color}">{_qt_label}</span><br>
 <strong>Language:</strong> {routing.get('detected_language', '?').upper()}&nbsp;&nbsp;
 <strong>Domain:</strong> {routing.get('legal_domain', '?')}&nbsp;&nbsp;
@@ -807,8 +821,13 @@ if st.session_state.active_tab == "Pipeline":
                     memo_format = 'legal_explanation'
                     results['final_response'] = str(output6.result)
 
-                _fmt_label = "Case Assessment Memo" if memo_format == "case_assessment" else "Legal Explanation Memo"
-                _fmt_color = "s-amber"               if memo_format == "case_assessment" else "s-blue"
+                _FMT_INFO = {
+                    "plain_answer":      ("Plain Answer (Citizen)", "s-green"),
+                    "legal_explanation": ("Legal Explanation Memo", "s-blue"),
+                    "case_assessment":   ("Case Assessment Memo (Lawyer)", "s-amber"),
+                    "judicial_decision": ("Judicial Decision (Judge)", "s-amber"),
+                }
+                _fmt_label, _fmt_color = _FMT_INFO.get(memo_format, ("Legal Explanation Memo", "s-blue"))
                 with st.expander(f"📝 Step 6: Legal Memorandum  ✅  ({_t1-_t0:.1f}s)", expanded=True):
                     st.markdown(
                         f'<span class="status-pill {_fmt_color}">{_fmt_label}</span>',
