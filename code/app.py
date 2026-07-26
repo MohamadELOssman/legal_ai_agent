@@ -1358,15 +1358,42 @@ elif st.session_state.active_tab == "Bench":
         _start = _page * _PER
         _chunk = all_test_cases[_start:_start + _PER]
 
-        st.dataframe(
+        # Editable table: users can type a "source of truth" reference answer per
+        # question; the LLM judge (Full Pipeline comparison) scores the agent's
+        # answer AGAINST it. References persist per question id across pages.
+        st.session_state.setdefault("ref_answers", {})
+        st.caption("💡 Optionally type a **Reference Answer** (ground truth) per question — "
+                   "the judge will compare each system's answer against it in the "
+                   "*Full Pipeline vs Baselines* comparison below.")
+        _editor_rows = [
             {
-                "ID":       [tc.get("id", "")                                   for tc in _chunk],
-                "Query":    [tc.get("query", "")                                for tc in _chunk],
-                "Language": [tc.get("language", _LNAME.get(tc.get("lang", ""), "")) for tc in _chunk],
-                "Type":     [tc.get("type", "-")                               for tc in _chunk],
-            },
+                "ID":       tc.get("id", ""),
+                "Query":    tc.get("query", ""),
+                "Language": tc.get("language", _LNAME.get(tc.get("lang", ""), "")),
+                "Type":     tc.get("type", "-"),
+                "Reference Answer": st.session_state["ref_answers"].get(tc.get("id", ""), ""),
+            }
+            for tc in _chunk
+        ]
+        _edited = st.data_editor(
+            _editor_rows,
             use_container_width=True,
+            hide_index=True,
+            disabled=["ID", "Query", "Language", "Type"],
+            column_config={
+                "Reference Answer": st.column_config.TextColumn(
+                    "Reference Answer (ground truth — optional)", width="large"),
+            },
+            key=f"ref_editor_p{_page}",
         )
+        # Persist any edits back into session_state (keyed by question id).
+        for _row in _edited:
+            if _row.get("ID"):
+                st.session_state["ref_answers"][_row["ID"]] = _row.get("Reference Answer", "") or ""
+
+        _n_refs = sum(1 for v in st.session_state["ref_answers"].values() if v.strip())
+        if _n_refs:
+            st.caption(f"✍️ {_n_refs} reference answer(s) entered.")
 
         _nav1, _nav2, _nav3 = st.columns([1, 3, 1])
         with _nav1:
@@ -1425,6 +1452,11 @@ elif st.session_state.active_tab == "Bench":
                     st.warning("Select at least one system.")
                 else:
                     cmp_cases = all_test_cases[:cmp_limit]
+                    # Attach any user-entered reference ("source of truth") answers so
+                    # the judge scores each system's answer against them.
+                    _refs = st.session_state.get("ref_answers", {})
+                    for _c in cmp_cases:
+                        _c["reference_answer"] = _refs.get(_c.get("id", ""), "")
                     vs = _get_vs()
                     score_fn = _build_judge(judge_model) if cmp_judge_on else None
 

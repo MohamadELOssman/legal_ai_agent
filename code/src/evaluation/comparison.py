@@ -40,6 +40,29 @@ Return ONLY valid JSON (no prose, no code fences):
 {{"legal_correctness":N,"citation_quality":N,"completeness":N,"clarity":N,"explanation":"one sentence"}}"""
 
 
+# Used when the user supplied a ground-truth ("source of truth") answer: the judge
+# scores the AI answer RELATIVE to that reference.
+JUDGE_PROMPT_REF = """You are a Lebanese legal evaluation expert. Compare the AI answer against the
+REFERENCE (ground-truth) answer provided by a human expert.
+
+User Query: "{query}"
+
+REFERENCE (ground-truth) answer:
+{reference}
+
+AI Answer to evaluate:
+{memorandum}
+
+Score each dimension 1-5 (1 = poor, 5 = excellent), judged AGAINST the reference:
+- legal_correctness: Does the AI answer agree with the reference on the law and conclusion?
+- citation_quality: Are the cited articles consistent with the reference?
+- completeness: Does it cover what the reference covers?
+- clarity: Is it well-structured and clear?
+
+Return ONLY valid JSON (no prose, no code fences):
+{{"legal_correctness":N,"citation_quality":N,"completeness":N,"clarity":N,"explanation":"one sentence"}}"""
+
+
 def extract_json(text: str) -> dict:
     """Best-effort JSON extraction from an LLM response."""
     text = (text or "").strip()
@@ -124,14 +147,19 @@ def build_judge(model: str = DEFAULT_MODEL) -> Callable[[str, str], dict]:
     judge = ChatAnthropic(model=model, temperature=0.0, max_tokens=400,
                           anthropic_api_key=cfg.anthropic_api_key)
 
-    def score(query: str, memorandum: str) -> dict:
+    def score(query: str, memorandum: str, reference: str = None) -> dict:
         if not memorandum:
             return {}
-        resp = judge.invoke([HumanMessage(content=JUDGE_PROMPT.format(
-            query=query, memorandum=memorandum[:6000]))])
+        if reference and reference.strip():
+            prompt = JUDGE_PROMPT_REF.format(
+                query=query, reference=reference[:4000], memorandum=memorandum[:6000])
+        else:
+            prompt = JUDGE_PROMPT.format(query=query, memorandum=memorandum[:6000])
+        resp = judge.invoke([HumanMessage(content=prompt)])
         s = extract_json(resp.content)
         vals = [s.get(d, 0) for d in JUDGE_DIMENSIONS]
         s["avg_score"] = round(sum(vals) / len(JUDGE_DIMENSIONS), 2) if any(vals) else 0
+        s["reference_based"] = bool(reference and reference.strip())
         return s
 
     return score
@@ -162,7 +190,7 @@ def _run_multi_agent(cases, score_fn, vectorstore, model, progress) -> List[Dict
         }
         _attach_citation_metrics(rec, tc)
         if score_fn:
-            rec["judge"] = score_fn(tc["query"], rec["memorandum"])
+            rec["judge"] = score_fn(tc["query"], rec["memorandum"], tc.get("reference_answer"))
         records.append(rec)
     return records
 
@@ -191,7 +219,7 @@ def _run_baseline(cases, score_fn, system, vectorstore, model, progress) -> List
         }
         _attach_citation_metrics(rec, tc)
         if score_fn:
-            rec["judge"] = score_fn(tc["query"], rec["memorandum"])
+            rec["judge"] = score_fn(tc["query"], rec["memorandum"], tc.get("reference_answer"))
         records.append(rec)
     return records
 
