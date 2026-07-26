@@ -1362,9 +1362,9 @@ elif st.session_state.active_tab == "Bench":
         # question; the LLM judge (Full Pipeline comparison) scores the agent's
         # answer AGAINST it. References persist per question id across pages.
         st.session_state.setdefault("ref_answers", {})
-        st.caption("💡 Optionally type a **Reference Answer** (ground truth) per question — "
-                   "the judge will compare each system's answer against it in the "
-                   "*Full Pipeline vs Baselines* comparison below.")
+        st.caption("📝 **Reference Answer is required** for the *Full Pipeline vs Baselines* "
+                   "evaluation — it is the ground truth the judge compares each system's "
+                   "answer against. Fill it in for every question you plan to run.")
         _editor_rows = [
             {
                 "ID":       tc.get("id", ""),
@@ -1382,7 +1382,7 @@ elif st.session_state.active_tab == "Bench":
             disabled=["ID", "Query", "Language", "Type"],
             column_config={
                 "Reference Answer": st.column_config.TextColumn(
-                    "Reference Answer (ground truth — optional)", width="large"),
+                    "Reference Answer (ground truth — required)", width="large", required=True),
             },
             key=f"ref_editor_p{_page}",
         )
@@ -1452,11 +1452,24 @@ elif st.session_state.active_tab == "Bench":
                     st.warning("Select at least one system.")
                 else:
                     cmp_cases = all_test_cases[:cmp_limit]
-                    # Attach any user-entered reference ("source of truth") answers so
+                    # Attach the user-entered reference ("source of truth") answers so
                     # the judge scores each system's answer against them.
                     _refs = st.session_state.get("ref_answers", {})
                     for _c in cmp_cases:
                         _c["reference_answer"] = _refs.get(_c.get("id", ""), "")
+
+                    # Reference answers are REQUIRED for judged evaluation (the ground
+                    # truth). Block the run if any evaluated question is missing one.
+                    _missing = [str(_c.get("id", "?")) for _c in cmp_cases
+                                if not (_c.get("reference_answer") or "").strip()]
+                    if cmp_judge_on and _missing:
+                        st.error(
+                            "📝 A **Reference Answer** is required for every question the judge "
+                            f"scores. Missing for: {', '.join(_missing[:20])}"
+                            f"{' …' if len(_missing) > 20 else ''}.  Fill them in the table above "
+                            "(or lower **Cases to run**, or uncheck **LLM-as-judge** to run without scoring).")
+                        st.stop()
+
                     vs = _get_vs()
                     score_fn = _build_judge(judge_model) if cmp_judge_on else None
 
