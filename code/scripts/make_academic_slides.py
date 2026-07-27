@@ -354,51 +354,36 @@ for i, (a, b, cc) in enumerate(tbl_rows, 1):
         if j == 0:
             r0.font.bold = True; r0.font.color.rgb = NAVY
 
-# ── 18. The evaluator agent (judge) ──────────────────────────────────────────
-s = slide(); title_bar(s, "15. The Evaluator Agent (LLM-as-Judge)",
-                       "A separate LLM scores each answer — an automated expert reviewer")
+# ── 15. Evaluator agent (depends on the user's source-of-truth answer) ───────
+s = slide(); title_bar(s, "15. The Evaluator Agent — Judging Against the Source of Truth",
+                       "An independent LLM judge scores each answer relative to the user's ground-truth answer")
 tf = textbox(s, Inches(0.6), Inches(1.25), Inches(6.7), Inches(5.9))
-bullet(tf, "a second, independent LLM (Claude), separate from the answering agents.", "What it is: ", size=15, first=True, space=8)
-bullet(tf, "temperature 0 for consistent, deterministic scoring.", "Deterministic: ", size=15, space=8)
-bullet(tf, "scores 4 dimensions 1–5: legal correctness, citation quality, completeness, clarity.", "Rubric: ", size=15, space=8)
-bullet(tf, "returns a strict JSON verdict + a one-line explanation; the average is the score.", "Output: ", size=15, space=8)
-bullet(tf, "objective citation-F1 (vs gold articles) is ALSO computed automatically to cross-check the judge.", "Cross-checked: ", size=15, space=8)
-promptbox(s, Inches(7.5), Inches(1.5), Inches(5.25), Inches(4.6), "Judge prompt (reference-free)", [
+bullet(tf, "a second, independent LLM (Claude, temperature 0), separate from the answering agents.",
+       "What it is: ", size=15, first=True, space=9)
+bullet(tf, "the user provides the correct expert answer per question — the SOURCE OF TRUTH.",
+       "Depends on the reference: ", size=15, space=9)
+bullet(tf, "the judge compares the AI answer AGAINST that reference — it does NOT score on its own opinion.",
+       "How it scores: ", size=15, space=9)
+bullet(tf, "4 dimensions 1–5 (legal correctness, citation quality, completeness, clarity), judged vs. the reference.",
+       "Rubric: ", size=15, space=9)
+bullet(tf, "grounds evaluation in human expertise → objective & reproducible; REQUIRED for a judged run.",
+       "Why it matters: ", size=15, space=9)
+promptbox(s, Inches(7.5), Inches(1.4), Inches(5.25), Inches(4.8), "Judge prompt (reference-based)", [
     "You are a Lebanese legal evaluation expert.",
-    "User Query: \"...\"",
-    "Legal Memorandum: \"...\"",
-    "",
-    "Score each 1-5:",
-    "  legal_correctness, citation_quality,",
-    "  completeness, clarity",
-    "Return ONLY JSON:",
-    "  {legal_correctness:N, ... ,",
-    "   explanation:\"one sentence\"}",
-])
-
-# ── 19. Source of truth (reference answer) ───────────────────────────────────
-s = slide(); title_bar(s, "16. The Source-of-Truth (Reference) Answer",
-                       "Why the human ground-truth answer is essential")
-tf = textbox(s, Inches(0.6), Inches(1.25), Inches(6.7), Inches(5.9))
-bullet(tf, "without a reference, the judge scores on its own opinion — which can be biased or wrong on Lebanese law.", "The problem: ", size=15, first=True, space=9)
-bullet(tf, "the user enters the correct expert answer per question — the SOURCE OF TRUTH.", "The fix: ", size=15, space=9)
-bullet(tf, "the judge then compares the AI answer AGAINST this reference (agreement on law, citations, completeness).", "Comparison: ", size=15, space=9)
-bullet(tf, "grounds evaluation in human expertise — objective and reproducible, not the judge's guess.", "Why it matters: ", size=15, space=9)
-bullet(tf, "it is REQUIRED for a judged comparison run — the run is blocked until every question has one.", "Mandatory: ", size=15, space=9)
-promptbox(s, Inches(7.5), Inches(1.5), Inches(5.25), Inches(4.3), "Judge prompt (reference-based)", [
     "Compare the AI answer against the",
     "REFERENCE (ground-truth) answer.",
     "",
-    "REFERENCE answer: \"...\"",
+    "REFERENCE answer: \"...\"  (from the user)",
     "AI answer: \"...\"",
     "",
     "Score 1-5, judged AGAINST the reference:",
-    "  correctness, citations, completeness,",
-    "  clarity.",
+    "  legal_correctness, citation_quality,",
+    "  completeness, clarity",
+    "Return ONLY JSON.",
 ])
 
-# ── 20. Benchmark workflow in the app ────────────────────────────────────────
-s = slide(); title_bar(s, "17. Benchmark — The Workflow in the App")
+# ── 16. Benchmark workflow in the app ────────────────────────────────────────
+s = slide(); title_bar(s, "16. Benchmark — The Workflow in the App")
 tf = body(s)
 bullet(tf, "set the number of questions; the generator produces grounded questions, shown 10 per page.", "1 · Generate: ", size=16.5, first=True, space=9)
 bullet(tf, "review them, then type the source-of-truth answer in the editable table (required).", "2 · Reference: ", size=16.5, space=9)
@@ -407,7 +392,7 @@ bullet(tf, "each system answers; the judge scores every answer against the refer
 bullet(tf, "per-system scores, per-dimension table, charts, citation metrics, and downloadable JSON.", "5 · Results: ", size=16.5, space=9)
 
 # ── 21. Results by language ──────────────────────────────────────────────────
-s = slide(); title_bar(s, "18. Results — Accuracy by Language")
+s = slide(); title_bar(s, "17. Results — Accuracy by Language")
 if (FIGS / "fig_languages.png").exists():
     s.shapes.add_picture(str(FIGS / "fig_languages.png"), Inches(0.6), Inches(1.4), height=Inches(4.7))
 tf = textbox(s, Inches(7.5), Inches(1.8), Inches(5.3), Inches(4.7))
@@ -416,7 +401,7 @@ bullet(tf, "lower — the corpus is Arabic-primary; closing this is the main nex
 bullet(tf, "the article-number metric fairly credits cross-lingual matches.", "Note: ", size=15, color=GREY)
 
 # ── 22. Results method + quality ─────────────────────────────────────────────
-s = slide(); title_bar(s, "19. Results — Search Method & Answer Quality")
+s = slide(); title_bar(s, "18. Results — Search Method & Answer Quality")
 if (FIGS / "fig_methods.png").exists():
     s.shapes.add_picture(str(FIGS / "fig_methods.png"), Inches(0.6), Inches(1.4), height=Inches(4.6))
 tf = textbox(s, Inches(7.5), Inches(1.8), Inches(5.3), Inches(4.7))
@@ -426,7 +411,7 @@ bullet(tf, "final memoranda rated ~4.6/5 for legal quality by the judge.", "Answ
 bullet(tf, "~2–3 minutes, ~$0.12 per full answer.", "Practical: ", size=17, space=13)
 
 # ── 23. Findings ─────────────────────────────────────────────────────────────
-s = slide(); title_bar(s, "20. Key Findings")
+s = slide(); title_bar(s, "19. Key Findings")
 tf = body(s)
 bullet(tf, "specialised agents produce grounded, well-structured answers (~4.6/5).", "Multi-agent works: ", size=17, first=True)
 bullet(tf, "hybrid > semantic; the re-ranker hurts; the embedding is validated — all decided by the benchmark.", "Evidence-based engineering: ", size=17)
@@ -434,7 +419,7 @@ bullet(tf, "answer quality is bounded by retrieval recall — if the article isn
 bullet(tf, "tightening citations raised citation-F1 ~3× (0.04 → 0.13) on the same questions.", "Precision fix, measured: ", size=17)
 
 # ── 24. Engineering ──────────────────────────────────────────────────────────
-s = slide(); title_bar(s, "21. Engineering & Reproducibility")
+s = slide(); title_bar(s, "20. Engineering & Reproducibility")
 tf = body(s)
 for lead, rest in [
     ("Standardised model: ", "Claude Sonnet 4.5 (selectable: 4.6 / Opus / Haiku)."),
@@ -447,7 +432,7 @@ for lead, rest in [
     bullet(tf, rest, lead, size=16.5, space=9, first=lead.startswith("Stand"))
 
 # ── 25. Limitations ──────────────────────────────────────────────────────────
-s = slide(); title_bar(s, "22. Limitations & Future Work")
+s = slide(); title_bar(s, "21. Limitations & Future Work")
 tf = body(s)
 bullet(tf, "English/French retrieval lags Arabic (~40% vs 72%).", "Limitation: ", size=17, first=True)
 bullet(tf, "corpus is criminal (Penal) law only; single-article gold is strict for multi-article questions.", "Scope: ", size=17)
@@ -458,7 +443,7 @@ bullet(tf, "structured reasoning, a verifier agent, and a full statistical compa
 # ── 26. Conclusion ───────────────────────────────────────────────────────────
 s = slide(); rect(s, 0, 0, SW, SH, NAVY); rect(s, 0, Inches(1.15), SW, Inches(0.06), GREEN)
 tf = textbox(s, Inches(0.8), Inches(0.35), SW - Inches(1.6), Inches(0.8))
-run(tf.paragraphs[0], "23. Conclusion & Contributions", 28, WHITE, bold=True)
+run(tf.paragraphs[0], "22. Conclusion & Contributions", 28, WHITE, bold=True)
 tf = textbox(s, Inches(0.9), Inches(1.55), SW - Inches(1.8), Inches(5.5))
 for lead, rest in [
     ("A working trilingual legal AI ", "for Lebanese law: grounded, cited, adaptive to the user."),
