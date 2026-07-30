@@ -83,13 +83,16 @@ class BaseAgent(ABC):
 
         # Initialize LLM
         if "claude" in model.lower():
-            self.llm = ChatAnthropic(
+            from src.utils.llm import make_chat
+            # make_chat omits `temperature` for models that don't accept it
+            # (e.g. claude-sonnet-5, claude-opus-4-8).
+            self.llm = make_chat(
                 model=model,
+                api_key=config.anthropic_api_key,
                 temperature=temperature,
                 max_tokens=max_tokens,
-                anthropic_api_key=config.anthropic_api_key,
                 max_retries=max_retries,
-                default_request_timeout=timeout,
+                timeout=timeout,
             )
         elif "gemini" in model.lower():
             self.llm = ChatGoogleGenerativeAI(

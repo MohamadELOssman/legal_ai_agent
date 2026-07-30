@@ -26,7 +26,7 @@ class ReasoningAgent(BaseAgent):
     """
 
     def __init__(self, model: str = DEFAULT_MODEL, temperature: float = 0.2,
-                 max_tokens: int = 2000):
+                 max_tokens: int = 3000):
         super().__init__(
             role=AgentRole.REASONING,
             model=model,

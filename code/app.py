@@ -419,8 +419,9 @@ for _k, _v in [
         st.session_state[_k] = _v
 
 _MODELS = {
-    "claude-sonnet-4-5":          "Sonnet 4.5  ★",
+    "claude-sonnet-5":            "Sonnet 5  ★",
     "claude-sonnet-4-6":          "Sonnet 4.6",
+    "claude-sonnet-4-5":          "Sonnet 4.5",
     "claude-opus-4-6":            "Opus 4.6",
     "claude-haiku-4-5-20251001":  "Haiku 4.5",
 }
@@ -512,13 +513,13 @@ if st.session_state.active_tab == "Pipeline":
             model_choice = st.selectbox("AI Model", list(_MODELS), format_func=lambda x: _MODELS[x],
                                         key="pipe_model", help="Model used by all 6 agents")
         with c2:
-            temperature = st.slider("Temperature", 0.0, 1.0, 0.1, 0.05, key="pipe_temp",
+            temperature = st.slider("Temperature", 0.0, 1.0, 0.0, 0.05, key="pipe_temp",
                                     help="0 = deterministic · 1 = creative")
         with c3:
             num_documents = st.slider("Documents", 1, 20, 5, key="pipe_docs",
                                       help="Article chunks to retrieve. Case-analysis queries also retrieve up to this many court rulings.")
         with c4:
-            similarity_threshold = st.slider("Threshold", 0.0, 1.0, 0.3, 0.05, key="pipe_thresh",
+            similarity_threshold = st.slider("Threshold", 0.0, 1.0, 0.7, 0.05, key="pipe_thresh",
                                              help="Min cosine similarity for article retrieval")
 
     # ── Load agents (cached — shows spinner only on first load) ───────────────
@@ -945,12 +946,12 @@ elif st.session_state.active_tab == "Agents":
             model_choice = st.selectbox("AI Model", list(_MODELS), format_func=lambda x: _MODELS[x],
                                         key="agent_model", help="Model for the selected agent")
         with a2:
-            temperature = st.slider("Temperature", 0.0, 1.0, 0.1, 0.05, key="agent_temp")
+            temperature = st.slider("Temperature", 0.0, 1.0, 0.0, 0.05, key="agent_temp")
         with a3:
             num_documents = st.slider("Documents", 1, 20, 5, key="agent_docs",
                                       help="Article chunks to retrieve (Agent 2). Standalone runs retrieve articles only.")
         with a4:
-            similarity_threshold = st.slider("Threshold", 0.0, 1.0, 0.3, 0.05, key="agent_thresh",
+            similarity_threshold = st.slider("Threshold", 0.0, 1.0, 0.7, 0.05, key="agent_thresh",
                                              help="Min cosine similarity for article retrieval")
 
     # ── Load agents ───────────────────────────────────────────────────────────
@@ -1240,7 +1241,7 @@ elif st.session_state.active_tab == "Bench":
                     key="bench_target")
             with bc2:
                 judge_model = st.selectbox("Judge Model",
-                    ["claude-sonnet-4-5", "claude-sonnet-4-6", "claude-opus-4-6"],
+                    ["claude-sonnet-5", "claude-sonnet-4-6", "claude-opus-4-6"],
                     key="bench_judge_model", help="Model used to score outputs")
             with bc3:
                 bench_model = st.selectbox("Agent Model", list(_MODELS),
@@ -1250,7 +1251,7 @@ elif st.session_state.active_tab == "Bench":
                 num_documents = st.slider("Documents", 1, 20, 5, key="bench_docs",
                     help="Article chunks to retrieve (Agent 2). Standalone benchmark retrieves articles only, so this is the total.")
             with bc5:
-                similarity_threshold = st.slider("Threshold", 0.0, 1.0, 0.6, 0.05, key="bench_thresh",
+                similarity_threshold = st.slider("Threshold", 0.0, 1.0, 0.7, 0.05, key="bench_thresh",
                     help="Min cosine similarity (Agent 2)")
 
         # ── Test dataset ──────────────────────────────────────────────────────
@@ -1602,10 +1603,9 @@ elif st.session_state.active_tab == "Bench":
             bench_status   = st.empty()
             total = len(all_test_cases)
             _cfg  = _get_config()
-            _judge = _ChatAnthropic(
-                model=judge_model, temperature=0.0, max_tokens=600,
-                anthropic_api_key=_cfg.anthropic_api_key,
-            )
+            from src.utils.llm import make_chat as _make_chat
+            _judge = _make_chat(model=judge_model, api_key=_cfg.anthropic_api_key,
+                                temperature=0.0, max_tokens=600)
 
             for i, tc in enumerate(all_test_cases):
                 _tc_desc = tc.get("desc") or tc.get("topic", "")

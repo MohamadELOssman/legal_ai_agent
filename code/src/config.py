@@ -10,7 +10,7 @@ import yaml
 
 # Canonical model ID — single source of truth for the whole system.
 # Standardized on Claude Sonnet 4.5.
-DEFAULT_MODEL = "claude-sonnet-4-5"
+DEFAULT_MODEL = "claude-sonnet-5"  # Sonnet 5 rejects `temperature`; make_chat handles that
 
 
 class LLMConfig(BaseSettings):

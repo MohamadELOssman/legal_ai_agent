@@ -29,6 +29,7 @@ class CostTracker:
 
     # Pricing (per 1M tokens)
     PRICING = {
+        "claude-sonnet-5": {"input": 3.0, "output": 15.0},
         "claude-sonnet-4-5": {"input": 3.0, "output": 15.0},
         "claude-sonnet-4-6": {"input": 3.0, "output": 15.0},
         "claude-opus-4-6": {"input": 15.0, "output": 75.0},

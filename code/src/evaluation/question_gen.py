@@ -86,7 +86,7 @@ def generate_questions(
     Returns a list of case dicts: id, query, lang, language, type, domain,
     relevant_articles, topic, source.
     """
-    from langchain_anthropic import ChatAnthropic
+    from src.utils.llm import make_chat
 
     langs = [l for l in langs if l in LANG_NAME] or ["ar", "en", "fr"]
     if seed is not None:
@@ -95,9 +95,8 @@ def generate_questions(
     random.shuffle(ar)
 
     cfg = get_config()
-    llm = ChatAnthropic(model=model, temperature=0.7, max_tokens=4000,
-                        anthropic_api_key=cfg.anthropic_api_key,
-                        default_request_timeout=120, max_retries=1).with_structured_output(GenBatch)
+    llm = make_chat(model=model, api_key=cfg.anthropic_api_key, temperature=0.7,
+                    max_tokens=4000, timeout=120, max_retries=1).with_structured_output(GenBatch)
 
     n_rulings_target = min(len(rulings), n // 4)      # ~25% from rulings
     n_article_target = n - n_rulings_target

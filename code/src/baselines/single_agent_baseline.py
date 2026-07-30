@@ -26,14 +26,11 @@ class SingleAgentBaseline:
         self.model_name = model
         config = get_config()
 
-        # Initialize LLM
-        self.llm = ChatAnthropic(
-            model=model,
-            temperature=0.2,
-            max_tokens=4096,
-            anthropic_api_key=config.anthropic_api_key,
-            max_retries=4,
-            default_request_timeout=300,
+        # Initialize LLM (make_chat omits temperature for models that reject it)
+        from src.utils.llm import make_chat
+        self.llm = make_chat(
+            model=model, api_key=config.anthropic_api_key,
+            temperature=0.2, max_tokens=4096, max_retries=4, timeout=300,
         )
 
         # Reuse a shared vector store if provided (avoids reloading), else load one.

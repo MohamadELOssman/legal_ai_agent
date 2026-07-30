@@ -140,12 +140,12 @@ def _attach_citation_metrics(rec: dict, tc: dict) -> dict:
 
 def build_judge(model: str = DEFAULT_MODEL) -> Callable[[str, str], dict]:
     """Return a function that scores a memorandum for a query."""
-    from langchain_anthropic import ChatAnthropic
     from langchain_core.messages import HumanMessage
+    from src.utils.llm import make_chat
 
     cfg = get_config()
-    judge = ChatAnthropic(model=model, temperature=0.0, max_tokens=400,
-                          anthropic_api_key=cfg.anthropic_api_key)
+    judge = make_chat(model=model, api_key=cfg.anthropic_api_key,
+                      temperature=0.0, max_tokens=400)
 
     def score(query: str, memorandum: str, reference: str = None) -> dict:
         if not memorandum:

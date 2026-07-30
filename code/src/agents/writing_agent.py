@@ -47,10 +47,12 @@ SECTIONS_DECISION = {
 
 
 def _language_directive(language: str) -> str:
-    """A strict instruction to write the whole memo in one language only."""
+    """A strict instruction to write the whole memo in one language only, concisely."""
     name = LANG_NAME.get(language, LANG_NAME["ar"])
     return (f"Write the ENTIRE memorandum — including every section heading — in {name} ONLY. "
-            f"Do NOT produce bilingual text, and do NOT translate or duplicate headings in another language.")
+            f"Do NOT produce bilingual text, and do NOT translate or duplicate headings in another language.\n"
+            f"BE PRECISE AND TO THE POINT: answer directly, state only what is legally relevant, and avoid "
+            f"filler, preamble, and repetition. Finish the answer completely — do not stop mid-sentence.")
 
 
 def _numbered_sections(sections: list) -> str:
@@ -60,9 +62,9 @@ def _numbered_sections(sections: list) -> str:
 class WritingAgent(BaseAgent):
 
     def __init__(self, model: str = DEFAULT_MODEL, temperature: float = 0.3,
-                 max_tokens: int = 3000):
-        # Cap output: a full structured memo fits comfortably in ~3k tokens; the
-        # uncapped 4k budget made generation run ~240s and risked timeouts.
+                 max_tokens: int = 4096):
+        # Headroom so complete answers are never truncated. Cost scales with the
+        # ACTUAL output length, not this cap — the concise prompts keep it short.
         super().__init__(role=AgentRole.WRITING, model=model, temperature=temperature,
                          max_tokens=max_tokens)
 
