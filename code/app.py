@@ -1372,6 +1372,7 @@ elif st.session_state.active_tab == "Bench":
                 "Query":    tc.get("query", ""),
                 "Language": tc.get("language", _LNAME.get(tc.get("lang", ""), "")),
                 "Type":     tc.get("type", "-"),
+                "Articles": ", ".join(tc.get("relevant_articles", [])) or "—",
                 "Reference Answer": st.session_state["ref_answers"].get(tc.get("id", ""), ""),
             }
             for tc in _chunk
@@ -1380,8 +1381,10 @@ elif st.session_state.active_tab == "Bench":
             _editor_rows,
             use_container_width=True,
             hide_index=True,
-            disabled=["ID", "Query", "Language", "Type"],
+            disabled=["ID", "Query", "Language", "Type", "Articles"],
             column_config={
+                "Articles": st.column_config.TextColumn(
+                    "Articles (gold)", help="Penal Code article(s) the question is based on", width="small"),
                 "Reference Answer": st.column_config.TextColumn(
                     "Reference Answer (ground truth — required)", width="large", required=True),
             },
@@ -1582,15 +1585,30 @@ elif st.session_state.active_tab == "Bench":
 
         with st.expander("➕ Add Custom Test Query"):
             cq = st.text_input("Query text:", key="bench_cq")
-            cl = st.selectbox("Language:", ["Arabic", "French", "English"], key="bench_cl")
-            cd = st.selectbox("Domain:", ["criminal", "civil", "commercial", "custom"], key="bench_cd")
+            _cc1, _cc2, _cc3 = st.columns(3)
+            with _cc1:
+                cl = st.selectbox("Language:", ["Arabic", "French", "English"], key="bench_cl")
+            with _cc2:
+                cd = st.selectbox("Domain:", ["criminal", "civil", "commercial", "custom"], key="bench_cd")
+            with _cc3:
+                ct = st.selectbox("Type:", ["general_legal_query", "case_analysis"], key="bench_ct")
+            c_arts = st.text_input("Article number(s) it depends on (comma-separated):",
+                                   key="bench_carts", placeholder="e.g. 547, 549")
+            c_ref = st.text_area("Reference Answer (source of truth):", key="bench_cref", height=100,
+                                 placeholder="The correct expert answer — used by the judge as the ground truth.")
             if st.button("Add to Dataset", key="bench_add"):
-                if cq.strip():
+                if not cq.strip():
+                    st.warning("Enter the query text.")
+                else:
+                    import re as _re2
+                    _arts = sorted({m for m in _re2.findall(r"\d{1,3}", c_arts)}, key=int)
+                    _cid = f"CT{len(st.session_state['bench_extra_cases']) + 1}"
                     st.session_state['bench_extra_cases'].append({
-                        "id": f"TC{len(all_test_cases)+1}",
-                        "query": cq.strip(), "language": cl,
-                        "domain": cd, "desc": "Custom",
+                        "id": _cid, "query": cq.strip(), "language": cl, "lang": cl[:2].lower(),
+                        "domain": cd, "type": ct, "relevant_articles": _arts, "desc": "Custom",
                     })
+                    if c_ref.strip():
+                        st.session_state.setdefault("ref_answers", {})[_cid] = c_ref.strip()
                     st.rerun()
 
         # ── Run benchmark ─────────────────────────────────────────────────────
