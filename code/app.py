@@ -125,6 +125,12 @@ def _get_vs():
         return None
 
 
+@st.cache_resource(show_spinner=False)
+def _load_assistant(model: str):
+    from src.orchestrator.agentic import AgenticLegalAssistant
+    return AgenticLegalAssistant(model=model, vectorstore=_load_vectorstore())
+
+
 # ── Page config ────────────────────────────────────────────────────────────────
 
 st.set_page_config(
@@ -410,7 +416,7 @@ st.markdown("""
 # ── Session state ──────────────────────────────────────────────────────────────
 
 for _k, _v in [
-    ('active_tab',       'Pipeline'),
+    ('active_tab',       'Chat'),
     ('example_query',    ''),
     ('selected_agent',   'Agent 1'),
     ('bench_extra_cases', []),
@@ -454,6 +460,9 @@ with st.sidebar:
     """, unsafe_allow_html=True)
 
     _tab = st.session_state.active_tab
+    if st.button("💬  Chat Assistant", use_container_width=True, key="nav_chat",
+                 type="primary" if _tab == "Chat" else "secondary"):
+        st.session_state.active_tab = "Chat"; st.rerun()
     if st.button("🔗  End-to-End Pipeline", use_container_width=True, key="nav_pipeline",
                  type="primary" if _tab == "Pipeline" else "secondary"):
         st.session_state.active_tab = "Pipeline"; st.rerun()
@@ -494,10 +503,90 @@ with st.sidebar:
 
 
 # ══════════════════════════════════════════════════════════════════════════════
+# PAGE 0 — CHAT ASSISTANT (agentic: orchestrator calls sub-agent tools as needed)
+# ══════════════════════════════════════════════════════════════════════════════
+
+if st.session_state.active_tab == "Chat":
+
+    st.markdown("""
+    <div class="page-header">
+        <h2>💬 Legal Chat Assistant</h2>
+        <p>An agentic orchestrator that searches the law only when needed — fast for simple
+           questions, thorough for complex cases. Ask follow-ups in the same conversation.</p>
+    </div>
+    """, unsafe_allow_html=True)
+
+    with st.expander("⚙️ Chat Settings", expanded=False):
+        _cm1, _cm2 = st.columns([2, 1])
+        with _cm1:
+            chat_model = st.selectbox("AI Model", list(_MODELS), format_func=lambda x: _MODELS[x],
+                                      key="chat_model")
+        with _cm2:
+            if st.button("🗑️ Clear conversation", use_container_width=True, key="chat_clear"):
+                st.session_state["chat_history"] = []
+                st.rerun()
+
+    st.session_state.setdefault("chat_history", [])
+
+    # Render the conversation so far.
+    for _m in st.session_state["chat_history"]:
+        with st.chat_message(_m["role"]):
+            _lang = _m.get("lang", "en")
+            if _m["role"] == "assistant" and _lang == "ar":
+                st.markdown(f'<div dir="rtl" style="text-align:right">{_m["content"]}</div>',
+                            unsafe_allow_html=True)
+            else:
+                st.markdown(_m["content"])
+            _meta = _m.get("meta")
+            if _meta:
+                _tools = _meta.get("trace", [])
+                _cits = _meta.get("citations", {})
+                _bits = [f"🛠️ {_meta.get('tools_used', 0)} tool call(s)",
+                         f"⏱️ {_meta.get('latency_s', '?')}s",
+                         f"🔢 {_meta.get('usage', {}).get('total_tokens', 0):,} tokens"]
+                if _cits.get("verified"):
+                    _bits.append("✅ " + ", ".join(f"Art. {a}" for a in _cits["verified"]))
+                if _cits.get("unverified"):
+                    _bits.append("⚠️ unverified: " + ", ".join(_cits["unverified"]))
+                st.caption("  ·  ".join(_bits))
+                if _tools:
+                    with st.expander("🔎 Tools the assistant used"):
+                        for _t in _tools:
+                            st.markdown(f"- `{_t['tool']}`  →  “{_t.get('query', '')}”")
+
+    _prompt = st.chat_input("Ask a legal question (Arabic, French, or English)…")
+    if _prompt:
+        st.session_state["chat_history"].append({"role": "user", "content": _prompt})
+        with st.chat_message("user"):
+            st.markdown(_prompt)
+        with st.chat_message("assistant"):
+            with st.spinner("Thinking… (searching the law only if needed)"):
+                try:
+                    _assistant = _load_assistant(chat_model)
+                    _hist = st.session_state["chat_history"][:-1]  # prior turns
+                    _res = _assistant.chat(_hist, _prompt)
+                except Exception as _e:
+                    _res = {"answer": f"⚠️ Error: {_e}", "trace": [], "tools_used": 0,
+                            "citations": {}, "usage": {}, "latency_s": 0}
+            _ans = _res["answer"]
+            _is_ar = any("؀" <= c <= "ۿ" for c in _ans[:200])
+            if _is_ar:
+                st.markdown(f'<div dir="rtl" style="text-align:right">{_ans}</div>',
+                            unsafe_allow_html=True)
+            else:
+                st.markdown(_ans)
+        st.session_state["chat_history"].append({
+            "role": "assistant", "content": _ans, "lang": "ar" if _is_ar else "en",
+            "meta": {k: _res.get(k) for k in ("trace", "tools_used", "citations", "usage", "latency_s")},
+        })
+        st.rerun()
+
+
+# ══════════════════════════════════════════════════════════════════════════════
 # PAGE 1 — END-TO-END PIPELINE
 # ══════════════════════════════════════════════════════════════════════════════
 
-if st.session_state.active_tab == "Pipeline":
+elif st.session_state.active_tab == "Pipeline":
 
     st.markdown("""
     <div class="page-header">
