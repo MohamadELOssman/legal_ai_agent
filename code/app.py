@@ -1622,6 +1622,7 @@ elif st.session_state.active_tab == "Bench":
             total = len(all_test_cases)
             _cfg  = _get_config()
             from src.utils.llm import make_chat as _make_chat
+            from src.utils.retry import invoke_with_retry as _judge_retry
             _judge = _make_chat(model=judge_model, api_key=_cfg.anthropic_api_key,
                                 temperature=0.0, max_tokens=600)
 
@@ -1660,7 +1661,7 @@ Score each dimension 1–5 (1 = poor, 5 = excellent):
 
 Return ONLY valid JSON — no prose, no markdown, no code fences:
 {{"language_accuracy":N,"domain_accuracy":N,"entity_extraction":N,"intent_classification":N,"overall_quality":N,"explanation":"one sentence"}}"""
-                                _jr     = _judge.invoke([_HumanMessage(content=_prompt)])
+                                _jr     = _judge_retry(_judge, [_HumanMessage(content=_prompt)])
                                 _scores = _extract_json(_jr.content)
                                 entry.update({
                                     "status": "success", "latency_s": round(_lat, 2),
@@ -1722,7 +1723,7 @@ Also estimate:
 
 Return ONLY valid JSON — no prose, no markdown, no code fences:
 {{"relevance_precision":N,"domain_coverage":N,"language_match":N,"content_quality":N,"retrieval_completeness":N,"precision_at_k":F,"relevant_docs_estimate":N,"explanation":"one sentence"}}"""
-                                _jr     = _judge.invoke([_HumanMessage(content=_prompt)])
+                                _jr     = _judge_retry(_judge, [_HumanMessage(content=_prompt)])
                                 _scores = _extract_json(_jr.content)
                                 entry.update({
                                     "status": "success", "latency_s": round(_lat, 2),
@@ -1826,6 +1827,13 @@ Return ONLY valid JSON — no prose, no markdown, no code fences:
                         "Lat(s)":   [r.get("latency_s","-")              for r in _res],
                     }
                 st.dataframe(_table, use_container_width=True)
+
+                # Surface any errored queries with their actual error message.
+                _errs = [r for r in _res if r.get("status") in ("error", "failed")]
+                if _errs:
+                    with st.expander(f"⚠️ {len(_errs)} query(ies) errored — details", expanded=True):
+                        for r in _errs:
+                            st.markdown(f"**{r['id']}** — `{r.get('status')}`: {r.get('error', 'unknown error')}")
 
                 st.markdown("#### Judge Explanations")
                 for r in _res:
