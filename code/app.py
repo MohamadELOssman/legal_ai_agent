@@ -560,14 +560,35 @@ if st.session_state.active_tab == "Chat":
         with st.chat_message("user"):
             st.markdown(_prompt)
         with st.chat_message("assistant"):
-            with st.spinner("Thinking… (searching the law only if needed)"):
-                try:
-                    _assistant = _load_assistant(chat_model)
-                    _hist = st.session_state["chat_history"][:-1]  # prior turns
-                    _res = _assistant.chat(_hist, _prompt)
-                except Exception as _e:
-                    _res = {"answer": f"⚠️ Error: {_e}", "trace": [], "tools_used": 0,
-                            "citations": {}, "usage": {}, "latency_s": 0}
+            # Live, ADK-style step box: shows thinking / tool calls as they happen.
+            _status = st.status("🧠 Thinking…", expanded=True)
+            _TOOL_LABEL = {"search_penal_code": "🔍 Searching the Penal Code",
+                           "search_court_rulings": "⚖️ Searching court rulings"}
+
+            def _cb(ev):
+                _t = ev.get("type")
+                if _t == "thinking":
+                    _status.update(label="🧠 Thinking…")
+                elif _t == "tool_call":
+                    _status.write(f"{_TOOL_LABEL.get(ev['tool'], ev['tool'])}: “{ev.get('query', '')}”")
+                    _status.update(label=f"{_TOOL_LABEL.get(ev['tool'], ev['tool'])}…")
+                elif _t == "tool_result":
+                    _status.write(f"　↳ found {ev.get('hits', 0)} result(s)")
+                elif _t == "answering":
+                    _status.write("✍️ Writing the answer…")
+                    _status.update(label="✍️ Writing the answer…")
+
+            try:
+                _assistant = _load_assistant(chat_model)
+                _hist = st.session_state["chat_history"][:-1]  # prior turns
+                _res = _assistant.chat(_hist, _prompt, on_event=_cb)
+                _status.update(
+                    label=f"✅ Done · {_res['tools_used']} tool call(s) · {_res['latency_s']}s",
+                    state="complete", expanded=False)
+            except Exception as _e:
+                _res = {"answer": f"⚠️ Error: {_e}", "trace": [], "tools_used": 0,
+                        "citations": {}, "usage": {}, "latency_s": 0}
+                _status.update(label="⚠️ Error", state="error", expanded=False)
             _ans = _res["answer"]
             _is_ar = any("؀" <= c <= "ۿ" for c in _ans[:200])
             if _is_ar:

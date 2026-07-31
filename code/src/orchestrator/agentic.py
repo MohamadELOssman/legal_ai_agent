@@ -138,8 +138,21 @@ class AgenticLegalAssistant:
                 "verified": verified, "unverified": unverified}
 
     # ── chat ──────────────────────────────────────────────────────────────────
-    def chat(self, history: List[Dict[str, str]], user_message: str) -> Dict[str, Any]:
-        """Run one assistant turn. `history` is a list of {role, content} (prior turns)."""
+    def chat(self, history: List[Dict[str, str]], user_message: str,
+             on_event=None) -> Dict[str, Any]:
+        """Run one assistant turn. `history` is a list of {role, content} (prior turns).
+
+        `on_event(event)` (optional) is called live as the agent works, so a UI can
+        show ADK-style step-by-step progress. Event types: thinking, tool_call,
+        tool_result, answering.
+        """
+        def emit(ev):
+            if on_event:
+                try:
+                    on_event(ev)
+                except Exception:
+                    pass
+
         msgs: List[Any] = [SystemMessage(content=SYSTEM_PROMPT)]
         for h in history:
             if h.get("role") == "user":
@@ -154,6 +167,7 @@ class AgenticLegalAssistant:
         t0 = time.time()
 
         for _ in range(self.max_iters):
+            emit({"type": "thinking"})
             ai = self.llm.invoke(msgs)
             um = getattr(ai, "usage_metadata", None) or {}
             usage["input_tokens"] += int(um.get("input_tokens", 0) or 0)
@@ -162,18 +176,26 @@ class AgenticLegalAssistant:
 
             tool_calls = getattr(ai, "tool_calls", None) or []
             if not tool_calls:
+                emit({"type": "answering"})
                 answer = self._to_text(ai.content)
                 break
 
             for tc in tool_calls:
                 name = tc.get("name"); args = tc.get("args", {}) or {}
-                trace.append({"tool": name, "query": args.get("query", "")})
+                query = args.get("query", "")
+                trace.append({"tool": name, "query": query})
+                emit({"type": "tool_call", "tool": name, "query": query})
                 try:
                     result = self._tool_map[name].invoke(args)
                 except Exception as e:
                     result = f"tool error: {e}"
                     logger.warning(f"tool {name} failed: {e}")
-                msgs.append(ToolMessage(content=str(result), tool_call_id=tc.get("id")))
+                result = str(result)
+                # A short preview (e.g., the article numbers found) for the UI.
+                _n_hits = result.count("Article ") + result.count("Ruling ")
+                emit({"type": "tool_result", "tool": name, "hits": _n_hits,
+                      "preview": result[:160].replace("\n", " ")})
+                msgs.append(ToolMessage(content=result, tool_call_id=tc.get("id")))
         else:
             # Hit the iteration cap without a final answer.
             answer = self._to_text(getattr(ai, "content", "")) or \
