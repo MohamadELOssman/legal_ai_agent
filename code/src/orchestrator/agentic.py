@@ -7,9 +7,11 @@ call, how many times, and when it has enough to answer. A simple citizen questio
 may need one search (or none); a complex case may search several times. This saves
 time and tokens and behaves more intelligently. It also supports multi-turn chat.
 
-Tools exposed to the orchestrator (the "subagents"):
-  • search_penal_code(query)  — retrieve relevant Penal Code articles
-  • search_court_rulings(query) — retrieve relevant court rulings / precedents
+The orchestrator keeps the project's named sub-agents and calls only the ones a
+given question needs. They are exposed to the orchestrator as tools:
+  • Research Agent  — retrieve relevant Penal Code articles + court rulings
+  • Analysis Agent  — extract and explain the applicable provisions (grounded)
+  • Citation Agent  — verify article numbers against the corpus before citing
 
 Grounding is preserved by (a) instructing the model to cite only retrieved
 articles and (b) verifying the cited article numbers against the corpus index.
@@ -31,16 +33,23 @@ from src.utils.llm import make_chat
 SYSTEM_PROMPT = """You are a Lebanese legal assistant specialising in the Lebanese Penal Code.
 You help three kinds of users: ordinary citizens, lawyers, and judges.
 
-TOOLS (use them to ground your answer in the real law):
-- search_penal_code(query): returns relevant Penal Code articles (number + text).
-- search_court_rulings(query): returns relevant court rulings / precedents.
+You coordinate a team of named sub-agents. Call ONLY the ones a question needs — a
+simple citizen question may need one Research call (or none); a complex case may
+need Research, then Analysis, then Citation. Do not call sub-agents you do not need.
+
+YOUR SUB-AGENTS (tools):
+- research_agent(query): the Research sub-agent. Retrieves relevant Penal Code
+  articles and court rulings. Use it to get the exact article text and numbers.
+- analysis_agent(question): the Analysis sub-agent. Retrieves the law and extracts
+  the applicable provisions with a grounded explanation. Use it for a thorough
+  legal analysis (lawyer/judge questions), not for a quick lookup.
+- citation_agent(article_numbers): the Citation sub-agent. Verifies article numbers
+  against the corpus and flags any that do not exist. Use it before citing when
+  unsure an article is real.
 
 HOW TO WORK:
-- Search whenever you need the exact article text or number. Decide how many searches
-  you need: a simple question may need ONE search (or none if you are certain); a
-  complex case may need several. Do not over-search.
-- Cite ONLY article numbers returned by the tools. NEVER invent an article number.
-  If the law is not found, say so honestly.
+- Cite ONLY article numbers returned by the sub-agents. NEVER invent an article
+  number. If the law is not found, say so honestly.
 - Answer in the SAME language as the user's question (Arabic, French, or English).
 - Adapt the format to the user:
   * ordinary citizen -> a short, clear, jargon-free answer.
@@ -52,6 +61,14 @@ HOW TO WORK:
 
 class _SearchArgs(BaseModel):
     query: str = Field(description="Search query, in the user's language or in Arabic.")
+
+
+class _QuestionArgs(BaseModel):
+    question: str = Field(description="The legal question or situation to analyse.")
+
+
+class _ArticlesArgs(BaseModel):
+    article_numbers: str = Field(description="Article number(s) to verify, e.g. '547, 549'.")
 
 
 class AgenticLegalAssistant:
@@ -69,6 +86,8 @@ class AgenticLegalAssistant:
             vectorstore.load_vectorstore()
         self.vs = vectorstore
 
+        self.model = model
+        self._analysis = None  # lazy — the Analysis sub-agent (built on first use)
         self.tools = self._build_tools()
         self._tool_map = {t.name: t for t in self.tools}
         llm = make_chat(model=model, api_key=cfg.anthropic_api_key,
@@ -82,40 +101,94 @@ class AgenticLegalAssistant:
         except Exception:
             self._known = set()
 
-    # ── tools (the subagents) ─────────────────────────────────────────────────
+    # ── the named sub-agents, exposed to the orchestrator as tools ─────────────
+    def _retrieve(self, query: str, source_type: str, k: int):
+        return self.vs.search(query=query, k=k, strategy="hybrid",
+                              use_reranking=False, score_threshold=0.0,
+                              filter_dict={"source_type": source_type})
+
+    def _get_analysis_agent(self):
+        """Build the Analysis sub-agent lazily (first time it is actually used)."""
+        if self._analysis is None:
+            from src.agents.analysis_agent import AnalysisAgent
+            self._analysis = AnalysisAgent(model=self.model)
+        return self._analysis
+
     def _build_tools(self):
-        def search_penal_code(query: str) -> str:
-            docs = self.vs.search(query=query, k=self.top_k, strategy="hybrid",
-                                  use_reranking=False, score_threshold=0.0,
-                                  filter_dict={"source_type": "legal_code"})
-            if not docs:
-                return "No matching Penal Code articles found."
-            return "\n\n".join(
+        def research_agent(query: str) -> str:
+            """Research sub-agent: retrieve relevant articles and rulings."""
+            arts = self._retrieve(query, "legal_code", self.top_k)
+            rulings = self._retrieve(query, "court_ruling", 3)
+            parts = [
                 f"Article {d.metadata.get('article_number', '?')} "
                 f"[{d.metadata.get('document_language', '')}]: {d.page_content[:600]}"
-                for d in docs)
+                for d in arts]
+            if rulings:
+                parts.append("--- Court rulings ---")
+                parts += [
+                    f"Ruling {d.metadata.get('document_id', '?')} | court: "
+                    f"{d.metadata.get('court', '')} | outcome: {d.metadata.get('outcome', '')} "
+                    f"| articles: {d.metadata.get('applicable_articles', '')}\n{d.page_content[:350]}"
+                    for d in rulings]
+            return "\n\n".join(parts) if parts else "No matching law found."
 
-        def search_court_rulings(query: str) -> str:
-            docs = self.vs.search(query=query, k=4, strategy="hybrid",
-                                  use_reranking=False, score_threshold=0.0,
-                                  filter_dict={"source_type": "court_ruling"})
-            if not docs:
-                return "No matching court rulings found."
-            return "\n\n".join(
-                f"Ruling {d.metadata.get('document_id', '?')} | court: {d.metadata.get('court', '')} "
-                f"| outcome: {d.metadata.get('outcome', '')} | articles: "
-                f"{d.metadata.get('applicable_articles', '')}\n{d.page_content[:400]}"
-                for d in docs)
+        def analysis_agent(question: str) -> str:
+            """Analysis sub-agent: retrieve + extract the applicable provisions (grounded)."""
+            from src.agents.base_agent import AgentInput
+            arts = self._retrieve(question, "legal_code", self.top_k)
+            if not arts:
+                return "No applicable provisions found (no law retrieved)."
+            docs = [{"content": d.page_content, "metadata": d.metadata,
+                     "result_type": "legal_article"} for d in arts]
+            sq = {"original_query": question, "legal_domain": "criminal",
+                  "key_entities": [], "legal_questions": [question]}
+            out = self._get_analysis_agent().process(AgentInput(
+                query=question,
+                context={"structured_query": sq,
+                         "research_results": {"retrieved_documents": docs}},
+                metadata={"orchestrator": {"analysis": {"mode": "legal_explanation"}}}))
+            provs = (out.result or {}).get("provisions", [])
+            if not provs:
+                return "No applicable provisions extracted."
+            lines = []
+            for p in provs[:6]:
+                flag = "" if p.get("grounded", True) else " [UNVERIFIED — do not cite]"
+                lines.append(
+                    f"Article {p.get('article_number', '?')}{flag}: "
+                    f"{p.get('legal_principle', '')} — "
+                    f"{p.get('penalties_or_consequences', p.get('relevance', ''))}")
+            summary = (out.result or {}).get("legal_summary", "")
+            if summary:
+                lines.append(f"Summary: {summary}")
+            return "\n".join(lines)
+
+        def citation_agent(article_numbers: str) -> str:
+            """Citation sub-agent: verify article numbers against the corpus."""
+            import re
+            nums = re.findall(r"\d+", article_numbers or "")
+            if not nums:
+                return "No article numbers provided to verify."
+            out = []
+            for n in nums:
+                ok = n in self._known
+                out.append(f"Article {n}: {'verified — safe to cite' if ok else 'NOT in corpus — do not cite'}")
+            return "\n".join(out)
 
         return [
             StructuredTool.from_function(
-                func=search_penal_code, name="search_penal_code", args_schema=_SearchArgs,
-                description="Search the Lebanese Penal Code for articles relevant to a query. "
-                            "Returns article numbers and text."),
+                func=research_agent, name="research_agent", args_schema=_SearchArgs,
+                description="Research sub-agent. Retrieves Lebanese Penal Code articles and "
+                            "court rulings relevant to a query. Use for a quick look-up of the "
+                            "exact article text and numbers."),
             StructuredTool.from_function(
-                func=search_court_rulings, name="search_court_rulings", args_schema=_SearchArgs,
-                description="Search Lebanese court rulings (precedents) relevant to a case. "
-                            "Use for case analysis and judicial decisions."),
+                func=analysis_agent, name="analysis_agent", args_schema=_QuestionArgs,
+                description="Analysis sub-agent. Retrieves the law and extracts the applicable "
+                            "provisions with a grounded explanation. Use for a thorough legal "
+                            "analysis of a lawyer/judge question, not a simple look-up."),
+            StructuredTool.from_function(
+                func=citation_agent, name="citation_agent", args_schema=_ArticlesArgs,
+                description="Citation sub-agent. Verifies that article numbers exist in the "
+                            "corpus and flags any that do not. Use before citing if unsure."),
         ]
 
     # ── helpers ───────────────────────────────────────────────────────────────
@@ -182,7 +255,9 @@ class AgenticLegalAssistant:
 
             for tc in tool_calls:
                 name = tc.get("name"); args = tc.get("args", {}) or {}
-                query = args.get("query", "")
+                # Sub-agents use different arg names (query / question / article_numbers).
+                query = (args.get("query") or args.get("question")
+                         or args.get("article_numbers") or "")
                 trace.append({"tool": name, "query": query})
                 emit({"type": "tool_call", "tool": name, "query": query})
                 try:

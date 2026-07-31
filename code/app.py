@@ -562,8 +562,9 @@ if st.session_state.active_tab == "Chat":
         with st.chat_message("assistant"):
             # Live, ADK-style step box: shows thinking / tool calls as they happen.
             _status = st.status("🧠 Thinking…", expanded=True)
-            _TOOL_LABEL = {"search_penal_code": "🔍 Searching the Penal Code",
-                           "search_court_rulings": "⚖️ Searching court rulings"}
+            _TOOL_LABEL = {"research_agent": "🔎 Research Agent",
+                           "analysis_agent": "🧠 Analysis Agent",
+                           "citation_agent": "📎 Citation Agent"}
 
             def _cb(ev):
                 _t = ev.get("type")
