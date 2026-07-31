@@ -134,10 +134,32 @@ class BaseAgent(ABC):
             response = self.llm.invoke(messages)
             latency = time.time() - t0
             self._record_usage(response, latency)
-            return response.content
+            return self._content_to_text(response.content)
         except Exception as e:
             logger.error(f"{self.role.value} agent error: {e}")
             raise
+
+    @staticmethod
+    def _content_to_text(content) -> str:
+        """Normalize an LLM response to plain text.
+
+        Reasoning models (e.g. claude-sonnet-5) return `content` as a LIST of
+        blocks (thinking + text) instead of a string. We concatenate the text
+        blocks so downstream string operations (.strip(), JSON parsing) work.
+        """
+        if isinstance(content, str):
+            return content
+        if isinstance(content, list):
+            parts = []
+            for block in content:
+                if isinstance(block, str):
+                    parts.append(block)
+                elif isinstance(block, dict):
+                    # Keep visible text; skip 'thinking' / 'reasoning' blocks.
+                    if block.get("type") in (None, "text") and "text" in block:
+                        parts.append(block["text"])
+            return "".join(parts)
+        return str(content)
 
     def invoke_structured(self, user_message: str, schema, system_prompt: Optional[str] = None):
         """Invoke the LLM and return a schema-validated object (Pydantic model).
