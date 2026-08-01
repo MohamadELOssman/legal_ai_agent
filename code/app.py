@@ -540,13 +540,10 @@ if st.session_state.active_conv is None:      # always keep one current chat
 
 with st.sidebar:
     st.markdown("""
-    <div style="padding:1.25rem 0 0.4rem 0.35rem;">
-        <span style="font-size:1.4rem;">⚖️</span>
-        <span style="color:#f1f5f9;font-weight:700;font-size:1rem;
-                     vertical-align:middle;margin-inline-start:0.35rem;">Lebanese Legal AI</span>
-    </div>
-    <div style="padding:0 0 0.5rem 0.35rem;">
-        <span class="status-pill s-green">● Online</span>
+    <div style="padding:1.4rem 0 1rem 0;text-align:center;">
+        <span style="font-size:1.5rem;vertical-align:middle;">⚖️</span>
+        <span style="color:#f1f5f9;font-weight:700;font-size:1.05rem;
+                     vertical-align:middle;margin-inline-start:0.4rem;">Lebanese Legal AI</span>
     </div>
     """, unsafe_allow_html=True)
 
