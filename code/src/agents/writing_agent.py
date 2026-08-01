@@ -1,8 +1,11 @@
 """
 Agent 6: Writing Agent
-Two output formats driven by the Orchestrator:
-  legal_explanation — educational memo explaining what the law says
-  case_assessment   — advisory memo assessing a specific situation with precedent comparison
+Four output formats driven by the Orchestrator, each with a FIXED set of section
+headers (see SECTIONS_* below) that the answer must follow verbatim and in order:
+  plain_answer      — citizen: التحليل القانوني · الإجابة باختصار
+  legal_explanation — case study: الوقائع · الاشكالية · المواد · التطبيق · الحل · المحكمة
+  case_assessment   — lawyer defence: الوقائع · القوانين · طريقة الدفاع · الإجابة باختصار
+  judicial_decision — judge: المحكمة · الأطراف · الوقائع · القوانين · التطبيق · الحكم
 """
 
 from loguru import logger
@@ -19,44 +22,61 @@ LANG_NAME = {
     "en": "English",
 }
 
-# Section headings per language — the memorandum is written entirely in the query
-# language, so headings must match it (no bilingual "الموضوع / SUBJECT" mixing).
+# Fixed section headings per format and language. These are MANDATORY templates:
+# the answer must use exactly these headers, verbatim and in order. The Arabic
+# headers are authoritative (given by the domain expert); FR/EN mirror them so the
+# trilingual system keeps an identical structure.
+
+# Case Study (general case analysis) — mapped to the "legal_explanation" format.
 SECTIONS_EXPLANATION = {
-    "ar": ["الموضوع", "الإطار القانوني", "الشروط والأحكام", "العقوبات والآثار", "الخلاصة"],
-    "fr": ["Objet", "Cadre juridique", "Conditions et règles", "Peines et conséquences", "Conclusion"],
-    "en": ["Subject", "Legal Framework", "Conditions & Rules", "Penalties & Consequences", "Conclusion"],
-}
-SECTIONS_ASSESSMENT = {
-    "ar": ["الموضوع", "وقائع القضية", "النصوص القانونية المنطبقة",
-           "مقارنة بالسوابق القضائية", "التقدير القانوني", "الخلاصة والتوصيات"],
-    "fr": ["Objet", "Faits", "Dispositions applicables",
-           "Comparaison avec la jurisprudence", "Appréciation juridique", "Conclusion et recommandations"],
-    "en": ["Subject", "Facts", "Applicable Law",
-           "Precedent Comparison", "Legal Assessment", "Conclusion & Recommendations"],
+    "ar": ["الوقائع المنتجة", "الاشكالية القانونية", "المواد والقوانين ذات الصلة",
+           "تطبيق القانون على الوقائع", "الحل", "المحكمة المختصة (في حال وجودها)"],
+    "fr": ["Faits pertinents", "Problématique juridique", "Textes et lois applicables",
+           "Application du droit aux faits", "Solution", "Tribunal compétent (le cas échéant)"],
+    "en": ["Relevant Facts", "Legal Issue", "Applicable Laws & Articles",
+           "Application of the Law to the Facts", "Solution", "Competent Court (if applicable)"],
 }
 
-# Judicial decision (for a judge): facts given → the ruling is written.
+# Lawyer (defence) — mapped to the "case_assessment" format.
+SECTIONS_ASSESSMENT = {
+    "ar": ["الوقائع المنتجة", "القوانين والمواد ذات الصلة", "طريقة الدفاع", "الإجابة باختصار"],
+    "fr": ["Faits pertinents", "Lois et articles applicables", "Stratégie de défense", "Réponse en bref"],
+    "en": ["Relevant Facts", "Applicable Laws & Articles", "Defense Strategy", "Answer in Brief"],
+}
+
+# Judge — facts given → the ruling is written. Mapped to "judicial_decision".
 SECTIONS_DECISION = {
-    "ar": ["المحكمة والأطراف", "الوقائع", "النصوص القانونية المطبقة",
-           "التعليل القانوني", "الحُكم / القرار"],
-    "fr": ["Tribunal et parties", "Faits", "Textes applicables",
-           "Motifs", "Décision"],
-    "en": ["Court & Parties", "Facts of the Case", "Applicable Law",
-           "Legal Reasoning", "Verdict (Decision)"],
+    "ar": ["المحكمة المختصة", "أطراف الدعوى", "الوقائع المنتجة", "القوانين والمواد ذات الصلة",
+           "تطبيق القانون على الوقائع", "الحكم"],
+    "fr": ["Tribunal compétent", "Parties au litige", "Faits pertinents", "Lois et articles applicables",
+           "Application du droit aux faits", "Jugement"],
+    "en": ["Competent Court", "Parties to the Case", "Relevant Facts", "Applicable Laws & Articles",
+           "Application of the Law to the Facts", "Judgment"],
+}
+
+# Citizen — plain, two-part answer. Mapped to the "plain_answer" format.
+SECTIONS_CITIZEN = {
+    "ar": ["التحليل القانوني", "الإجابة باختصار"],
+    "fr": ["Analyse juridique", "Réponse en bref"],
+    "en": ["Legal Analysis", "Answer in Brief"],
 }
 
 
 def _language_directive(language: str) -> str:
     """A strict instruction to write the whole memo in one language only, concisely."""
     name = LANG_NAME.get(language, LANG_NAME["ar"])
-    return (f"Write the ENTIRE memorandum — including every section heading — in {name} ONLY. "
+    return (f"Write the ENTIRE answer — including every section heading — in {name} ONLY. "
             f"Do NOT produce bilingual text, and do NOT translate or duplicate headings in another language.\n"
             f"BE PRECISE AND TO THE POINT: answer directly, state only what is legally relevant, and avoid "
             f"filler, preamble, and repetition. Finish the answer completely — do not stop mid-sentence.")
 
 
-def _numbered_sections(sections: list) -> str:
-    return "\n".join(f"{i}. {s}" for i, s in enumerate(sections, 1))
+def _headers_directive(sections: list) -> str:
+    """Force the exact section headers, in order, each rendered as a bold line."""
+    headers = "\n".join(f"**{s}**" for s in sections)
+    return ("Use EXACTLY the following section headers, in this exact order, each on its own line "
+            "and in bold (Markdown **...**) as shown. Do NOT add, remove, rename, reorder, number, "
+            "or translate any header. Write the relevant content beneath each header:\n\n" + headers)
 
 
 class WritingAgent(BaseAgent):
@@ -127,7 +147,7 @@ Only cite articles that are supplied to you; never invent legal references."""
                 )
             else:
                 memorandum = self._write_legal_explanation(
-                    structured_query, provisions, reasoning, citations, language
+                    structured_query, provisions, reasoning, citations, extracted_facts, language
                 )
 
             logger.info(f"WritingAgent [{fmt}] — {len(memorandum)} chars")
@@ -152,12 +172,13 @@ Only cite articles that are supplied to you; never invent legal references."""
     # ── format 1: legal explanation ────────────────────────────────────────────
 
     def _write_legal_explanation(
-        self, structured_query, provisions, reasoning, citations, language
+        self, structured_query, provisions, reasoning, citations, extracted_facts, language
     ) -> str:
+        """Case-study format: neutral, objective analysis of a scenario/question."""
 
         lang = language if language in SECTIONS_EXPLANATION else "ar"
-        sections = _numbered_sections(SECTIONS_EXPLANATION[lang])
 
+        facts_text = "\n".join(f"- {f}" for f in extracted_facts) if extracted_facts else "See the query."
         provisions_text = "\n\n".join(
             f"Article {p.get('article_number', '')}: {p.get('provision_text', '')[:300]}\n"
             f"Principle: {p.get('legal_principle', '')}\n"
@@ -170,12 +191,15 @@ Only cite articles that are supplied to you; never invent legal references."""
             f"- {c.get('citation_text', '')}" for c in citations[:8]
         )
 
-        user_message = f"""Write a legal explanation memorandum.
+        user_message = f"""Write an objective legal case study.
 
 {_language_directive(lang)}
 
-QUERY: {structured_query.get('original_query', '')}
+QUERY / SCENARIO: {structured_query.get('original_query', '')}
 LEGAL DOMAIN: {structured_query.get('legal_domain', '')}
+
+RELEVANT FACTS:
+{facts_text}
 
 APPLICABLE PROVISIONS:
 {provisions_text or 'No provisions retrieved.'}
@@ -186,11 +210,18 @@ LEGAL REASONING:
 CITATIONS:
 {citations_text or 'None.'}
 
-Structure the memorandum with exactly these sections (use these headings verbatim, in order):
-{sections}
+{_headers_directive(SECTIONS_EXPLANATION[lang])}
 
-Tone: educational and clear. Keep it focused and professional — avoid filler and repetition.
-Cite every article you reference."""
+Guidance per section:
+- Relevant Facts: state the material facts of the scenario (if the query is a general
+  question with no facts, summarise the situation it describes).
+- Legal Issue: the precise legal question to resolve.
+- Applicable Laws & Articles: the exact articles and what each provides.
+- Application of the Law to the Facts: apply the articles to the facts and reason to a result.
+- Solution: the concrete legal outcome.
+- Competent Court: name it only if it can be determined; otherwise say it depends / is not applicable.
+
+Tone: neutral and analytical (a case study, not advocacy). Cite every article you reference."""
 
         return self.invoke_llm(user_message + self._citation_constraint(citations))
 
@@ -202,7 +233,6 @@ Cite every article you reference."""
     ) -> str:
 
         lang = language if language in SECTIONS_ASSESSMENT else "ar"
-        sections = _numbered_sections(SECTIONS_ASSESSMENT[lang])
 
         facts_text = "\n".join(f"- {f}" for f in extracted_facts) if extracted_facts else "See original query."
 
@@ -222,7 +252,7 @@ Cite every article you reference."""
         assessment = case_assessment or {}
         citations_text = "\n".join(f"- {c.get('citation_text', '')}" for c in citations[:8])
 
-        user_message = f"""Write a legal case assessment memorandum for a lawyer.
+        user_message = f"""Write a defence-oriented legal analysis for a LAWYER defending a client.
 
 {_language_directive(lang)}
 
@@ -250,12 +280,17 @@ PRELIMINARY ASSESSMENT:
 CITATIONS:
 {citations_text or 'None.'}
 
-Structure the memorandum with exactly these sections (use these headings verbatim, in order):
-{sections}
+{_headers_directive(SECTIONS_ASSESSMENT[lang])}
 
-Tone: advisory — written for a lawyer advising a client.
-Keep it focused and professional — avoid filler and repetition.
-Cite every article and case you reference."""
+Guidance per section:
+- Relevant Facts: the facts that matter for the defence, as concise bullet points.
+- Applicable Laws & Articles: each relevant article and what it provides (incl. any
+  defence/mitigation articles).
+- Defense Strategy: the actual defence plea — argue for the client, addressed to the court,
+  presenting the primary argument and any alternative/subsidiary arguments.
+- Answer in Brief: a 2-3 sentence summary of the defence.
+
+Tone: advocacy — you are arguing FOR the client. Cite every article and case you reference."""
 
         return self.invoke_llm(user_message + self._citation_constraint(citations))
 
@@ -265,14 +300,14 @@ Cite every article and case you reference."""
         self, structured_query, provisions, reasoning, citations, language
     ) -> str:
 
-        lang = language if language in LANG_NAME else "ar"
+        lang = language if language in SECTIONS_CITIZEN else "ar"
         provisions_text = "\n".join(
             f"- Article {p.get('article_number', '')}: {p.get('provision_text', '')[:200]}"
             for p in provisions[:5]
         )
         citations_text = ", ".join(c.get('citation_text', '') for c in citations[:5])
 
-        user_message = f"""Answer this person's legal question in plain, everyday language.
+        user_message = f"""Answer this ordinary citizen's legal question.
 
 {_language_directive(lang)}
 
@@ -281,13 +316,15 @@ QUESTION: {structured_query.get('original_query', '')}
 RELEVANT LAW:
 {provisions_text or 'No specific articles retrieved.'}
 
-Write a clear, direct answer that an ordinary person (not a lawyer) can understand:
-- Start with a direct answer to their question.
-- Explain briefly and simply — avoid legal jargon; if you use a legal term, explain it.
-- Keep it short (a few short paragraphs), warm and helpful.
-- Mention the relevant article number(s) plainly at the end so they can verify: {citations_text or 'N/A'}.
-- Do NOT use formal memorandum headings or numbered sections.
-- If appropriate, gently note that this is general information, not a substitute for a lawyer.
+CITATIONS: {citations_text or 'N/A'}
+
+{_headers_directive(SECTIONS_CITIZEN[lang])}
+
+Guidance per section:
+- Legal Analysis: briefly explain what the relevant article(s) say and how they apply,
+  quoting the article numbers (e.g., "Article 636 provides that ..."). Keep it clear and
+  accessible for a non-lawyer; explain any legal term you use.
+- Answer in Brief: one or two sentences giving the direct, plain answer to the question.
 
 Only rely on the law provided above; never invent article numbers."""
 
@@ -301,7 +338,6 @@ Only rely on the law provided above; never invent article numbers."""
     ) -> str:
 
         lang = language if language in SECTIONS_DECISION else "ar"
-        sections = _numbered_sections(SECTIONS_DECISION[lang])
 
         facts_text = "\n".join(f"- {f}" for f in extracted_facts) if extracted_facts else "See the submitted case."
         applicable = "\n\n".join(
@@ -344,15 +380,19 @@ mitigating — {', '.join(assessment.get('mitigating_factors', []))}.
 CITATIONS:
 {citations_text or 'None.'}
 
-Write the decision as a formal court ruling with exactly these sections
-(use these headings verbatim, in order):
-{sections}
+{_headers_directive(SECTIONS_DECISION[lang])}
 
-Requirements:
-- The final section MUST state an explicit decision (e.g., conviction/acquittal) and,
-  where applicable, the sentence, grounded in the cited articles.
-- Formal, impartial judicial tone. Cite every article you rely on.
-- Only rely on the law and facts provided; never invent article numbers.
-- Note that this is an AI-drafted decision for the judge's review, not a binding judgment."""
+Guidance per section:
+- Competent Court: the court with jurisdiction and why.
+- Parties to the Case: the parties (prosecution, accused, civil parties, victim) as applicable.
+- Relevant Facts: the established material facts.
+- Applicable Laws & Articles: each article relied on and what it provides.
+- Application of the Law to the Facts: reason from the facts and articles toward the ruling
+  (use "Whereas ..." style considerations where natural).
+- Judgment: an explicit ruling (e.g., conviction/acquittal) and, where applicable, the sentence,
+  grounded in the cited articles.
+
+Formal, impartial judicial tone. Cite every article you rely on. Only rely on the law and
+facts provided; never invent article numbers."""
 
         return self.invoke_llm(user_message + self._citation_constraint(citations))
