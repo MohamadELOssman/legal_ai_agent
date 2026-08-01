@@ -150,7 +150,7 @@ st.markdown("""
 
 /* ── Layout ── */
 .main { background: #f0f4f8; }
-.block-container { padding: 1.5rem 2rem 3rem 2rem !important; max-width: 1200px; }
+.block-container { padding: 3.5rem 2rem 3rem 2rem !important; max-width: 1200px; }
 
 /* ── Sidebar ── */
 [data-testid="stSidebar"] {
