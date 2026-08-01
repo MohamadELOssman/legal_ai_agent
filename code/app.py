@@ -655,11 +655,12 @@ if st.session_state.active_tab == "Chat":
     _conv = _conv_active() or _conv_new()
     _messages = _conv["messages"]
 
-    # ── Header row: title · model picker ───────────────────────────────────────
-    _ht, _hm = st.columns([3, 1], vertical_alignment="center")
-    with _ht:
-        st.markdown('<div style="font-size:1.15rem;font-weight:700;color:#0f172a;">'
-                    '💬 Legal Chat Assistant</div>', unsafe_allow_html=True)
+    # ── Header: title, then the model picker on its own row (clear of the
+    #    Streamlit top toolbar, which was cropping a top-right control). ─────────
+    st.markdown('<div style="font-size:1.15rem;font-weight:700;color:#0f172a;'
+                'margin:0.2rem 0 0.5rem;">💬 Legal Chat Assistant</div>',
+                unsafe_allow_html=True)
+    _hm, _sp = st.columns([1, 3], vertical_alignment="center")
     with _hm:
         chat_model = st.selectbox("Model", list(_MODELS), format_func=lambda x: _MODELS[x],
                                   key="chat_model", label_visibility="collapsed")
