@@ -254,6 +254,26 @@ button[data-testid="stSidebarCollapseButton"]:hover {
 .page-header h2 { margin: 0; color: #0f172a; font-size: 1.15rem; font-weight: 700; border: none; padding: 0; }
 .page-header p  { margin: 0.2rem 0 0 0; color: #64748b; font-size: 0.85rem; }
 
+/* ── Chat input: framed like a dedicated chat composer ── */
+[data-testid="stChatInput"] {
+    background: #ffffff;
+    border: 1px solid #dbe3ee;
+    border-radius: 0.9rem;
+    box-shadow: 0 2px 10px rgba(15, 23, 42, 0.06);
+    padding: 0.15rem 0.35rem;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+[data-testid="stChatInput"]:focus-within {
+    border-color: #3b82f6;
+    box-shadow: 0 2px 14px rgba(59, 130, 246, 0.18);
+}
+[data-testid="stChatInput"] textarea { font-size: 0.95rem; }
+/* Give the pinned bottom bar a soft banner backdrop behind the composer. */
+[data-testid="stBottomBlockContainer"] {
+    background: linear-gradient(180deg, rgba(248,250,252,0) 0%, #f1f5f9 55%);
+    padding-top: 0.75rem;
+}
+
 /* ── Info banner (replaces per-agent gradient boxes) ── */
 .info-banner {
     background: #f8fafc;
@@ -521,6 +541,13 @@ if st.session_state.active_tab == "Chat":
                     "citation_agent": "📎 Citation Agent"}
     _USER_AVATAR, _AI_AVATAR = "🧑", "⚖️"
 
+    def _is_arabic(text: str) -> bool:
+        """Right-to-left only when the answer is PREDOMINANTLY Arabic — an English
+        answer that merely quotes an Arabic term (e.g. '(السرقة)') stays left-aligned."""
+        ar = sum(1 for c in text if "؀" <= c <= "ۿ")
+        la = sum(1 for c in text if c.isascii() and c.isalpha())
+        return ar > la
+
     with st.expander("⚙️ Chat settings", expanded=False):
         _cm1, _cm2 = st.columns([2, 1])
         with _cm1:
@@ -533,23 +560,6 @@ if st.session_state.active_tab == "Chat":
                 st.rerun()
 
     st.session_state.setdefault("chat_history", [])
-
-    # ── Session usage bar: tokens spent, estimated cost, latency ──────────────
-    _asst = [m for m in st.session_state["chat_history"]
-             if m["role"] == "assistant" and m.get("meta")]
-    _s_tok = sum(m["meta"].get("usage", {}).get("total_tokens", 0) for m in _asst)
-    _s_cost = sum(m["meta"].get("usage", {}).get("cost_usd", 0.0) for m in _asst)
-    _s_calls = sum(m["meta"].get("tools_used", 0) for m in _asst)
-    _s_lat = round(sum(m["meta"].get("latency_s", 0) for m in _asst) / len(_asst), 1) if _asst else 0
-    _k1, _k2, _k3, _k4 = st.columns(4)
-    _k1.metric("💬 Turns", len(_asst))
-    _k2.metric("🔢 Tokens", f"{_s_tok:,}")
-    _k3.metric("💵 Est. spend", f"${_s_cost:.4f}")
-    _k4.metric("🛠️ Sub-agent calls", _s_calls)
-    if _asst:
-        st.caption(f"This conversation · avg {_s_lat}s per turn · pricing from the selected model. "
-                   "Cost is estimated from token counts.")
-    st.divider()
 
     # Empty-state welcome (shown before the first question).
     if not st.session_state["chat_history"]:
@@ -640,7 +650,7 @@ if st.session_state.active_tab == "Chat":
                         "citations": {}, "usage": {}, "latency_s": 0, "model": chat_model}
                 _status.update(label="⚠️ Error", state="error", expanded=False)
             _ans = _res["answer"]
-            _is_ar = any("؀" <= c <= "ۿ" for c in _ans[:200])
+            _is_ar = _is_arabic(_ans)
             if _is_ar:
                 st.markdown(f'<div dir="rtl" style="text-align:right">{_ans}</div>',
                             unsafe_allow_html=True)
@@ -2043,17 +2053,3 @@ Return ONLY valid JSON — no prose, no markdown, no code fences:
                         st.json(r)
 
 
-# ── Footer ─────────────────────────────────────────────────────────────────────
-
-st.markdown("""
-<div class="footer">
-    <div class="footer-title">⚖️ Lebanese Legal AI System</div>
-    <div class="footer-sub">Multi-Agent RAG Pipeline · Trilingual Legal Research · Lebanese Law Specialization</div>
-    <div class="footer-tags">
-        <span>🤖 Claude Sonnet 4.5</span>
-        <span>📚 7-Agent Architecture</span>
-        <span>🔍 Hybrid Search + Reranking</span>
-        <span>🌍 AR · FR · EN</span>
-    </div>
-</div>
-""", unsafe_allow_html=True)
