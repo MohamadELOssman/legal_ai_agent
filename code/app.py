@@ -516,21 +516,65 @@ if st.session_state.active_tab == "Chat":
     </div>
     """, unsafe_allow_html=True)
 
-    with st.expander("⚙️ Chat Settings", expanded=False):
+    _AGENT_LABEL = {"research_agent": "🔎 Research Agent",
+                    "analysis_agent": "🧠 Analysis Agent",
+                    "citation_agent": "📎 Citation Agent"}
+    _USER_AVATAR, _AI_AVATAR = "🧑", "⚖️"
+
+    with st.expander("⚙️ Chat settings", expanded=False):
         _cm1, _cm2 = st.columns([2, 1])
         with _cm1:
             chat_model = st.selectbox("AI Model", list(_MODELS), format_func=lambda x: _MODELS[x],
                                       key="chat_model")
         with _cm2:
+            st.write("")  # spacer to align the button with the selectbox
             if st.button("🗑️ Clear conversation", use_container_width=True, key="chat_clear"):
                 st.session_state["chat_history"] = []
                 st.rerun()
 
     st.session_state.setdefault("chat_history", [])
 
+    # ── Session usage bar: tokens spent, estimated cost, latency ──────────────
+    _asst = [m for m in st.session_state["chat_history"]
+             if m["role"] == "assistant" and m.get("meta")]
+    _s_tok = sum(m["meta"].get("usage", {}).get("total_tokens", 0) for m in _asst)
+    _s_cost = sum(m["meta"].get("usage", {}).get("cost_usd", 0.0) for m in _asst)
+    _s_calls = sum(m["meta"].get("tools_used", 0) for m in _asst)
+    _s_lat = round(sum(m["meta"].get("latency_s", 0) for m in _asst) / len(_asst), 1) if _asst else 0
+    _k1, _k2, _k3, _k4 = st.columns(4)
+    _k1.metric("💬 Turns", len(_asst))
+    _k2.metric("🔢 Tokens", f"{_s_tok:,}")
+    _k3.metric("💵 Est. spend", f"${_s_cost:.4f}")
+    _k4.metric("🛠️ Sub-agent calls", _s_calls)
+    if _asst:
+        st.caption(f"This conversation · avg {_s_lat}s per turn · pricing from the selected model. "
+                   "Cost is estimated from token counts.")
+    st.divider()
+
+    # Empty-state welcome (shown before the first question).
+    if not st.session_state["chat_history"]:
+        st.markdown(
+            """
+            <div style="text-align:center; padding:1.4rem 1rem; opacity:0.85;">
+                <div style="font-size:2.4rem;">⚖️</div>
+                <h4 style="margin:0.3rem 0;">How can I help with Lebanese criminal law?</h4>
+                <p style="margin:0; font-size:0.9rem;">
+                    Ask in <b>Arabic</b>, <b>French</b>, or <b>English</b>. I call my
+                    Research, Analysis, and Citation sub-agents only when a question needs them.
+                </p>
+            </div>
+            """, unsafe_allow_html=True)
+        _e1, _e2, _e3 = st.columns(3)
+        for _col, _ex in ((_e1, "ما هي عقوبة السرقة؟"),
+                          (_e2, "Quelle est la peine pour diffamation ?"),
+                          (_e3, "What are the elements of fraud?")):
+            with _col:
+                st.caption(f"💡 e.g. “{_ex}”")
+
     # Render the conversation so far.
     for _m in st.session_state["chat_history"]:
-        with st.chat_message(_m["role"]):
+        _avatar = _AI_AVATAR if _m["role"] == "assistant" else _USER_AVATAR
+        with st.chat_message(_m["role"], avatar=_avatar):
             _lang = _m.get("lang", "en")
             if _m["role"] == "assistant" and _lang == "ar":
                 st.markdown(f'<div dir="rtl" style="text-align:right">{_m["content"]}</div>',
@@ -541,54 +585,59 @@ if st.session_state.active_tab == "Chat":
             if _meta:
                 _tools = _meta.get("trace", [])
                 _cits = _meta.get("citations", {})
-                _bits = [f"🛠️ {_meta.get('tools_used', 0)} tool call(s)",
+                _u = _meta.get("usage", {})
+                _bits = [f"🛠️ {_meta.get('tools_used', 0)} sub-agent call(s)",
                          f"⏱️ {_meta.get('latency_s', '?')}s",
-                         f"🔢 {_meta.get('usage', {}).get('total_tokens', 0):,} tokens"]
+                         f"🔢 {_u.get('total_tokens', 0):,} tokens",
+                         f"💵 ${_u.get('cost_usd', 0.0):.4f}"]
                 if _cits.get("verified"):
                     _bits.append("✅ " + ", ".join(f"Art. {a}" for a in _cits["verified"]))
                 if _cits.get("unverified"):
                     _bits.append("⚠️ unverified: " + ", ".join(_cits["unverified"]))
                 st.caption("  ·  ".join(_bits))
                 if _tools:
-                    with st.expander("🔎 Tools the assistant used"):
+                    with st.expander("🔎 Sub-agents used for this answer"):
                         for _t in _tools:
-                            st.markdown(f"- `{_t['tool']}`  →  “{_t.get('query', '')}”")
+                            _lbl = _AGENT_LABEL.get(_t["tool"], _t["tool"])
+                            _q = _t.get("query", "")
+                            st.markdown(f"- **{_lbl}** — “{_q}”" if _q else f"- **{_lbl}**")
 
     _prompt = st.chat_input("Ask a legal question (Arabic, French, or English)…")
     if _prompt:
         st.session_state["chat_history"].append({"role": "user", "content": _prompt})
-        with st.chat_message("user"):
+        with st.chat_message("user", avatar=_USER_AVATAR):
             st.markdown(_prompt)
-        with st.chat_message("assistant"):
+        with st.chat_message("assistant", avatar=_AI_AVATAR):
             # Live, ADK-style step box: shows thinking / tool calls as they happen.
             _status = st.status("🧠 Thinking…", expanded=True)
-            _TOOL_LABEL = {"research_agent": "🔎 Research Agent",
-                           "analysis_agent": "🧠 Analysis Agent",
-                           "citation_agent": "📎 Citation Agent"}
 
             def _cb(ev):
                 _t = ev.get("type")
                 if _t == "thinking":
                     _status.update(label="🧠 Thinking…")
                 elif _t == "tool_call":
-                    _status.write(f"{_TOOL_LABEL.get(ev['tool'], ev['tool'])}: “{ev.get('query', '')}”")
-                    _status.update(label=f"{_TOOL_LABEL.get(ev['tool'], ev['tool'])}…")
+                    _lbl = _AGENT_LABEL.get(ev["tool"], ev["tool"])
+                    _status.write(f"**{_lbl}** → “{ev.get('query', '')}”")
+                    _status.update(label=f"{_lbl} working…")
                 elif _t == "tool_result":
-                    _status.write(f"　↳ found {ev.get('hits', 0)} result(s)")
+                    _status.write(f"　↳ {ev.get('hits', 0)} result(s) returned")
                 elif _t == "answering":
-                    _status.write("✍️ Writing the answer…")
-                    _status.update(label="✍️ Writing the answer…")
+                    _status.write("✍️ Composing the answer…")
+                    _status.update(label="✍️ Composing the answer…")
 
             try:
                 _assistant = _load_assistant(chat_model)
                 _hist = st.session_state["chat_history"][:-1]  # prior turns
                 _res = _assistant.chat(_hist, _prompt, on_event=_cb)
+                _u = _res.get("usage", {})
                 _status.update(
-                    label=f"✅ Done · {_res['tools_used']} tool call(s) · {_res['latency_s']}s",
+                    label=(f"✅ Done · {_res['tools_used']} sub-agent call(s) · "
+                           f"{_res['latency_s']}s · {_u.get('total_tokens', 0):,} tokens · "
+                           f"${_u.get('cost_usd', 0.0):.4f}"),
                     state="complete", expanded=False)
             except Exception as _e:
                 _res = {"answer": f"⚠️ Error: {_e}", "trace": [], "tools_used": 0,
-                        "citations": {}, "usage": {}, "latency_s": 0}
+                        "citations": {}, "usage": {}, "latency_s": 0, "model": chat_model}
                 _status.update(label="⚠️ Error", state="error", expanded=False)
             _ans = _res["answer"]
             _is_ar = any("؀" <= c <= "ۿ" for c in _ans[:200])
@@ -599,7 +648,8 @@ if st.session_state.active_tab == "Chat":
                 st.markdown(_ans)
         st.session_state["chat_history"].append({
             "role": "assistant", "content": _ans, "lang": "ar" if _is_ar else "en",
-            "meta": {k: _res.get(k) for k in ("trace", "tools_used", "citations", "usage", "latency_s")},
+            "meta": {k: _res.get(k) for k in
+                     ("trace", "tools_used", "citations", "usage", "latency_s", "model")},
         })
         st.rerun()
 

@@ -276,11 +276,22 @@ class AgenticLegalAssistant:
             answer = self._to_text(getattr(ai, "content", "")) or \
                 "I could not complete the answer within the step limit."
 
+        try:
+            from src.utils.cost_tracker import CostTracker
+            price = CostTracker.PRICING.get(self.model, {"input": 3.0, "output": 15.0})
+        except Exception:
+            price = {"input": 3.0, "output": 15.0}
+        cost = round(usage["input_tokens"] / 1e6 * price["input"]
+                     + usage["output_tokens"] / 1e6 * price["output"], 6)
+
         return {
             "answer": answer,
             "trace": trace,
             "tools_used": len(trace),
             "citations": self._verify_citations(answer),
-            "usage": {**usage, "total_tokens": usage["input_tokens"] + usage["output_tokens"]},
+            "usage": {**usage,
+                      "total_tokens": usage["input_tokens"] + usage["output_tokens"],
+                      "cost_usd": cost},
             "latency_s": round(time.time() - t0, 1),
+            "model": self.model,
         }
