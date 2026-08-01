@@ -212,6 +212,32 @@ button[data-testid="stSidebarCollapseButton"]:hover {
     border-left: 3px solid #3b82f6 !important;
     border-radius: 0 0.5rem 0.5rem 0 !important;
 }
+/* "＋ New chat" — a clear dashed action button */
+[data-testid="stSidebar"] .st-key-conv_new button {
+    background: rgba(59,130,246,0.10) !important;
+    color: #bfdbfe !important;
+    border: 1px dashed rgba(59,130,246,0.45) !important;
+    justify-content: center !important;
+    text-align: center !important;
+    font-weight: 600 !important;
+    margin-bottom: 0.25rem !important;
+}
+[data-testid="stSidebar"] .st-key-conv_new button:hover {
+    background: rgba(59,130,246,0.22) !important;
+    color: #ffffff !important;
+}
+/* Conversation delete (trash) buttons — keyed del_<id> */
+[data-testid="stSidebar"] [class*="st-key-del_"] button {
+    background: transparent !important;
+    color: #64748b !important;
+    justify-content: center !important;
+    text-align: center !important;
+    padding: 0.45rem 0 !important;
+}
+[data-testid="stSidebar"] [class*="st-key-del_"] button:hover {
+    background: rgba(239,68,68,0.15) !important;
+    color: #fca5a5 !important;
+}
 
 /* ── Status pills ── */
 .status-pill {
@@ -437,7 +463,6 @@ for _k, _v in [
     ('example_query',    ''),
     ('selected_agent',   'Agent 1'),
     ('bench_extra_cases', []),
-    ('nav_collapsed',    False),
 ]:
     if _k not in st.session_state:
         st.session_state[_k] = _v
@@ -507,35 +532,16 @@ if st.session_state.active_conv is None:      # always keep one current chat
     _conv_new()
 
 
-# ── Sidebar collapse: hide the panel and show a floating ☰ to reopen ────────────
-if st.session_state.get("nav_collapsed"):
-    st.markdown("""
-    <style>
-      [data-testid="stSidebar"] { display: none !important; }
-      [data-testid="stSidebarCollapsedControl"] { display: none !important; }
-    </style>
-    """, unsafe_allow_html=True)
-
-
 # ── Sidebar ────────────────────────────────────────────────────────────────────
 
 with st.sidebar:
-    _b1, _b2 = st.columns([3, 1])
-    with _b1:
-        st.markdown("""
-        <div style="padding:1.1rem 0 0.2rem 0.35rem;">
-            <span style="font-size:1.4rem;">⚖️</span>
-            <span style="color:#f1f5f9;font-weight:700;font-size:1rem;
-                         vertical-align:middle;margin-inline-start:0.35rem;">Lebanese Legal AI</span>
-        </div>
-        """, unsafe_allow_html=True)
-    with _b2:
-        st.write("")
-        if st.button("«", key="nav_hide", help="Hide sidebar", use_container_width=True):
-            st.session_state.nav_collapsed = True; st.rerun()
-
     st.markdown("""
-    <div style="padding:0.2rem 0 0.5rem 0.35rem;">
+    <div style="padding:1.25rem 0 0.4rem 0.35rem;">
+        <span style="font-size:1.4rem;">⚖️</span>
+        <span style="color:#f1f5f9;font-weight:700;font-size:1rem;
+                     vertical-align:middle;margin-inline-start:0.35rem;">Lebanese Legal AI</span>
+    </div>
+    <div style="padding:0 0 0.5rem 0.35rem;">
         <span class="status-pill s-green">● Online</span>
     </div>
     """, unsafe_allow_html=True)
@@ -571,21 +577,28 @@ with st.sidebar:
         """, unsafe_allow_html=True)
 
         if st.button("＋  New chat", use_container_width=True, key="conv_new"):
-            _conv_new(); st.rerun()
+            # Reuse an existing empty chat instead of stacking blank ones.
+            _empty = next((c for c in st.session_state.conversations if not c["messages"]), None)
+            st.session_state.active_conv = _empty["id"] if _empty else _conv_new()["id"]
+            st.rerun()
 
-        for _c in st.session_state.conversations:
+        # Only list conversations that actually have content; the current blank
+        # chat is represented by the "＋ New chat" button + the main empty state.
+        _saved = [c for c in st.session_state.conversations if c["messages"]]
+        for _c in _saved:
             _is_active = _c["id"] == st.session_state.get("active_conv")
             _title = (_c.get("title") or "New chat")
-            _title = _title if len(_title) <= 24 else _title[:23] + "…"
-            _sel, _del = st.columns([5, 1])
+            _title = _title if len(_title) <= 22 else _title[:21] + "…"
+            _sel, _del = st.columns([5, 1], gap="small")
             with _sel:
-                if st.button(_title, use_container_width=True, key=f"conv_{_c['id']}",
+                if st.button(("💬  " + _title), use_container_width=True, key=f"conv_{_c['id']}",
                              type="primary" if _is_active else "secondary"):
                     st.session_state.active_conv = _c["id"]; st.rerun()
             with _del:
-                if st.button("🗑", key=f"del_{_c['id']}", help="Delete chat"):
+                if st.button("🗑", use_container_width=True, key=f"del_{_c['id']}",
+                             help="Delete chat"):
                     _conv_delete(_c["id"]); st.rerun()
-        if not st.session_state.conversations:
+        if not _saved:
             st.caption("No saved chats yet.")
 
     st.markdown("""
@@ -605,14 +618,6 @@ with st.sidebar:
         </div>
     </div>
     """, unsafe_allow_html=True)
-
-
-# ── Floating reopen control when the sidebar is hidden ──────────────────────────
-if st.session_state.get("nav_collapsed"):
-    _rc1, _rc2 = st.columns([1, 11])
-    with _rc1:
-        if st.button("☰", key="nav_show", help="Show sidebar"):
-            st.session_state.nav_collapsed = False; st.rerun()
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -650,18 +655,14 @@ if st.session_state.active_tab == "Chat":
     _conv = _conv_active() or _conv_new()
     _messages = _conv["messages"]
 
-    # ── Header row: title · model picker · delete this chat ────────────────────
-    _ht, _hs = st.columns([5, 1])
+    # ── Header row: title · model picker ───────────────────────────────────────
+    _ht, _hm = st.columns([3, 1], vertical_alignment="center")
     with _ht:
-        st.markdown('<div class="page-header" style="margin-bottom:0.75rem;">'
-                    '<h2>💬 Legal Chat Assistant</h2></div>', unsafe_allow_html=True)
-    with _hs:
-        with st.popover("⚙️", use_container_width=True):
-            chat_model = st.selectbox("AI Model", list(_MODELS),
-                                      format_func=lambda x: _MODELS[x], key="chat_model")
-            if st.button("🗑️  Delete this chat", use_container_width=True, key="chat_del"):
-                _conv_delete(_conv["id"]); st.rerun()
-    chat_model = st.session_state.get("chat_model", list(_MODELS)[0])
+        st.markdown('<div style="font-size:1.15rem;font-weight:700;color:#0f172a;">'
+                    '💬 Legal Chat Assistant</div>', unsafe_allow_html=True)
+    with _hm:
+        chat_model = st.selectbox("Model", list(_MODELS), format_func=lambda x: _MODELS[x],
+                                  key="chat_model", label_visibility="collapsed")
 
     # The whole conversation lives inside one light bordered box (the "chat window").
     _chat_box = st.container(border=True)
