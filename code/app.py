@@ -212,32 +212,36 @@ button[data-testid="stSidebarCollapseButton"]:hover {
     border-left: 3px solid #3b82f6 !important;
     border-radius: 0 0.5rem 0.5rem 0 !important;
 }
-/* "＋ New chat" — a clear dashed action button */
+/* "New chat" — a clean neutral bordered action button */
 [data-testid="stSidebar"] .st-key-conv_new button {
-    background: rgba(59,130,246,0.10) !important;
-    color: #bfdbfe !important;
-    border: 1px dashed rgba(59,130,246,0.45) !important;
+    background: rgba(255,255,255,0.03) !important;
+    color: #cbd5e1 !important;
+    border: 1px solid rgba(255,255,255,0.14) !important;
     justify-content: center !important;
     text-align: center !important;
     font-weight: 600 !important;
-    margin-bottom: 0.25rem !important;
+    margin-bottom: 0.4rem !important;
 }
 [data-testid="stSidebar"] .st-key-conv_new button:hover {
-    background: rgba(59,130,246,0.22) !important;
+    background: rgba(59,130,246,0.18) !important;
+    border-color: rgba(59,130,246,0.5) !important;
     color: #ffffff !important;
 }
-/* Conversation delete (trash) buttons — keyed del_<id> */
+/* Conversation delete buttons — keyed del_<id> */
 [data-testid="stSidebar"] [class*="st-key-del_"] button {
     background: transparent !important;
-    color: #64748b !important;
+    color: #475569 !important;
     justify-content: center !important;
     text-align: center !important;
+    font-size: 0.9rem !important;
     padding: 0.45rem 0 !important;
 }
 [data-testid="stSidebar"] [class*="st-key-del_"] button:hover {
-    background: rgba(239,68,68,0.15) !important;
+    background: rgba(239,68,68,0.14) !important;
     color: #fca5a5 !important;
 }
+/* Conversation items sit tighter together */
+[data-testid="stSidebar"] [class*="st-key-conv_"] button { font-size: 0.84rem !important; }
 
 /* ── Status pills ── */
 .status-pill {
@@ -554,16 +558,16 @@ with st.sidebar:
     """, unsafe_allow_html=True)
 
     _tab = st.session_state.active_tab
-    if st.button("💬  Chat Assistant", use_container_width=True, key="nav_chat",
+    if st.button("Chat Assistant", use_container_width=True, key="nav_chat",
                  type="primary" if _tab == "Chat" else "secondary"):
         st.session_state.active_tab = "Chat"; st.rerun()
-    if st.button("🔗  End-to-End Pipeline", use_container_width=True, key="nav_pipeline",
+    if st.button("End-to-End Pipeline", use_container_width=True, key="nav_pipeline",
                  type="primary" if _tab == "Pipeline" else "secondary"):
         st.session_state.active_tab = "Pipeline"; st.rerun()
-    if st.button("🔬  Individual Agents", use_container_width=True, key="nav_agents",
+    if st.button("Individual Agents", use_container_width=True, key="nav_agents",
                  type="primary" if _tab == "Agents" else "secondary"):
         st.session_state.active_tab = "Agents"; st.rerun()
-    if st.button("📊  Benchmarking", use_container_width=True, key="nav_bench",
+    if st.button("Benchmarking", use_container_width=True, key="nav_bench",
                  type="primary" if _tab == "Bench" else "secondary"):
         st.session_state.active_tab = "Bench"; st.rerun()
 
@@ -576,26 +580,26 @@ with st.sidebar:
         </div>
         """, unsafe_allow_html=True)
 
-        if st.button("＋  New chat", use_container_width=True, key="conv_new"):
+        if st.button("+  New chat", use_container_width=True, key="conv_new"):
             # Reuse an existing empty chat instead of stacking blank ones.
             _empty = next((c for c in st.session_state.conversations if not c["messages"]), None)
             st.session_state.active_conv = _empty["id"] if _empty else _conv_new()["id"]
             st.rerun()
 
         # Only list conversations that actually have content; the current blank
-        # chat is represented by the "＋ New chat" button + the main empty state.
+        # chat is represented by the "New chat" button + the main empty state.
         _saved = [c for c in st.session_state.conversations if c["messages"]]
         for _c in _saved:
             _is_active = _c["id"] == st.session_state.get("active_conv")
             _title = (_c.get("title") or "New chat")
-            _title = _title if len(_title) <= 22 else _title[:21] + "…"
+            _title = _title if len(_title) <= 24 else _title[:23] + "…"
             _sel, _del = st.columns([5, 1], gap="small")
             with _sel:
-                if st.button(("💬  " + _title), use_container_width=True, key=f"conv_{_c['id']}",
+                if st.button(_title, use_container_width=True, key=f"conv_{_c['id']}",
                              type="primary" if _is_active else "secondary"):
                     st.session_state.active_conv = _c["id"]; st.rerun()
             with _del:
-                if st.button("🗑", use_container_width=True, key=f"del_{_c['id']}",
+                if st.button("✕", use_container_width=True, key=f"del_{_c['id']}",
                              help="Delete chat"):
                     _conv_delete(_c["id"]); st.rerun()
         if not _saved:
@@ -611,10 +615,13 @@ with st.sidebar:
 
     st.markdown("""
     <div style="padding:0.5rem 0 1.5rem 0.35rem;">
-        <div style="color:#475569;font-size:0.78rem;line-height:1.9;">
-            <div>📚 <span style="color:#64748b;">434 Penal Code Articles</span></div>
-            <div>⚖️ <span style="color:#64748b;">54 Court Rulings</span></div>
-            <div>🌐 <span style="color:#64748b;">Arabic · French · English</span></div>
+        <div style="color:#64748b;font-size:0.78rem;line-height:2.0;">
+            <div style="display:flex;justify-content:space-between;padding-inline-end:0.5rem;">
+                <span>Penal Code articles</span><span style="color:#94a3b8;font-weight:600;">434</span></div>
+            <div style="display:flex;justify-content:space-between;padding-inline-end:0.5rem;">
+                <span>Court rulings</span><span style="color:#94a3b8;font-weight:600;">54</span></div>
+            <div style="display:flex;justify-content:space-between;padding-inline-end:0.5rem;">
+                <span>Languages</span><span style="color:#94a3b8;font-weight:600;">AR · FR · EN</span></div>
         </div>
     </div>
     """, unsafe_allow_html=True)
