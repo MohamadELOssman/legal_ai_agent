@@ -315,6 +315,22 @@ button[data-testid="stSidebarCollapseButton"]:hover {
     margin: 0.4rem 0; padding: 0.2rem 0.9rem; color: #475569;
     border-inline-start: 3px solid #cbd5e1;
 }
+/* ── Source cards (collapsed "Sources" panel under each answer) ── */
+.src-card {
+    border: 1px solid #e6ebf2; border-inline-start: 3px solid #3b82f6;
+    border-radius: 0.55rem; padding: 0.55rem 0.8rem; margin: 0.45rem 0; background: #fbfcfe;
+}
+.src-head { display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.3rem; flex-wrap: wrap; }
+.src-badge {
+    font-size: 0.72rem; font-weight: 700; color: #1e3a5f; background: #e8eefb;
+    border: 1px solid #d3e0f5; border-radius: 1rem; padding: 0.1rem 0.6rem; white-space: nowrap;
+}
+.src-cited {
+    font-size: 0.64rem; font-weight: 700; color: #166534; background: #dcfce7;
+    border-radius: 1rem; padding: 0.08rem 0.5rem;
+}
+.src-meta { font-size: 0.72rem; color: #94a3b8; }
+.src-text { font-size: 0.82rem; color: #475569; line-height: 1.6; }
 /* Give the pinned bottom bar a soft banner backdrop behind the composer. */
 [data-testid="stBottomBlockContainer"] {
     background: linear-gradient(180deg, rgba(248,250,252,0) 0%, #f1f5f9 55%);
@@ -660,6 +676,30 @@ if st.session_state.active_tab == "Chat":
         else:
             st.markdown(f'<div class="chat-answer" dir="ltr">{html}</div>', unsafe_allow_html=True)
 
+    def _render_sources(sources, cited) -> None:
+        """Collapsed, professional 'Sources' panel: the articles/rulings the answer
+        drew on, each labelled with its code and marked when actually cited."""
+        if not sources:
+            return
+        cited = {str(c) for c in (cited or [])}
+        with st.expander(f"📚 Sources · {len(sources)}"):
+            for s in sources:
+                txt = (s.get("text") or "").replace("\n", " ")
+                _dir = "rtl" if _is_arabic(txt) else "ltr"
+                _align = "right" if _dir == "rtl" else "left"
+                if s.get("kind") == "article":
+                    badge = f'{s.get("code","")} · Art. {s.get("number","?")}'
+                    pill = '<span class="src-cited">✓ cited</span>' if s.get("number") in cited else ""
+                    head = f'<span class="src-badge">{badge}</span>{pill}'
+                else:  # ruling
+                    meta = " · ".join(x for x in [s.get("court",""), s.get("outcome","")] if x)
+                    head = (f'<span class="src-badge">⚖️ Ruling {s.get("id","?")}</span>'
+                            f'<span class="src-meta">{meta}</span>')
+                st.markdown(
+                    f'<div class="src-card"><div class="src-head">{head}</div>'
+                    f'<div class="src-text" dir="{_dir}" style="text-align:{_align}">{txt}</div></div>',
+                    unsafe_allow_html=True)
+
     # The active conversation (create one lazily on first visit).
     _conv = _conv_active() or _conv_new()
     _messages = _conv["messages"]
@@ -713,6 +753,7 @@ if st.session_state.active_tab == "Chat":
                     if _cits.get("unverified"):
                         _bits.append("⚠️ unverified: " + ", ".join(_cits["unverified"]))
                     st.caption("  ·  ".join(_bits))
+                    _render_sources(_meta.get("sources"), _cits.get("cited"))
                     if _tools:
                         with st.expander("🔎 Sub-agents used for this answer"):
                             for _t in _tools:
@@ -758,7 +799,8 @@ if st.session_state.active_tab == "Chat":
                     state="complete", expanded=False)
             except Exception as _e:
                 _res = {"answer": f"⚠️ Error: {_e}", "trace": [], "tools_used": 0,
-                        "citations": {}, "usage": {}, "latency_s": 0, "model": chat_model}
+                        "citations": {}, "sources": [], "usage": {}, "latency_s": 0,
+                        "model": chat_model}
                 _status.update(label="⚠️ Error", state="error", expanded=False)
             _ans = _res["answer"]
             _is_ar = _is_arabic(_ans)
@@ -766,7 +808,7 @@ if st.session_state.active_tab == "Chat":
         _messages.append({
             "role": "assistant", "content": _ans, "lang": "ar" if _is_ar else "en",
             "meta": {k: _res.get(k) for k in
-                     ("trace", "tools_used", "citations", "usage", "latency_s", "model")},
+                     ("trace", "tools_used", "citations", "sources", "usage", "latency_s", "model")},
         })
         _convs_save()   # persist the conversation to disk
         st.rerun()

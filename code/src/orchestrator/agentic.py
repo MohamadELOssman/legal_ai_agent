@@ -136,6 +136,7 @@ class AgenticLegalAssistant:
 
         self.model = model
         self._analysis = None  # lazy — the Analysis sub-agent (built on first use)
+        self._sources = []     # documents retrieved during the current turn
         self.tools = self._build_tools()
         self._tool_map = {t.name: t for t in self.tools}
         llm = make_chat(model=model, api_key=cfg.anthropic_api_key,
@@ -157,6 +158,21 @@ class AgenticLegalAssistant:
                               use_reranking=False, score_threshold=0.0,
                               filter_dict={"source_type": source_type})
 
+    def _record_article(self, d):
+        self._sources.append({
+            "kind": "article", "code": _code_of(d.metadata),
+            "number": str(d.metadata.get("article_number", "?")),
+            "lang": d.metadata.get("document_language", ""),
+            "text": (d.page_content or "")[:500]})
+
+    def _record_ruling(self, d):
+        self._sources.append({
+            "kind": "ruling", "id": str(d.metadata.get("document_id", "?")),
+            "court": d.metadata.get("court", ""),
+            "outcome": d.metadata.get("outcome", ""),
+            "articles": d.metadata.get("applicable_articles", ""),
+            "text": (d.page_content or "")[:300]})
+
     def _get_analysis_agent(self):
         """Build the Analysis sub-agent lazily (first time it is actually used)."""
         if self._analysis is None:
@@ -169,6 +185,10 @@ class AgenticLegalAssistant:
             """Research sub-agent: retrieve relevant articles and rulings."""
             arts = self._retrieve(query, "legal_code", self.top_k)
             rulings = self._retrieve(query, "court_ruling", 3)
+            for d in arts:
+                self._record_article(d)
+            for d in rulings:
+                self._record_ruling(d)
             parts = [
                 f"{_code_of(d.metadata)} — Article {d.metadata.get('article_number', '?')} "
                 f"[{d.metadata.get('document_language', '')}]: {d.page_content[:600]}"
@@ -188,6 +208,8 @@ class AgenticLegalAssistant:
             arts = self._retrieve(question, "legal_code", self.top_k)
             if not arts:
                 return "No applicable provisions found (no law retrieved)."
+            for d in arts:
+                self._record_article(d)
             docs = [{"content": d.page_content, "metadata": d.metadata,
                      "result_type": "legal_article"} for d in arts]
             sq = {"original_query": question, "legal_domain": "criminal",
@@ -276,6 +298,8 @@ class AgenticLegalAssistant:
                 except Exception:
                     pass
 
+        self._sources = []  # reset per-turn source collector
+
         msgs: List[Any] = [SystemMessage(content=SYSTEM_PROMPT)]
         for h in history:
             if h.get("role") == "user":
@@ -334,11 +358,21 @@ class AgenticLegalAssistant:
         cost = round(usage["input_tokens"] / 1e6 * price["input"]
                      + usage["output_tokens"] / 1e6 * price["output"], 6)
 
+        # Dedupe the retrieved sources (articles by code+number, rulings by id).
+        seen, sources = set(), []
+        for s in self._sources:
+            key = (s["kind"], s.get("code", ""), s.get("number") or s.get("id"))
+            if key in seen:
+                continue
+            seen.add(key)
+            sources.append(s)
+
         return {
             "answer": answer,
             "trace": trace,
             "tools_used": len(trace),
             "citations": self._verify_citations(answer),
+            "sources": sources,
             "usage": {**usage,
                       "total_tokens": usage["input_tokens"] + usage["output_tokens"],
                       "cost_usd": cost},
