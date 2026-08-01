@@ -437,6 +437,7 @@ for _k, _v in [
     ('example_query',    ''),
     ('selected_agent',   'Agent 1'),
     ('bench_extra_cases', []),
+    ('nav_collapsed',    False),
 ]:
     if _k not in st.session_state:
         st.session_state[_k] = _v
@@ -450,21 +451,97 @@ _MODELS = {
 }
 
 
+# ── Chat conversation store (multiple chats, persisted to disk) ─────────────────
+import json as _json, time as _time_mod, uuid as _uuid
+from pathlib import Path as _PathLib
+
+_CHAT_DB = _PathLib("chat_history.json")
+
+
+def _convs_load():
+    try:
+        return _json.loads(_CHAT_DB.read_text(encoding="utf-8")).get("conversations", [])
+    except Exception:
+        return []
+
+
+def _convs_save():
+    try:
+        _CHAT_DB.write_text(
+            _json.dumps({"conversations": st.session_state.conversations}, ensure_ascii=False),
+            encoding="utf-8")
+    except Exception:
+        pass
+
+
+def _conv_new():
+    """Create a fresh conversation (kept in memory; persisted on first message)."""
+    c = {"id": _uuid.uuid4().hex[:8], "title": "New chat",
+         "created": _time_mod.time(), "messages": []}
+    st.session_state.conversations.insert(0, c)
+    st.session_state.active_conv = c["id"]
+    return c
+
+
+def _conv_active():
+    for c in st.session_state.conversations:
+        if c["id"] == st.session_state.get("active_conv"):
+            return c
+    return None
+
+
+def _conv_delete(cid):
+    st.session_state.conversations = [c for c in st.session_state.conversations if c["id"] != cid]
+    if st.session_state.get("active_conv") == cid:
+        st.session_state.active_conv = (
+            st.session_state.conversations[0]["id"] if st.session_state.conversations else None)
+    _convs_save()
+
+
+if "conversations" not in st.session_state:
+    st.session_state.conversations = _convs_load()
+if "active_conv" not in st.session_state:
+    st.session_state.active_conv = (
+        st.session_state.conversations[0]["id"] if st.session_state.conversations else None)
+if st.session_state.active_conv is None:      # always keep one current chat
+    _conv_new()
+
+
+# ── Sidebar collapse: hide the panel and show a floating ☰ to reopen ────────────
+if st.session_state.get("nav_collapsed"):
+    st.markdown("""
+    <style>
+      [data-testid="stSidebar"] { display: none !important; }
+      [data-testid="stSidebarCollapsedControl"] { display: none !important; }
+    </style>
+    """, unsafe_allow_html=True)
+
+
 # ── Sidebar ────────────────────────────────────────────────────────────────────
 
 with st.sidebar:
-    st.markdown("""
-    <div style="padding:1.5rem 1.25rem 1rem 1.25rem;border-bottom:1px solid rgba(255,255,255,0.07);">
-        <div style="font-size:1.6rem;margin-bottom:0.35rem;">⚖️</div>
-        <div style="color:#f1f5f9;font-weight:700;font-size:1rem;">Lebanese Legal AI</div>
-        <div style="color:#64748b;font-size:0.75rem;margin-top:0.3rem;">
-            <span class="status-pill s-green">● Online</span>
+    _b1, _b2 = st.columns([3, 1])
+    with _b1:
+        st.markdown("""
+        <div style="padding:1.1rem 0 0.2rem 0.35rem;">
+            <span style="font-size:1.4rem;">⚖️</span>
+            <span style="color:#f1f5f9;font-weight:700;font-size:1rem;
+                         vertical-align:middle;margin-inline-start:0.35rem;">Lebanese Legal AI</span>
         </div>
+        """, unsafe_allow_html=True)
+    with _b2:
+        st.write("")
+        if st.button("«", key="nav_hide", help="Hide sidebar", use_container_width=True):
+            st.session_state.nav_collapsed = True; st.rerun()
+
+    st.markdown("""
+    <div style="padding:0.2rem 0 0.5rem 0.35rem;">
+        <span class="status-pill s-green">● Online</span>
     </div>
     """, unsafe_allow_html=True)
 
     st.markdown("""
-    <div style="padding:1rem 1.25rem 0.4rem 1.25rem;">
+    <div style="padding:0.6rem 0 0.4rem 0.35rem;">
         <span style="font-size:0.65rem;font-weight:700;text-transform:uppercase;
                      letter-spacing:0.1em;color:#334155;">Navigation</span>
     </div>
@@ -484,8 +561,35 @@ with st.sidebar:
                  type="primary" if _tab == "Bench" else "secondary"):
         st.session_state.active_tab = "Bench"; st.rerun()
 
+    # Conversations live in the sidebar only on the Chat page.
+    if _tab == "Chat":
+        st.markdown("""
+        <div style="padding:0.9rem 0 0.35rem 0.35rem;">
+            <span style="font-size:0.65rem;font-weight:700;text-transform:uppercase;
+                         letter-spacing:0.1em;color:#334155;">Conversations</span>
+        </div>
+        """, unsafe_allow_html=True)
+
+        if st.button("＋  New chat", use_container_width=True, key="conv_new"):
+            _conv_new(); st.rerun()
+
+        for _c in st.session_state.conversations:
+            _is_active = _c["id"] == st.session_state.get("active_conv")
+            _title = (_c.get("title") or "New chat")
+            _title = _title if len(_title) <= 24 else _title[:23] + "…"
+            _sel, _del = st.columns([5, 1])
+            with _sel:
+                if st.button(_title, use_container_width=True, key=f"conv_{_c['id']}",
+                             type="primary" if _is_active else "secondary"):
+                    st.session_state.active_conv = _c["id"]; st.rerun()
+            with _del:
+                if st.button("🗑", key=f"del_{_c['id']}", help="Delete chat"):
+                    _conv_delete(_c["id"]); st.rerun()
+        if not st.session_state.conversations:
+            st.caption("No saved chats yet.")
+
     st.markdown("""
-    <div style="margin:1.25rem 1.25rem 0 1.25rem;padding-top:1rem;
+    <div style="margin:1.1rem 0 0 0.35rem;padding-top:0.9rem;
                 border-top:1px solid rgba(255,255,255,0.07);">
         <span style="font-size:0.65rem;font-weight:700;text-transform:uppercase;
                      letter-spacing:0.1em;color:#334155;">Corpus</span>
@@ -493,7 +597,7 @@ with st.sidebar:
     """, unsafe_allow_html=True)
 
     st.markdown("""
-    <div style="padding:0.5rem 1.25rem 1.5rem 1.25rem;">
+    <div style="padding:0.5rem 0 1.5rem 0.35rem;">
         <div style="color:#475569;font-size:0.78rem;line-height:1.9;">
             <div>📚 <span style="color:#64748b;">434 Penal Code Articles</span></div>
             <div>⚖️ <span style="color:#64748b;">54 Court Rulings</span></div>
@@ -503,17 +607,19 @@ with st.sidebar:
     """, unsafe_allow_html=True)
 
 
+# ── Floating reopen control when the sidebar is hidden ──────────────────────────
+if st.session_state.get("nav_collapsed"):
+    _rc1, _rc2 = st.columns([1, 11])
+    with _rc1:
+        if st.button("☰", key="nav_show", help="Show sidebar"):
+            st.session_state.nav_collapsed = False; st.rerun()
+
+
 # ══════════════════════════════════════════════════════════════════════════════
 # PAGE 0 — CHAT ASSISTANT (agentic: orchestrator calls sub-agent tools as needed)
 # ══════════════════════════════════════════════════════════════════════════════
 
 if st.session_state.active_tab == "Chat":
-
-    st.markdown("""
-    <div class="page-header">
-        <h2>💬 Legal Chat Assistant</h2>
-    </div>
-    """, unsafe_allow_html=True)
 
     _AGENT_LABEL = {"research_agent": "🔎 Research Agent",
                     "analysis_agent": "🧠 Analysis Agent",
@@ -540,24 +646,28 @@ if st.session_state.active_tab == "Chat":
         else:
             st.markdown(text)
 
-    with st.expander("⚙️ Chat settings", expanded=False):
-        _cm1, _cm2 = st.columns([2, 1])
-        with _cm1:
-            chat_model = st.selectbox("AI Model", list(_MODELS), format_func=lambda x: _MODELS[x],
-                                      key="chat_model")
-        with _cm2:
-            st.write("")  # spacer to align the button with the selectbox
-            if st.button("🗑️ Clear conversation", use_container_width=True, key="chat_clear"):
-                st.session_state["chat_history"] = []
-                st.rerun()
+    # The active conversation (create one lazily on first visit).
+    _conv = _conv_active() or _conv_new()
+    _messages = _conv["messages"]
 
-    st.session_state.setdefault("chat_history", [])
+    # ── Header row: title · model picker · delete this chat ────────────────────
+    _ht, _hs = st.columns([5, 1])
+    with _ht:
+        st.markdown('<div class="page-header" style="margin-bottom:0.75rem;">'
+                    '<h2>💬 Legal Chat Assistant</h2></div>', unsafe_allow_html=True)
+    with _hs:
+        with st.popover("⚙️", use_container_width=True):
+            chat_model = st.selectbox("AI Model", list(_MODELS),
+                                      format_func=lambda x: _MODELS[x], key="chat_model")
+            if st.button("🗑️  Delete this chat", use_container_width=True, key="chat_del"):
+                _conv_delete(_conv["id"]); st.rerun()
+    chat_model = st.session_state.get("chat_model", list(_MODELS)[0])
 
     # The whole conversation lives inside one light bordered box (the "chat window").
     _chat_box = st.container(border=True)
     with _chat_box:
         # Empty-state welcome (shown before the first question).
-        if not st.session_state["chat_history"]:
+        if not _messages:
             st.markdown(
                 """
                 <div style="text-align:center; padding:1.6rem 1rem 0.8rem; opacity:0.9;">
@@ -574,7 +684,7 @@ if st.session_state.active_tab == "Chat":
                     st.caption(f"💡 {_ex}")
 
         # Render the conversation so far.
-        for _m in st.session_state["chat_history"]:
+        for _m in _messages:
             _avatar = _AI_AVATAR if _m["role"] == "assistant" else _USER_AVATAR
             with st.chat_message(_m["role"], avatar=_avatar):
                 _render_answer(_m["content"])
@@ -601,7 +711,9 @@ if st.session_state.active_tab == "Chat":
 
     _prompt = st.chat_input("Ask a legal question (Arabic, French, or English)…")
     if _prompt:
-        st.session_state["chat_history"].append({"role": "user", "content": _prompt})
+        _messages.append({"role": "user", "content": _prompt})
+        if _conv.get("title", "New chat") == "New chat":
+            _conv["title"] = _prompt.strip()[:40]
         with _chat_box:
           with st.chat_message("user", avatar=_USER_AVATAR):
             _render_answer(_prompt)
@@ -625,7 +737,7 @@ if st.session_state.active_tab == "Chat":
 
             try:
                 _assistant = _load_assistant(chat_model)
-                _hist = st.session_state["chat_history"][:-1]  # prior turns
+                _hist = [{"role": m["role"], "content": m["content"]} for m in _messages[:-1]]
                 _res = _assistant.chat(_hist, _prompt, on_event=_cb)
                 _u = _res.get("usage", {})
                 _status.update(
@@ -640,11 +752,12 @@ if st.session_state.active_tab == "Chat":
             _ans = _res["answer"]
             _is_ar = _is_arabic(_ans)
             _render_answer(_ans)
-        st.session_state["chat_history"].append({
+        _messages.append({
             "role": "assistant", "content": _ans, "lang": "ar" if _is_ar else "en",
             "meta": {k: _res.get(k) for k in
                      ("trace", "tools_used", "citations", "usage", "latency_s", "model")},
         })
+        _convs_save()   # persist the conversation to disk
         st.rerun()
 
 
