@@ -1,22 +1,25 @@
 {
-  "built_at": "2026-06-20T14:16:50",
-  "total_documents": 713,
-  "articles": 659,
+  "built_at": "2026-08-01T22:45:25",
+  "total_documents": 1144,
+  "articles": 1090,
   "rulings": 54,
   "per_source": {
+    "criminal_procedure_code_AR.json": 431,
     "panel_code_AR.json": 417,
     "penal_code_EN.json": 242,
     "use_cases.json": 54
   },
   "by_language": {
-    "ar": 471,
+    "ar": 902,
     "en": 242
   },
   "by_type": {
+    "criminal_procedure_code": 431,
     "penal_code": 659,
     "court_ruling": 54
   },
   "article_index_counts": {
+    "criminal_procedure_code": 429,
     "penal_code": 553
   },
   "vectorstore_dir": "data_processed/vectorstore"

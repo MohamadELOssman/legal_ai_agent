@@ -617,11 +617,13 @@ with st.sidebar:
     <div style="padding:0.5rem 0 1.5rem 0.35rem;">
         <div style="color:#64748b;font-size:0.78rem;line-height:2.0;">
             <div style="display:flex;justify-content:space-between;padding-inline-end:0.5rem;">
-                <span>Penal Code articles</span><span style="color:#94a3b8;font-weight:600;">434</span></div>
+                <span>Penal Code</span><span style="color:#94a3b8;font-weight:600;">659 articles</span></div>
+            <div style="display:flex;justify-content:space-between;padding-inline-end:0.5rem;">
+                <span>Criminal Procedure</span><span style="color:#94a3b8;font-weight:600;">431 articles</span></div>
             <div style="display:flex;justify-content:space-between;padding-inline-end:0.5rem;">
                 <span>Court rulings</span><span style="color:#94a3b8;font-weight:600;">54</span></div>
             <div style="display:flex;justify-content:space-between;padding-inline-end:0.5rem;">
-                <span>Languages</span><span style="color:#94a3b8;font-weight:600;">AR · FR · EN</span></div>
+                <span>Languages</span><span style="color:#94a3b8;font-weight:600;">AR · EN</span></div>
         </div>
     </div>
     """, unsafe_allow_html=True)

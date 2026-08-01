@@ -55,11 +55,12 @@ class CitationAgent(BaseAgent):
             },
         }
 
-        # Map our document-type keys to the validator's index keys.
+        # Map our document-type keys to the validator's index keys (the keys in
+        # articles_index.json, which are the raw document_type values).
         self._validator_doctype = {
             "penal_code": "penal_code",
             "code_obligations": "code_obligations_contracts",
-            "criminal_procedure": "criminal_procedure",
+            "criminal_procedure": "criminal_procedure_code",
         }
 
         # Lazy-load the corpus validator (article index). Optional — if the index

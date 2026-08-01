@@ -30,7 +30,8 @@ from langchain_core.tools import StructuredTool
 from src.config import get_config, DEFAULT_MODEL
 from src.utils.llm import make_chat
 
-SYSTEM_PROMPT = """You are a Lebanese legal assistant specialising in the Lebanese Penal Code.
+SYSTEM_PROMPT = """You are a Lebanese legal assistant covering the Lebanese Penal Code
+and the Lebanese Code of Criminal Procedure (قانون أصول المحاكمات الجزائية).
 You help three kinds of users: ordinary citizens, lawyers, and judges.
 
 You coordinate a team of named sub-agents. Call ONLY the ones a question needs — a
@@ -38,8 +39,9 @@ simple citizen question may need one Research call (or none); a complex case may
 need Research, then Analysis, then Citation. Do not call sub-agents you do not need.
 
 YOUR SUB-AGENTS (tools):
-- research_agent(query): the Research sub-agent. Retrieves relevant Penal Code
-  articles and court rulings. Use it to get the exact article text and numbers.
+- research_agent(query): the Research sub-agent. Retrieves relevant articles from the
+  Penal Code and the Code of Criminal Procedure, plus court rulings. Each result is
+  labelled with which code it comes from. Use it to get the exact article text and numbers.
 - analysis_agent(question): the Analysis sub-agent. Retrieves the law and extracts
   the applicable provisions with a grounded explanation. Use it for a thorough
   legal analysis (lawyer/judge questions), not for a quick lookup.
@@ -50,6 +52,9 @@ YOUR SUB-AGENTS (tools):
 HOW TO WORK:
 - Cite ONLY article numbers returned by the sub-agents. NEVER invent an article
   number. If the law is not found, say so honestly.
+- The two codes have OVERLAPPING article numbers, so ALWAYS say which code an article
+  belongs to when you cite it (e.g. "المادة 24 من قانون العقوبات" vs
+  "المادة 24 من قانون أصول المحاكمات الجزائية"), based on the label in the tool result.
 - Answer in the SAME language as the user's question (Arabic, French, or English).
 - Be precise and to the point. No filler, no repetition. Finish the answer completely.
 - This is general legal information, not a substitute for a licensed lawyer.
@@ -90,6 +95,18 @@ and keep the SAME structure and order.
   ### المحكمة المختصة (في حال وجودها)"""
 
 
+# Readable code names by document_type (for labelling retrieved articles).
+_CODE_LABEL = {
+    "penal_code": "Penal Code",
+    "criminal_procedure_code": "Code of Criminal Procedure",
+    "code_obligations_contracts": "Code of Obligations & Contracts",
+}
+
+
+def _code_of(meta) -> str:
+    return _CODE_LABEL.get(meta.get("document_type", ""), "Penal Code")
+
+
 class _SearchArgs(BaseModel):
     query: str = Field(description="Search query, in the user's language or in Arabic.")
 
@@ -125,10 +142,12 @@ class AgenticLegalAssistant:
                         max_tokens=4096, timeout=300, max_retries=2)
         self.llm = llm.bind_tools(self.tools)
 
-        # Corpus index for citation verification.
+        # Corpus index for citation verification — union across every code in the
+        # index (penal_code, criminal_procedure_code, ...), so citations to any
+        # ingested code are recognised.
         try:
-            self._known = set(json.load(open("data_processed/articles_index.json",
-                                             encoding="utf-8"))["penal_code"])
+            _idx = json.load(open("data_processed/articles_index.json", encoding="utf-8"))
+            self._known = set().union(*(set(v) for v in _idx.values())) if _idx else set()
         except Exception:
             self._known = set()
 
@@ -151,7 +170,7 @@ class AgenticLegalAssistant:
             arts = self._retrieve(query, "legal_code", self.top_k)
             rulings = self._retrieve(query, "court_ruling", 3)
             parts = [
-                f"Article {d.metadata.get('article_number', '?')} "
+                f"{_code_of(d.metadata)} — Article {d.metadata.get('article_number', '?')} "
                 f"[{d.metadata.get('document_language', '')}]: {d.page_content[:600]}"
                 for d in arts]
             if rulings:
@@ -185,7 +204,7 @@ class AgenticLegalAssistant:
             for p in provs[:6]:
                 flag = "" if p.get("grounded", True) else " [UNVERIFIED — do not cite]"
                 lines.append(
-                    f"Article {p.get('article_number', '?')}{flag}: "
+                    f"{_code_of(p)} — Article {p.get('article_number', '?')}{flag}: "
                     f"{p.get('legal_principle', '')} — "
                     f"{p.get('penalties_or_consequences', p.get('relevance', ''))}")
             summary = (out.result or {}).get("legal_summary", "")
