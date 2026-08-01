@@ -541,12 +541,25 @@ if st.session_state.active_tab == "Chat":
                     "citation_agent": "📎 Citation Agent"}
     _USER_AVATAR, _AI_AVATAR = "🧑", "⚖️"
 
+    import markdown as _md
+
     def _is_arabic(text: str) -> bool:
         """Right-to-left only when the answer is PREDOMINANTLY Arabic — an English
         answer that merely quotes an Arabic term (e.g. '(السرقة)') stays left-aligned."""
         ar = sum(1 for c in text if "؀" <= c <= "ۿ")
         la = sum(1 for c in text if c.isascii() and c.isalpha())
         return ar > la
+
+    def _render_answer(text: str) -> None:
+        """Render a message. For Arabic we convert Markdown to HTML ourselves and
+        wrap it right-to-left (a raw-HTML RTL wrapper would otherwise skip Markdown,
+        leaving **bold** and lists un-formatted); English uses normal Markdown."""
+        if _is_arabic(text):
+            html = _md.markdown(text, extensions=["extra", "sane_lists"])
+            st.markdown(f'<div dir="rtl" style="text-align:right">{html}</div>',
+                        unsafe_allow_html=True)
+        else:
+            st.markdown(text)
 
     with st.expander("⚙️ Chat settings", expanded=False):
         _cm1, _cm2 = st.columns([2, 1])
@@ -561,63 +574,62 @@ if st.session_state.active_tab == "Chat":
 
     st.session_state.setdefault("chat_history", [])
 
-    # Empty-state welcome (shown before the first question).
-    if not st.session_state["chat_history"]:
-        st.markdown(
-            """
-            <div style="text-align:center; padding:1.4rem 1rem; opacity:0.85;">
-                <div style="font-size:2.4rem;">⚖️</div>
-                <h4 style="margin:0.3rem 0;">How can I help with Lebanese criminal law?</h4>
-                <p style="margin:0; font-size:0.9rem;">
-                    Ask in <b>Arabic</b>, <b>French</b>, or <b>English</b>. I call my
-                    Research, Analysis, and Citation sub-agents only when a question needs them.
-                </p>
-            </div>
-            """, unsafe_allow_html=True)
-        _e1, _e2, _e3 = st.columns(3)
-        for _col, _ex in ((_e1, "ما هي عقوبة السرقة؟"),
-                          (_e2, "Quelle est la peine pour diffamation ?"),
-                          (_e3, "What are the elements of fraud?")):
-            with _col:
-                st.caption(f"💡 e.g. “{_ex}”")
+    # The whole conversation lives inside one light bordered box (the "chat window").
+    _chat_box = st.container(border=True)
+    with _chat_box:
+        # Empty-state welcome (shown before the first question).
+        if not st.session_state["chat_history"]:
+            st.markdown(
+                """
+                <div style="text-align:center; padding:1.4rem 1rem; opacity:0.85;">
+                    <div style="font-size:2.4rem;">⚖️</div>
+                    <h4 style="margin:0.3rem 0;">How can I help with Lebanese criminal law?</h4>
+                    <p style="margin:0; font-size:0.9rem;">
+                        Ask in <b>Arabic</b>, <b>French</b>, or <b>English</b>. I call my
+                        Research, Analysis, and Citation sub-agents only when a question needs them.
+                    </p>
+                </div>
+                """, unsafe_allow_html=True)
+            _e1, _e2, _e3 = st.columns(3)
+            for _col, _ex in ((_e1, "ما هي عقوبة السرقة؟"),
+                              (_e2, "Quelle est la peine pour diffamation ?"),
+                              (_e3, "What are the elements of fraud?")):
+                with _col:
+                    st.caption(f"💡 e.g. “{_ex}”")
 
-    # Render the conversation so far.
-    for _m in st.session_state["chat_history"]:
-        _avatar = _AI_AVATAR if _m["role"] == "assistant" else _USER_AVATAR
-        with st.chat_message(_m["role"], avatar=_avatar):
-            _lang = _m.get("lang", "en")
-            if _m["role"] == "assistant" and _lang == "ar":
-                st.markdown(f'<div dir="rtl" style="text-align:right">{_m["content"]}</div>',
-                            unsafe_allow_html=True)
-            else:
-                st.markdown(_m["content"])
-            _meta = _m.get("meta")
-            if _meta:
-                _tools = _meta.get("trace", [])
-                _cits = _meta.get("citations", {})
-                _u = _meta.get("usage", {})
-                _bits = [f"🛠️ {_meta.get('tools_used', 0)} sub-agent call(s)",
-                         f"⏱️ {_meta.get('latency_s', '?')}s",
-                         f"🔢 {_u.get('total_tokens', 0):,} tokens",
-                         f"💵 ${_u.get('cost_usd', 0.0):.4f}"]
-                if _cits.get("verified"):
-                    _bits.append("✅ " + ", ".join(f"Art. {a}" for a in _cits["verified"]))
-                if _cits.get("unverified"):
-                    _bits.append("⚠️ unverified: " + ", ".join(_cits["unverified"]))
-                st.caption("  ·  ".join(_bits))
-                if _tools:
-                    with st.expander("🔎 Sub-agents used for this answer"):
-                        for _t in _tools:
-                            _lbl = _AGENT_LABEL.get(_t["tool"], _t["tool"])
-                            _q = _t.get("query", "")
-                            st.markdown(f"- **{_lbl}** — “{_q}”" if _q else f"- **{_lbl}**")
+        # Render the conversation so far.
+        for _m in st.session_state["chat_history"]:
+            _avatar = _AI_AVATAR if _m["role"] == "assistant" else _USER_AVATAR
+            with st.chat_message(_m["role"], avatar=_avatar):
+                _render_answer(_m["content"])
+                _meta = _m.get("meta")
+                if _meta:
+                    _tools = _meta.get("trace", [])
+                    _cits = _meta.get("citations", {})
+                    _u = _meta.get("usage", {})
+                    _bits = [f"🛠️ {_meta.get('tools_used', 0)} sub-agent call(s)",
+                             f"⏱️ {_meta.get('latency_s', '?')}s",
+                             f"🔢 {_u.get('total_tokens', 0):,} tokens",
+                             f"💵 ${_u.get('cost_usd', 0.0):.4f}"]
+                    if _cits.get("verified"):
+                        _bits.append("✅ " + ", ".join(f"Art. {a}" for a in _cits["verified"]))
+                    if _cits.get("unverified"):
+                        _bits.append("⚠️ unverified: " + ", ".join(_cits["unverified"]))
+                    st.caption("  ·  ".join(_bits))
+                    if _tools:
+                        with st.expander("🔎 Sub-agents used for this answer"):
+                            for _t in _tools:
+                                _lbl = _AGENT_LABEL.get(_t["tool"], _t["tool"])
+                                _q = _t.get("query", "")
+                                st.markdown(f"- **{_lbl}** — “{_q}”" if _q else f"- **{_lbl}**")
 
     _prompt = st.chat_input("Ask a legal question (Arabic, French, or English)…")
     if _prompt:
         st.session_state["chat_history"].append({"role": "user", "content": _prompt})
-        with st.chat_message("user", avatar=_USER_AVATAR):
-            st.markdown(_prompt)
-        with st.chat_message("assistant", avatar=_AI_AVATAR):
+        with _chat_box:
+          with st.chat_message("user", avatar=_USER_AVATAR):
+            _render_answer(_prompt)
+          with st.chat_message("assistant", avatar=_AI_AVATAR):
             # Live, ADK-style step box: shows thinking / tool calls as they happen.
             _status = st.status("🧠 Thinking…", expanded=True)
 
@@ -651,11 +663,7 @@ if st.session_state.active_tab == "Chat":
                 _status.update(label="⚠️ Error", state="error", expanded=False)
             _ans = _res["answer"]
             _is_ar = _is_arabic(_ans)
-            if _is_ar:
-                st.markdown(f'<div dir="rtl" style="text-align:right">{_ans}</div>',
-                            unsafe_allow_html=True)
-            else:
-                st.markdown(_ans)
+            _render_answer(_ans)
         st.session_state["chat_history"].append({
             "role": "assistant", "content": _ans, "lang": "ar" if _is_ar else "en",
             "meta": {k: _res.get(k) for k in
