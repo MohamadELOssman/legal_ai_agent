@@ -268,6 +268,20 @@ button[data-testid="stSidebarCollapseButton"]:hover {
     box-shadow: 0 2px 14px rgba(59, 130, 246, 0.18);
 }
 [data-testid="stChatInput"] textarea { font-size: 0.95rem; }
+
+/* ── Arabic answers: our own Markdown->HTML, kept at chat text sizes ── */
+.rtl-answer { font-size: 0.95rem; line-height: 1.7; }
+.rtl-answer h1 { font-size: 1.3rem;  margin: 0.6rem 0 0.4rem; font-weight: 700; }
+.rtl-answer h2 { font-size: 1.15rem; margin: 0.6rem 0 0.35rem; font-weight: 700; }
+.rtl-answer h3 { font-size: 1.02rem; margin: 0.5rem 0 0.3rem;  font-weight: 700; }
+.rtl-answer h4 { font-size: 0.98rem; margin: 0.5rem 0 0.3rem;  font-weight: 700; }
+.rtl-answer p  { margin: 0.4rem 0; }
+.rtl-answer ul, .rtl-answer ol { margin: 0.3rem 1.4rem 0.3rem 0; padding: 0; }
+.rtl-answer li { margin: 0.2rem 0; }
+.rtl-answer blockquote {
+    margin: 0.4rem 0; padding: 0.2rem 0.9rem 0.2rem 0;
+    border-right: 3px solid #cbd5e1; color: #475569;
+}
 /* Give the pinned bottom bar a soft banner backdrop behind the composer. */
 [data-testid="stBottomBlockContainer"] {
     background: linear-gradient(180deg, rgba(248,250,252,0) 0%, #f1f5f9 55%);
@@ -556,7 +570,7 @@ if st.session_state.active_tab == "Chat":
         leaving **bold** and lists un-formatted); English uses normal Markdown."""
         if _is_arabic(text):
             html = _md.markdown(text, extensions=["extra", "sane_lists"])
-            st.markdown(f'<div dir="rtl" style="text-align:right">{html}</div>',
+            st.markdown(f'<div class="rtl-answer" dir="rtl" style="text-align:right">{html}</div>',
                         unsafe_allow_html=True)
         else:
             st.markdown(text)
