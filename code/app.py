@@ -430,23 +430,6 @@ h4 { color: #475569; font-weight: 600; }
 """, unsafe_allow_html=True)
 
 
-# ── App header ─────────────────────────────────────────────────────────────────
-
-st.markdown("""
-<div class="app-header">
-    <div>
-        <h1>⚖️ Lebanese Legal AI System</h1>
-        <p>Multi-Agent RAG Pipeline · Trilingual Arabic / French / English</p>
-    </div>
-    <div class="app-header-badges">
-        <span class="badge badge-blue">7 Agents</span>
-        <span class="badge badge-green">RAG Active</span>
-        <span class="badge badge-amber">Thesis Research</span>
-    </div>
-</div>
-""", unsafe_allow_html=True)
-
-
 # ── Session state ──────────────────────────────────────────────────────────────
 
 for _k, _v in [
@@ -474,15 +457,9 @@ with st.sidebar:
     <div style="padding:1.5rem 1.25rem 1rem 1.25rem;border-bottom:1px solid rgba(255,255,255,0.07);">
         <div style="font-size:1.6rem;margin-bottom:0.35rem;">⚖️</div>
         <div style="color:#f1f5f9;font-weight:700;font-size:1rem;">Lebanese Legal AI</div>
-        <div style="color:#475569;font-size:0.75rem;margin-top:0.2rem;">Multi-Agent Research System</div>
-    </div>
-    """, unsafe_allow_html=True)
-
-    st.markdown("""
-    <div style="padding:0.75rem 1.25rem 0.5rem 1.25rem;display:flex;gap:0.4rem;flex-wrap:wrap;">
-        <span class="status-pill s-green">● Vector Store</span>
-        <span class="status-pill s-blue">● RAG Active</span>
-        <span class="status-pill s-amber">● 471 Docs</span>
+        <div style="color:#64748b;font-size:0.75rem;margin-top:0.3rem;">
+            <span class="status-pill s-green">● Online</span>
+        </div>
     </div>
     """, unsafe_allow_html=True)
 
@@ -511,7 +488,7 @@ with st.sidebar:
     <div style="margin:1.25rem 1.25rem 0 1.25rem;padding-top:1rem;
                 border-top:1px solid rgba(255,255,255,0.07);">
         <span style="font-size:0.65rem;font-weight:700;text-transform:uppercase;
-                     letter-spacing:0.1em;color:#334155;">System</span>
+                     letter-spacing:0.1em;color:#334155;">Corpus</span>
     </div>
     """, unsafe_allow_html=True)
 
@@ -520,17 +497,7 @@ with st.sidebar:
         <div style="color:#475569;font-size:0.78rem;line-height:1.9;">
             <div>📚 <span style="color:#64748b;">434 Penal Code Articles</span></div>
             <div>⚖️ <span style="color:#64748b;">54 Court Rulings</span></div>
-            <div>🌐 <span style="color:#64748b;">Arabic</span></div>
-        </div>
-    </div>
-    """, unsafe_allow_html=True)
-
-    st.markdown("""
-    <div style="padding:0.875rem 1.25rem;border-top:1px solid rgba(255,255,255,0.06);
-                text-align:center;">
-        <div style="color:#334155;font-size:0.68rem;line-height:1.6;">
-            Lebanese Legal AI · Thesis Research<br>
-            <span style="color:#1e3a5f;">Multi-Agent RAG Pipeline v2</span>
+            <div>🌐 <span style="color:#64748b;">Arabic · French · English</span></div>
         </div>
     </div>
     """, unsafe_allow_html=True)
@@ -545,8 +512,6 @@ if st.session_state.active_tab == "Chat":
     st.markdown("""
     <div class="page-header">
         <h2>💬 Legal Chat Assistant</h2>
-        <p>An agentic orchestrator that searches the law only when needed — fast for simple
-           questions, thorough for complex cases. Ask follow-ups in the same conversation.</p>
     </div>
     """, unsafe_allow_html=True)
 
@@ -595,13 +560,10 @@ if st.session_state.active_tab == "Chat":
         if not st.session_state["chat_history"]:
             st.markdown(
                 """
-                <div style="text-align:center; padding:1.4rem 1rem; opacity:0.85;">
+                <div style="text-align:center; padding:1.6rem 1rem 0.8rem; opacity:0.9;">
                     <div style="font-size:2.4rem;">⚖️</div>
-                    <h4 style="margin:0.3rem 0;">How can I help with Lebanese criminal law?</h4>
-                    <p style="margin:0; font-size:0.9rem;">
-                        Ask in <b>Arabic</b>, <b>French</b>, or <b>English</b>. I call my
-                        Research, Analysis, and Citation sub-agents only when a question needs them.
-                    </p>
+                    <h4 style="margin:0.3rem 0 0.2rem;">How can I help with Lebanese criminal law?</h4>
+                    <p style="margin:0; font-size:0.85rem; color:#64748b;">Ask in Arabic, French, or English.</p>
                 </div>
                 """, unsafe_allow_html=True)
             _e1, _e2, _e3 = st.columns(3)
@@ -609,7 +571,7 @@ if st.session_state.active_tab == "Chat":
                               (_e2, "Quelle est la peine pour diffamation ?"),
                               (_e3, "What are the elements of fraud?")):
                 with _col:
-                    st.caption(f"💡 e.g. “{_ex}”")
+                    st.caption(f"💡 {_ex}")
 
         # Render the conversation so far.
         for _m in st.session_state["chat_history"]:
@@ -695,7 +657,6 @@ elif st.session_state.active_tab == "Pipeline":
     st.markdown("""
     <div class="page-header">
         <h2>🔗 End-to-End Multi-Agent Pipeline</h2>
-        <p>7 agents — the Orchestrator automatically classifies your query and routes it through the right pipeline configuration.</p>
     </div>
     """, unsafe_allow_html=True)
 
@@ -1128,7 +1089,6 @@ elif st.session_state.active_tab == "Agents":
     st.markdown("""
     <div class="page-header">
         <h2>🔬 Individual Agent Testing</h2>
-        <p>Test each agent in isolation to inspect inputs, outputs, and debug behaviour.</p>
     </div>
     """, unsafe_allow_html=True)
 
@@ -1408,7 +1368,6 @@ elif st.session_state.active_tab == "Bench":
     st.markdown("""
     <div class="page-header">
         <h2>📊 Benchmarking — LLM-as-Judge</h2>
-        <p>Evaluate Agent 1 (Query Understanding) and Agent 2 (Research) using a Claude judge. Scores 1–5.</p>
     </div>
     """, unsafe_allow_html=True)
 
@@ -1454,7 +1413,6 @@ elif st.session_state.active_tab == "Bench":
         _LNAME = {"ar": "Arabic", "en": "English", "fr": "French"}
         with st.expander("🧪 Generate Benchmark Questions on the Fly",
                          expanded=not st.session_state.get("gen_cases")):
-            st.caption("Generate questions.")
             gc1, gc2 = st.columns([1, 2])
             with gc1:
                 gen_n = st.number_input("Number of questions", min_value=5, max_value=100,
