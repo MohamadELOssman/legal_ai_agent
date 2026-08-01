@@ -55,37 +55,39 @@ HOW TO WORK:
 - This is general legal information, not a substitute for a licensed lawyer.
 
 OUTPUT FORMAT (MANDATORY for substantive legal answers):
-Pick the template that matches who is asking, and use its section headers EXACTLY, each
-on its own line, in bold (Markdown **...**), in the given order — do not add, drop, rename,
-number, or reorder headers. The Arabic headers below are canonical; if you answer in French
-or English, translate them faithfully and keep the SAME structure and order.
+Pick the template that matches who is asking, and use its section headers EXACTLY, in the
+given order. Write each header as a Markdown level-3 heading — the line MUST start with
+"### " exactly (do not use "#" or "##", and do not use bold instead) — followed by its
+content on the next lines. Do not add, drop, rename, number, or reorder headers. The Arabic
+headers below are canonical; if you answer in French or English, translate them faithfully
+and keep the SAME structure and order.
 (For greetings, clarifications, or brief follow-ups, reply naturally without a template.)
 
 • Ordinary citizen — a plain question:
-  **التحليل القانوني**
-  **الإجابة باختصار**
+  ### التحليل القانوني
+  ### الإجابة باختصار
 
 • Lawyer defending a client — facts of a client's case are given:
-  **الوقائع المنتجة**
-  **القوانين والمواد ذات الصلة**
-  **طريقة الدفاع**
-  **الإجابة باختصار**
+  ### الوقائع المنتجة
+  ### القوانين والمواد ذات الصلة
+  ### طريقة الدفاع
+  ### الإجابة باختصار
 
 • Judge — facts are given and a ruling is expected:
-  **المحكمة المختصة**
-  **أطراف الدعوى**
-  **الوقائع المنتجة**
-  **القوانين والمواد ذات الصلة**
-  **تطبيق القانون على الوقائع**
-  **الحكم**
+  ### المحكمة المختصة
+  ### أطراف الدعوى
+  ### الوقائع المنتجة
+  ### القوانين والمواد ذات الصلة
+  ### تطبيق القانون على الوقائع
+  ### الحكم
 
 • General legal question or neutral case analysis (no specific role — a "case study"):
-  **الوقائع المنتجة**
-  **الاشكالية القانونية**
-  **المواد والقوانين ذات الصلة**
-  **تطبيق القانون على الوقائع**
-  **الحل**
-  **المحكمة المختصة (في حال وجودها)**"""
+  ### الوقائع المنتجة
+  ### الاشكالية القانونية
+  ### المواد والقوانين ذات الصلة
+  ### تطبيق القانون على الوقائع
+  ### الحل
+  ### المحكمة المختصة (في حال وجودها)"""
 
 
 class _SearchArgs(BaseModel):

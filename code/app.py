@@ -299,18 +299,21 @@ button[data-testid="stSidebarCollapseButton"]:hover {
 }
 [data-testid="stChatInput"] textarea { font-size: 0.95rem; }
 
-/* ── Arabic answers: our own Markdown->HTML, kept at chat text sizes ── */
-.rtl-answer { font-size: 0.95rem; line-height: 1.7; }
-.rtl-answer h1 { font-size: 1.3rem;  margin: 0.6rem 0 0.4rem; font-weight: 700; }
-.rtl-answer h2 { font-size: 1.15rem; margin: 0.6rem 0 0.35rem; font-weight: 700; }
-.rtl-answer h3 { font-size: 1.02rem; margin: 0.5rem 0 0.3rem;  font-weight: 700; }
-.rtl-answer h4 { font-size: 0.98rem; margin: 0.5rem 0 0.3rem;  font-weight: 700; }
-.rtl-answer p  { margin: 0.4rem 0; }
-.rtl-answer ul, .rtl-answer ol { margin: 0.3rem 1.4rem 0.3rem 0; padding: 0; }
-.rtl-answer li { margin: 0.2rem 0; }
-.rtl-answer blockquote {
-    margin: 0.4rem 0; padding: 0.2rem 0.9rem 0.2rem 0;
-    border-right: 3px solid #cbd5e1; color: #475569;
+/* ── Chat answers: our own Markdown->HTML, kept at chat text sizes ── */
+.chat-answer { font-size: 0.95rem; line-height: 1.7; }
+.chat-answer h1 { font-size: 1.25rem; margin: 0.7rem 0 0.35rem; font-weight: 700; }
+.chat-answer h2 { font-size: 1.12rem; margin: 0.7rem 0 0.35rem; font-weight: 700; }
+.chat-answer h3 { font-size: 1.02rem; margin: 0.75rem 0 0.3rem; font-weight: 700; color: #0f172a; }
+.chat-answer h4 { font-size: 0.98rem; margin: 0.6rem 0 0.3rem;  font-weight: 700; }
+.chat-answer h1:first-child, .chat-answer h2:first-child,
+.chat-answer h3:first-child, .chat-answer h4:first-child { margin-top: 0; }
+.chat-answer p  { margin: 0.4rem 0; }
+.chat-answer ul, .chat-answer ol { margin: 0.3rem 0 0.3rem 1.4rem; padding: 0; }
+.chat-answer[dir="rtl"] ul, .chat-answer[dir="rtl"] ol { margin: 0.3rem 1.4rem 0.3rem 0; }
+.chat-answer li { margin: 0.2rem 0; }
+.chat-answer blockquote {
+    margin: 0.4rem 0; padding: 0.2rem 0.9rem; color: #475569;
+    border-inline-start: 3px solid #cbd5e1;
 }
 /* Give the pinned bottom bar a soft banner backdrop behind the composer. */
 [data-testid="stBottomBlockContainer"] {
@@ -645,15 +648,15 @@ if st.session_state.active_tab == "Chat":
         return ar > la
 
     def _render_answer(text: str) -> None:
-        """Render a message. For Arabic we convert Markdown to HTML ourselves and
-        wrap it right-to-left (a raw-HTML RTL wrapper would otherwise skip Markdown,
-        leaving **bold** and lists un-formatted); English uses normal Markdown."""
+        """Render a message. We convert Markdown to HTML ourselves and wrap it in a
+        sized container so headings/lists stay at chat scale and RTL is applied for
+        Arabic. (A raw-HTML wrapper would otherwise skip Markdown formatting.)"""
+        html = _md.markdown(text, extensions=["extra", "sane_lists"])
         if _is_arabic(text):
-            html = _md.markdown(text, extensions=["extra", "sane_lists"])
-            st.markdown(f'<div class="rtl-answer" dir="rtl" style="text-align:right">{html}</div>',
+            st.markdown(f'<div class="chat-answer" dir="rtl" style="text-align:right">{html}</div>',
                         unsafe_allow_html=True)
         else:
-            st.markdown(text)
+            st.markdown(f'<div class="chat-answer" dir="ltr">{html}</div>', unsafe_allow_html=True)
 
     # The active conversation (create one lazily on first visit).
     _conv = _conv_active() or _conv_new()

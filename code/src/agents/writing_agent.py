@@ -72,11 +72,17 @@ def _language_directive(language: str) -> str:
 
 
 def _headers_directive(sections: list) -> str:
-    """Force the exact section headers, in order, each rendered as a bold line."""
-    headers = "\n".join(f"**{s}**" for s in sections)
-    return ("Use EXACTLY the following section headers, in this exact order, each on its own line "
-            "and in bold (Markdown **...**) as shown. Do NOT add, remove, rename, reorder, number, "
-            "or translate any header. Write the relevant content beneath each header:\n\n" + headers)
+    """Force the exact section headers, in order, each a Markdown H3 heading.
+
+    Using an ATX heading ('### ') rather than bold guarantees the header sits on
+    its own line (a block element); bold text on its own line collapses back onto
+    the following paragraph when rendered as Markdown.
+    """
+    headers = "\n".join(f"### {s}" for s in sections)
+    return ("Use EXACTLY the following section headers, in this exact order. Write each one as a "
+            "Markdown level-3 heading — the line must start with '### ' exactly as shown — followed "
+            "by its content on the next lines. Do NOT add, remove, rename, reorder, number, or "
+            "translate any header, and do NOT use '#' or '##'. Headers:\n\n" + headers)
 
 
 class WritingAgent(BaseAgent):
