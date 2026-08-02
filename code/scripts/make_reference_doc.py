@@ -87,6 +87,11 @@ para("This document is a complete, plain-language reference for the project. It 
      "method, the trust mechanisms, the web application, and especially the benchmarking process "
      "(question generation, the evaluator/judge agent, and the source-of-truth answer). Use it to "
      "answer any question during the meeting.", italic=True)
+para("The system is delivered two ways over the same specialised agents: (a) a conversational "
+     "CHAT ASSISTANT driven by an agentic orchestrator that calls only the sub-agents a question "
+     "actually needs, and (b) a fixed END-TO-END PIPELINE that always runs every agent for full "
+     "transparency. It covers two Lebanese codes — the Penal Code and the Code of Criminal "
+     "Procedure (قانون أصول المحاكمات الجزائية) — and defaults to Claude Sonnet 5.", italic=True)
 
 # ── 1. Overview ────────────────────────────────────────────────────────────────
 H("1. Overview & Motivation", 1)
@@ -97,7 +102,9 @@ para("Lebanese law is trilingual: Arabic is the official language, while French 
      "invent article numbers (hallucinate).")
 para("This project answers legal questions by first RETRIEVING the correct law from a curated "
      "corpus, then writing a grounded, cited answer whose accuracy can be measured. It is delivered "
-     "as a web application plus a rigorous, reproducible benchmark.")
+     "as a web application (a chat assistant plus a full pipeline view) with a rigorous, "
+     "reproducible benchmark. The corpus covers the Lebanese Penal Code and the Code of Criminal "
+     "Procedure, in Arabic (primary) and English.")
 
 H("Research objectives", 2)
 bullet("can specialised agents outperform a single large language model?", "Multi-agent design: ")
@@ -121,6 +128,25 @@ table(["#", "Agent", "Role"], [
 ])
 para("A separate trust layer runs alongside the pipeline: it flags any legal claim not found in "
      "the sources and reports a hallucination rate for each answer.")
+
+H("2.1 Two execution modes: fixed pipeline vs. agentic chat", 2)
+para("The same agents are used in two ways:")
+bullet("always runs all seven agents in order. Maximum transparency — every step, its input/output, "
+       "the retrieved documents, and per-agent cost/latency are shown. Best for demonstration and audit.",
+       "Fixed pipeline: ")
+bullet("a conversational assistant where the Orchestrator is given the sub-agents as TOOLS and calls "
+       "ONLY the ones a given question needs — a simple citizen question may need one Research call; a "
+       "complex case may chain Research → Analysis → Citation. This saves time and tokens and behaves "
+       "more intelligently, while the named sub-agents (Research, Analysis, Citation) still run and are "
+       "shown live, step by step. Multi-turn, with saved conversations.", "Agentic chat: ")
+para("Sub-agents exposed to the chat orchestrator (as callable tools):", bold=True, space=2)
+code_block([
+    "research_agent(query)          -> relevant articles (both codes) + court rulings",
+    "analysis_agent(question)       -> applicable provisions, grounded and explained",
+    "citation_agent(article_nums)   -> verifies article numbers against the corpus",
+])
+para("Every retrieved item is labelled with which code it comes from, because the two codes share "
+     "article numbers (both have an Article 24, 90, 233, …).")
 
 # ── 3. System prompts ──────────────────────────────────────────────────────────
 H("3. How the Agents Are Instructed (System Prompts)", 1)
@@ -157,23 +183,58 @@ code_block([
 # ── 4. Adaptive output ─────────────────────────────────────────────────────────
 H("4. Adaptive Output — Who Is Asking?", 1)
 para("The Orchestrator detects the user type (or the user selects it) and the Writing agent produces "
-     "the matching output shape:")
-table(["User", "Situation", "Output shape"], [
-    ("Citizen", "A general legal question", "A plain, jargon-free answer."),
-    ("Lawyer", "A question or a client's case", "A structured advisory memorandum (defence-oriented)."),
-    ("Judge", "Gives the facts, wants the ruling", "A formal judicial DECISION: facts → law → reasoning → verdict."),
-])
+     "the matching output shape. Each shape uses a FIXED set of section headers, written verbatim and "
+     "in order (validated by a domain expert). The Arabic headers below are authoritative; French and "
+     "English use faithful equivalents so the structure is identical across languages.")
+
+para("Citizen — a plain question (two parts):", bold=True, space=2)
+code_block(["التحليل القانوني        (Legal Analysis)",
+            "الإجابة باختصار         (Answer in Brief)"])
+
+para("Lawyer — defending a client's case:", bold=True, space=2)
+code_block(["الوقائع المنتجة              (Relevant Facts)",
+            "القوانين والمواد ذات الصلة   (Applicable Laws & Articles)",
+            "طريقة الدفاع                 (Defense Strategy)",
+            "الإجابة باختصار             (Answer in Brief)"])
+
+para("Judge — facts given, ruling expected:", bold=True, space=2)
+code_block(["المحكمة المختصة              (Competent Court)",
+            "أطراف الدعوى                (Parties to the Case)",
+            "الوقائع المنتجة              (Relevant Facts)",
+            "القوانين والمواد ذات الصلة   (Applicable Laws & Articles)",
+            "تطبيق القانون على الوقائع    (Application of Law to Facts)",
+            "الحكم                        (Judgment)"])
+
+para("Case study — a general question / neutral analysis (no specific role):", bold=True, space=2)
+code_block(["الوقائع المنتجة              (Relevant Facts)",
+            "الاشكالية القانونية          (Legal Issue)",
+            "المواد والقوانين ذات الصلة   (Applicable Laws & Articles)",
+            "تطبيق القانون على الوقائع    (Application of Law to Facts)",
+            "الحل                         (Solution)",
+            "المحكمة المختصة (في حال وجودها)  (Competent Court, if applicable)"])
+
 para("Auto-detect infers the role from the phrasing (e.g. 'my client' → lawyer, 'render the verdict' "
-     "→ judge). The section headings are language-specific (Arabic / French / English).")
+     "→ judge). Both the fixed pipeline and the agentic chat enforce these same templates.")
 
 # ── 5. Corpus ──────────────────────────────────────────────────────────────────
 H("5. Corpus & Data Foundation", 1)
-bullet("Lebanese Penal Code — 417 Arabic articles + 242 English articles + 54 Court of Cassation "
-       "rulings = 713 indexed documents.", "Bilingual corpus: ")
-bullet("a reproducible pipeline reads the sources, embeds them into a searchable index, and records "
-       "exactly what was indexed (a manifest).", "Ingestion: ")
-bullet("new sources (contract law, French texts) are auto-indexed by the same pipeline — no code "
-       "change needed.", "Extensible: ")
+bullet("two Lebanese codes plus case law — Penal Code (417 Arabic + 242 English articles), Code of "
+       "Criminal Procedure (431 Arabic articles), and 54 Court of Cassation rulings = 1,144 indexed "
+       "documents.", "Corpus: ")
+table(["Source", "Articles / docs", "Language"], [
+    ("Penal Code (قانون العقوبات)", "659 (417 AR + 242 EN)", "Arabic + English"),
+    ("Code of Criminal Procedure (أصول المحاكمات الجزائية)", "431", "Arabic"),
+    ("Court of Cassation rulings", "54", "Arabic"),
+    ("Total indexed", "1,144 documents", "—"),
+])
+bullet("a reproducible pipeline (build_index.py) AUTO-DISCOVERS every code file in the documents "
+       "folder, embeds them into a searchable index, regenerates the citation article index per code, "
+       "and records exactly what was indexed (a manifest).", "Ingestion: ")
+bullet("the Code of Criminal Procedure was added simply by dropping its JSON in the corpus folder and "
+       "re-running the pipeline — no code change was needed for ingestion. Contract law / French texts "
+       "can be added the same way.", "Extensible: ")
+bullet("each code is tagged with its document type; because the two codes share article numbers, every "
+       "answer states WHICH code a cited article belongs to.", "Disambiguation: ")
 bullet("every article keeps a validated number, later used as the 'gold answer' in the benchmark.",
        "Provenance: ")
 
@@ -204,7 +265,14 @@ code_block([
 
 # ── 8. Web app ─────────────────────────────────────────────────────────────────
 H("8. The Web Application (UI)", 1)
-para("Built with Streamlit; it has three areas:")
+para("Built with Streamlit; it has four areas, selected from a collapsible sidebar:")
+bullet("the primary interface — a professional, multi-turn chat. The agentic orchestrator calls only "
+       "the sub-agents it needs and shows them running LIVE, step by step (Research / Analysis / "
+       "Citation). Answers render Markdown with correct right-to-left layout for Arabic. Each answer "
+       "carries a light footer (sub-agent calls · latency · tokens · estimated spend · verified "
+       "citations) and a collapsed, professional SOURCES panel — the exact articles/rulings used, each "
+       "labelled with its code and marked when actually cited. Conversations are saved to disk (new "
+       "chat, rename-by-first-question, delete) and survive restarts.", "Chat Assistant: ")
 bullet("ask a question, pick your role, run all 7 agents, and see the memorandum, its sources, trust "
        "indicators, and per-agent cost/latency. The Arabic memo renders right-to-left in a clean "
        "document view.", "End-to-End Pipeline: ")
@@ -331,7 +399,9 @@ bullet("answer quality is bounded by retrieval recall — if the correct article
 
 # ── 12. Engineering ────────────────────────────────────────────────────────────
 H("12. Engineering & Reproducibility", 1)
-bullet("standardised on Claude Sonnet 4.5 (selectable: 4.6 / Opus / Haiku).", "Model: ")
+bullet("standardised on Claude Sonnet 5 (temperature 0, retrieval score threshold 0.7 by default); "
+       "selectable per run — Sonnet 4.6 / 4.5, Opus 4.6, Haiku 4.5. Reasoning models that reject a "
+       "temperature parameter and return content as blocks are handled transparently.", "Model: ")
 bullet("the full pipeline also runs headless (without the UI) for batch evaluation.", "Headless: ")
 bullet("unit tests and GitHub Actions run automatically on every change (continuous integration).", "Tests + CI: ")
 bullet("tokens, cost, and latency are tracked per agent.", "Telemetry: ")
@@ -340,8 +410,9 @@ bullet("all work is version-controlled and pushed to GitHub.", "Version control:
 
 # ── 13. Limitations & future ───────────────────────────────────────────────────
 H("13. Limitations & Future Work", 1)
-bullet("English/French retrieval lags Arabic (~40% vs. 72%); the corpus covers criminal (Penal) law only.",
-       "Limitations: ")
+bullet("English/French retrieval lags Arabic (~40% vs. 72%); the corpus covers criminal law only "
+       "(Penal Code + Code of Criminal Procedure), and the Criminal Procedure Code is Arabic-only for "
+       "now (answers are still given in the user's language).", "Limitations: ")
 bullet("evaluate the built-in cross-lingual translation and test stronger multilingual embeddings.",
        "Next — retrieval: ")
 bullet("add contract law + French texts (the pipeline supports it); collect expert reference answers at scale.",
