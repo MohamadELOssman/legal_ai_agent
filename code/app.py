@@ -1533,237 +1533,204 @@ elif st.session_state.active_tab == "Bench":
 
     st.markdown("""
     <div class="page-header">
-        <h2>📊 Benchmarking — LLM-as-Judge</h2>
+        <h2>📊 Benchmarking — Full System vs Baselines</h2>
     </div>
     """, unsafe_allow_html=True)
 
-    # ── Load agents ───────────────────────────────────────────────────────────
+    # ── Load the evaluation module ────────────────────────────────────────────
     bench_ok = False
     try:
-        from src.agents import QueryUnderstandingAgent as _QUA, ResearchAgent as _RA, AgentInput as _AI
-        from langchain_anthropic import ChatAnthropic as _ChatAnthropic
-        from langchain_core.messages import HumanMessage as _HumanMessage
-        from src.config import get_config as _get_config
+        from src.evaluation.comparison import (
+            build_judge as _build_judge, run_system as _run_system,
+            summarize as _summarize, JUDGE_DIMENSIONS as _JDIMS,
+        )
         bench_ok = True
-    except ImportError as e:
-        st.error(f"❌ Cannot load agents: {e}")
+    except Exception as e:
+        st.error(f"❌ Cannot load the evaluation module: {e}")
 
     if bench_ok:
+        _LNAME = {"ar": "Arabic", "en": "English", "fr": "French"}
+        st.session_state.setdefault("ref_answers", {})
+
         # ── Configuration ─────────────────────────────────────────────────────
         with st.expander("⚙️ Benchmark Configuration", expanded=True):
-            bc1, bc2, bc3, bc4, bc5 = st.columns(5)
+            bc1, bc2, bc3, bc4 = st.columns(4)
             with bc1:
-                bench_target = st.selectbox("Agent to Benchmark",
-                    ["🔍 Agent 1: Query Understanding", "🔎 Agent 2: Research & Retrieval",
-                     "⚖️ Full Pipeline vs Baselines"],
-                    key="bench_target")
-            with bc2:
                 judge_model = st.selectbox("Judge Model",
                     ["claude-sonnet-5", "claude-sonnet-4-6", "claude-opus-4-6"],
-                    key="bench_judge_model", help="Model used to score outputs")
+                    key="bench_judge_model", help="Model that scores answers against the reference")
+            with bc2:
+                bench_model = st.selectbox("System Model", list(_MODELS),
+                    format_func=lambda x: _MODELS[x], key="bench_sys_model",
+                    help="Model the evaluated system(s) will use")
             with bc3:
-                bench_model = st.selectbox("Agent Model", list(_MODELS),
-                    format_func=lambda x: _MODELS[x], key="bench_agent_model",
-                    help="Model the agent will use")
-            with bc4:
                 num_documents = st.slider("Documents", 1, 20, 5, key="bench_docs",
-                    help="Article chunks to retrieve (Agent 2). Standalone benchmark retrieves articles only, so this is the total.")
-            with bc5:
+                    help="Article chunks retrieved by the RAG systems")
+            with bc4:
                 similarity_threshold = st.slider("Threshold", 0.0, 1.0, 0.7, 0.05, key="bench_thresh",
-                    help="Min cosine similarity (Agent 2)")
+                    help="Min cosine similarity for retrieval")
 
-        # ── Test dataset ──────────────────────────────────────────────────────
+        # ── Test dataset: choose how the questions are provided ───────────────
         st.markdown("### Test Dataset")
+        _method = st.radio(
+            "How do you want to provide the benchmark questions?",
+            ["Generate questions — I add the reference answers",
+             "I provide the questions and the reference answers"],
+            key="bench_method")
 
-        # ── On-the-fly question generator ─────────────────────────────────────
-        _LNAME = {"ar": "Arabic", "en": "English", "fr": "French"}
-        with st.expander("🧪 Generate Benchmark Questions on the Fly",
-                         expanded=not st.session_state.get("gen_cases")):
-            gc1, gc2 = st.columns([1, 2])
-            with gc1:
-                gen_n = st.number_input("Number of questions", min_value=5, max_value=100,
-                                        value=10, step=5, key="gen_n")
-            with gc2:
-                gen_langs = st.multiselect("Languages", ["ar", "en", "fr"],
-                                           default=["ar", "en", "fr"],
-                                           format_func=lambda x: _LNAME[x], key="gen_langs")
+        all_test_cases = []
 
-            if st.button("✨  Generate Questions", type="primary", use_container_width=True, key="btn_gen"):
-                if not gen_langs:
-                    st.warning("Select at least one language.")
+        # ─────────── Option A — generate questions, then add answers ───────────
+        if _method.startswith("Generate"):
+            with st.container(border=True):
+                st.markdown("**Step 1 · Generate questions**")
+                gc1, gc2, gc3 = st.columns([1, 2, 1], vertical_alignment="bottom")
+                with gc1:
+                    gen_n = st.number_input("Number", 5, 100, 10, 5, key="gen_n")
+                with gc2:
+                    gen_langs = st.multiselect("Languages", ["ar", "en", "fr"],
+                        default=["ar", "en", "fr"], format_func=lambda x: _LNAME[x], key="gen_langs")
+                with gc3:
+                    _do_gen = st.button("✨ Generate", type="primary",
+                                        use_container_width=True, key="btn_gen")
+                if _do_gen:
+                    if not gen_langs:
+                        st.warning("Select at least one language.")
+                    else:
+                        from src.evaluation.question_gen import generate_questions
+                        _pbar = st.progress(0.0); _pstat = st.empty()
+
+                        def _gcb(done, total, msg):
+                            _pstat.info(f"{msg}  ({done}/{total})")
+                            _pbar.progress(min(1.0, done / max(1, total)))
+
+                        try:
+                            _cases = generate_questions(int(gen_n), model=bench_model,
+                                                        langs=gen_langs, progress=_gcb)
+                            st.session_state["gen_cases"] = _cases
+                            st.session_state["gen_page"] = 0
+                            _pstat.success(f"Generated {len(_cases)} questions."); st.rerun()
+                        except Exception as _e:
+                            _pstat.error(f"Generation failed: {_e}")
+
+                _gen = st.session_state.get("gen_cases") or []
+                if _gen:
+                    _hc1, _hc2 = st.columns([5, 1], vertical_alignment="bottom")
+                    with _hc1:
+                        st.markdown("**Step 2 · Add the reference (source-of-truth) answer for each question**")
+                    with _hc2:
+                        if st.button("🗑️ Clear", use_container_width=True, key="btn_gen_clear"):
+                            st.session_state.pop("gen_cases", None)
+                            st.session_state["gen_page"] = 0; st.rerun()
+                    all_test_cases = _gen
+
+                    _PER = 10
+                    st.session_state.setdefault("gen_page", 0)
+                    _tp = max(1, (len(_gen) + _PER - 1) // _PER)
+                    _pg = min(st.session_state["gen_page"], _tp - 1)
+                    _s0 = _pg * _PER
+                    _rows = [{"ID": tc.get("id", ""), "Query": tc.get("query", ""),
+                              "Language": tc.get("language", _LNAME.get(tc.get("lang", ""), "")),
+                              "Reference Answer": st.session_state["ref_answers"].get(tc.get("id", ""), "")}
+                             for tc in _gen[_s0:_s0 + _PER]]
+                    _ed = st.data_editor(_rows, use_container_width=True, hide_index=True,
+                        disabled=["ID", "Query", "Language"],
+                        column_config={"Reference Answer": st.column_config.TextColumn(
+                            "Reference Answer (ground truth — required)", width="large", required=True)},
+                        key=f"ref_editor_p{_pg}")
+                    for _r in _ed:
+                        if _r.get("ID"):
+                            st.session_state["ref_answers"][_r["ID"]] = _r.get("Reference Answer", "") or ""
+
+                    _n1, _n2, _n3 = st.columns([1, 3, 1])
+                    with _n1:
+                        if st.button("⬅️ Prev", disabled=(_pg <= 0),
+                                     use_container_width=True, key="pg_prev"):
+                            st.session_state["gen_page"] = _pg - 1; st.rerun()
+                    with _n2:
+                        st.markdown(f"<div style='text-align:center;padding-top:0.4rem;color:#64748b;'>"
+                                    f"Showing {_s0 + 1}–{min(_s0 + _PER, len(_gen))} of {len(_gen)} "
+                                    f"· page {_pg + 1} / {_tp}</div>", unsafe_allow_html=True)
+                    with _n3:
+                        if st.button("Next ➡️", disabled=(_pg >= _tp - 1),
+                                     use_container_width=True, key="pg_next"):
+                            st.session_state["gen_page"] = _pg + 1; st.rerun()
                 else:
-                    from src.evaluation.question_gen import generate_questions
-                    _pbar = st.progress(0.0); _pstat = st.empty()
+                    st.caption("Generate questions above to begin.")
 
-                    def _gcb(done, total, msg):
-                        _pstat.info(f"{msg}  ({done}/{total})")
-                        _pbar.progress(min(1.0, done / max(1, total)))
-
-                    try:
-                        _cases = generate_questions(int(gen_n), model=bench_model,
-                                                    langs=gen_langs, progress=_gcb)
-                        st.session_state["gen_cases"] = _cases
-                        st.session_state["gen_page"] = 0
-                        _pstat.success(f"Generated {len(_cases)} questions.")
-                        st.rerun()
-                    except Exception as _e:
-                        _pstat.error(f"Generation failed: {_e}")
-
-            if st.session_state.get("gen_cases"):
-                if st.button("🗑️ Clear generated questions", key="btn_gen_clear"):
-                    st.session_state.pop("gen_cases", None)
-                    st.session_state["gen_page"] = 0
-                    st.rerun()
-
-        default_test_cases = [
-            {"id": "TC1",
-             "query": "ما العقوبة التي يستحقها من قتل إنساناً قصداً بالأشغال الشاقة؟",
-             "language": "Arabic", "domain": "criminal",
-             "desc": "Intentional homicide penalty — Art. 547-549"},
-            {"id": "TC2",
-             "query": "ما هي حالات القتل العمد المشددة التي تستوجب الإعدام أو الأشغال الشاقة المؤبدة؟",
-             "language": "Arabic", "domain": "criminal",
-             "desc": "Aggravated murder — premeditation / ascendants — Art. 548-549"},
-            {"id": "TC3",
-             "query": "ما هي الأفعال التي تُعدّ دفاعاً مشروعاً عن النفس والأموال ضد السرقة والدخول ليلاً؟",
-             "language": "Arabic", "domain": "criminal",
-             "desc": "Self-defence — person & property — Art. 563"},
-            {"id": "TC4",
-             "query": "ما عقوبة من يُكره شخصاً على الجماع بالعنف أو التهديد أو يستغل عجزه الجسدي أو النفسي؟",
-             "language": "Arabic", "domain": "criminal",
-             "desc": "Sexual assault — coercion / incapacity — Art. 503-504"},
-            {"id": "TC5",
-             "query": "ما هي عقوبة السرقة المشددة بالكسر والخلع من المصارف والمؤسسات العامة؟",
-             "language": "Arabic", "domain": "criminal",
-             "desc": "Aggravated theft — breaking in / bank — Art. 638-639"},
-            {"id": "TC6",
-             "query": "ما هي عقوبة تزوير الأوراق الرسمية سواء أقدم عليه موظف عام أم شخص عادي؟",
-             "language": "Arabic", "domain": "criminal",
-             "desc": "Forgery of official documents — Art. 453, 456, 459"},
-            {"id": "TC7",
-             "query": "ما هي أركان جريمة الاحتيال بالمناورات الاحتيالية أو الادعاءات الكاذبة أو الاسم المستعار؟",
-             "language": "Arabic", "domain": "criminal",
-             "desc": "Fraud — false pretenses / assumed name — Art. 655-656"},
-            {"id": "TC8",
-             "query": "هل يستفيد من العذر المخفف من يفاجئ زوجه في جرم الزنا المشهود ويقدم على قتله؟",
-             "language": "Arabic", "domain": "criminal",
-             "desc": "Honour crime mitigation — in flagrante delicto — Art. 562"},
-            {"id": "TC9",
-             "query": "ما هي عقوبة القتل غير العمد والإيذاء الناتج عن الإهمال وقلة الاحتراز؟",
-             "language": "Arabic", "domain": "criminal",
-             "desc": "Unintentional killing / negligence — Art. 564-565"},
-            {"id": "TC10",
-             "query": "هل يُعاقب بالإعدام من يقتل أحد أصوله قصداً أو يرتكب القتل تمهيداً لجناية؟",
-             "language": "Arabic", "domain": "criminal",
-             "desc": "Death penalty for filicide / premeditated murder — Art. 549 (case analysis)"},
-        ]
-
-        # Use generated questions if the user created some; otherwise the built-in set.
-        if st.session_state.get("gen_cases"):
-            all_test_cases = st.session_state["gen_cases"]
-            st.caption(f"Reviewing **{len(all_test_cases)} generated** questions — check them below, "
-                       "then run the evaluation.")
+        # ─────────── Option B — provide both questions and answers ───────────
         else:
-            all_test_cases = default_test_cases + st.session_state['bench_extra_cases']
-            st.caption(f"Using the built-in {len(all_test_cases)}-question set. "
-                       "Generate your own above to replace it.")
+            with st.container(border=True):
+                st.markdown("**Enter your own questions and their reference answers**")
+                st.caption("Add one row per question — both the question and its reference "
+                           "(ground-truth) answer are required. Use the ﹢ at the bottom of the table to add rows.")
+                st.session_state.setdefault("provided_rows",
+                    [{"Query": "", "Language": "Arabic", "Reference Answer": ""}])
+                _ed = st.data_editor(
+                    st.session_state["provided_rows"], num_rows="dynamic",
+                    use_container_width=True, hide_index=True,
+                    column_config={
+                        "Query": st.column_config.TextColumn("Question", width="large", required=True),
+                        "Language": st.column_config.SelectboxColumn("Language",
+                            options=["Arabic", "French", "English"], width="small", required=True),
+                        "Reference Answer": st.column_config.TextColumn(
+                            "Reference Answer (ground truth)", width="large", required=True),
+                    },
+                    key="provided_editor")
+                st.session_state["provided_rows"] = _ed
+                st.session_state["ref_answers"] = {}
+                for _i, _r in enumerate(_ed):
+                    _q = (_r.get("Query") or "").strip()
+                    _a = (_r.get("Reference Answer") or "").strip()
+                    if not _q:
+                        continue
+                    _lang = _r.get("Language", "Arabic") or "Arabic"
+                    _cid = f"U{_i + 1}"
+                    all_test_cases.append({"id": _cid, "query": _q, "language": _lang,
+                        "lang": _lang[:2].lower(), "type": "general_legal_query",
+                        "reference_answer": _a})
+                    st.session_state["ref_answers"][_cid] = _a
+                st.caption(f"{len(all_test_cases)} question(s) ready.")
 
-        # ── Paginated viewer (10 per page) ────────────────────────────────────
-        _PER = 10
-        st.session_state.setdefault("gen_page", 0)
-        _total_pages = max(1, (len(all_test_cases) + _PER - 1) // _PER)
-        _page = min(st.session_state["gen_page"], _total_pages - 1)
-        _start = _page * _PER
-        _chunk = all_test_cases[_start:_start + _PER]
-
-        # Editable table: users can type a "source of truth" reference answer per
-        # question; the LLM judge (Full Pipeline comparison) scores the agent's
-        # answer AGAINST it. References persist per question id across pages.
-        st.session_state.setdefault("ref_answers", {})
-        st.caption("📝 **Reference Answer is required** for the *Full Pipeline vs Baselines* "
-                   "evaluation — it is the ground truth the judge compares each system's "
-                   "answer against. Fill it in for every question you plan to run.")
-        _editor_rows = [
-            {
-                "ID":       tc.get("id", ""),
-                "Query":    tc.get("query", ""),
-                "Language": tc.get("language", _LNAME.get(tc.get("lang", ""), "")),
-                "Type":     tc.get("type", "-"),
-                "Articles": ", ".join(tc.get("relevant_articles", [])) or "—",
-                "Reference Answer": st.session_state["ref_answers"].get(tc.get("id", ""), ""),
-            }
-            for tc in _chunk
-        ]
-        _edited = st.data_editor(
-            _editor_rows,
-            use_container_width=True,
-            hide_index=True,
-            disabled=["ID", "Query", "Language", "Type", "Articles"],
-            column_config={
-                "Articles": st.column_config.TextColumn(
-                    "Articles (gold)", help="Penal Code article(s) the question is based on", width="small"),
-                "Reference Answer": st.column_config.TextColumn(
-                    "Reference Answer (ground truth — required)", width="large", required=True),
-            },
-            key=f"ref_editor_p{_page}",
-        )
-        # Persist any edits back into session_state (keyed by question id).
-        for _row in _edited:
-            if _row.get("ID"):
-                st.session_state["ref_answers"][_row["ID"]] = _row.get("Reference Answer", "") or ""
-
-        _n_refs = sum(1 for v in st.session_state["ref_answers"].values() if v.strip())
-        if _n_refs:
-            st.caption(f"✍️ {_n_refs} reference answer(s) entered.")
-
-        _nav1, _nav2, _nav3 = st.columns([1, 3, 1])
-        with _nav1:
-            if st.button("⬅️  Prev", disabled=(_page <= 0), use_container_width=True, key="pg_prev"):
-                st.session_state["gen_page"] = _page - 1; st.rerun()
-        with _nav2:
-            st.markdown(
-                f"<div style='text-align:center;padding-top:0.4rem;color:#64748b;'>"
-                f"Showing {_start + 1}–{min(_start + _PER, len(all_test_cases))} "
-                f"of {len(all_test_cases)}  ·  page {_page + 1} / {_total_pages}</div>",
-                unsafe_allow_html=True)
-        with _nav3:
-            if st.button("Next  ➡️", disabled=(_page >= _total_pages - 1),
-                         use_container_width=True, key="pg_next"):
-                st.session_state["gen_page"] = _page + 1; st.rerun()
+        if not all_test_cases:
+            st.info("Add or generate at least one question (with a reference answer) to run the benchmark.")
+            st.stop()
 
         # ══════════════════════════════════════════════════════════════════════
-        # MODE: Full Pipeline vs Baselines (system comparison, full-memo scoring)
+        # Full system (and optional baselines) — scored against the reference
         # ══════════════════════════════════════════════════════════════════════
-        if "Full Pipeline" in bench_target:
-            from src.evaluation.comparison import (
-                build_judge as _build_judge, run_system as _run_system,
-                summarize as _summarize, JUDGE_DIMENSIONS as _JDIMS,
-            )
+        if all_test_cases:
 
             st.markdown("---")
-            st.markdown("### Compare Systems on the Final Memorandum")
+            st.markdown("### Run & Score")
             st.markdown("""
             <div class="info-banner">
-            Runs each selected system over the test cases and scores the final
-            memorandum with an LLM judge (legal correctness · citation quality ·
-            completeness · clarity). <strong>Note:</strong> the multi-agent system
-            makes ~6 LLM calls per query, so keep the case count low for a quick run.
+            Runs each selected system over the questions and scores its answer with an
+            LLM judge (legal correctness · citation quality · completeness · clarity)
+            AGAINST your reference answer. <strong>Note:</strong> the full pipeline
+            makes ~6 LLM calls per query, so keep the count low for a quick run.
             </div>""", unsafe_allow_html=True)
 
             cc1, cc2, cc3 = st.columns([2, 1, 1])
             with cc1:
                 _sys_labels = {
-                    "multi_agent": "Multi-Agent (7 agents)",
+                    "multi_agent": "Full Pipeline (7 agents)",
+                    "agentic": "Chat (agentic orchestrator)",
                     "single_agent": "Single-Agent + RAG",
                     "no_rag": "No-RAG (LLM only)",
                 }
                 cmp_systems = st.multiselect(
-                    "Systems to compare", list(_sys_labels),
-                    default=["multi_agent", "single_agent", "no_rag"],
+                    "Systems to run (add baselines to compare)", list(_sys_labels),
+                    default=["multi_agent"],
                     format_func=lambda s: _sys_labels[s], key="cmp_systems")
             with cc2:
-                cmp_limit = st.slider("Cases to run", 1, len(all_test_cases),
-                                      min(3, len(all_test_cases)), key="cmp_limit")
+                _maxq = len(all_test_cases)
+                if _maxq <= 1:
+                    cmp_limit = _maxq
+                    st.metric("Questions to run", _maxq)
+                else:
+                    cmp_limit = st.slider("Questions to run", 1, _maxq,
+                                          min(3, _maxq), key="cmp_limit")
             with cc3:
                 cmp_judge_on = st.checkbox("LLM-as-judge", value=True, key="cmp_judge_on")
 
@@ -1897,305 +1864,3 @@ elif st.session_state.active_tab == "Bench":
                     file_name=f"comparison_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json",
                     mime="application/json", use_container_width=True,
                 )
-
-            st.stop()  # comparison mode handles its own UI; skip the Agent 1/2 sections
-
-        with st.expander("➕ Add Custom Test Query"):
-            cq = st.text_input("Query text:", key="bench_cq")
-            _cc1, _cc2, _cc3 = st.columns(3)
-            with _cc1:
-                cl = st.selectbox("Language:", ["Arabic", "French", "English"], key="bench_cl")
-            with _cc2:
-                cd = st.selectbox("Domain:", ["criminal", "civil", "commercial", "custom"], key="bench_cd")
-            with _cc3:
-                ct = st.selectbox("Type:", ["general_legal_query", "case_analysis"], key="bench_ct")
-            c_arts = st.text_input("Article number(s) it depends on (comma-separated):",
-                                   key="bench_carts", placeholder="e.g. 547, 549")
-            c_ref = st.text_area("Reference Answer (source of truth):", key="bench_cref", height=100,
-                                 placeholder="The correct expert answer — used by the judge as the ground truth.")
-            if st.button("Add to Dataset", key="bench_add"):
-                if not cq.strip():
-                    st.warning("Enter the query text.")
-                else:
-                    import re as _re2
-                    _arts = sorted({m for m in _re2.findall(r"\d{1,3}", c_arts)}, key=int)
-                    _cid = f"CT{len(st.session_state['bench_extra_cases']) + 1}"
-                    st.session_state['bench_extra_cases'].append({
-                        "id": _cid, "query": cq.strip(), "language": cl, "lang": cl[:2].lower(),
-                        "domain": cd, "type": ct, "relevant_articles": _arts, "desc": "Custom",
-                    })
-                    if c_ref.strip():
-                        st.session_state.setdefault("ref_answers", {})[_cid] = c_ref.strip()
-                    st.rerun()
-
-        # ── Run benchmark ─────────────────────────────────────────────────────
-        st.markdown("---")
-        if st.button("🚀  Run Benchmark Evaluation", type="primary", use_container_width=True, key="run_bench"):
-            import time as _btime
-
-            bench_results = []
-            bench_progress = st.progress(0)
-            bench_status   = st.empty()
-            total = len(all_test_cases)
-            _cfg  = _get_config()
-            from src.utils.llm import make_chat as _make_chat
-            from src.utils.retry import invoke_with_retry as _judge_retry
-            _judge = _make_chat(model=judge_model, api_key=_cfg.anthropic_api_key,
-                                temperature=0.0, max_tokens=600)
-
-            for i, tc in enumerate(all_test_cases):
-                _tc_desc = tc.get("desc") or tc.get("topic", "")
-                bench_status.info(f"Evaluating {tc['id']} / {total}: {_tc_desc}…")
-                entry = {"id": tc["id"], "query": tc["query"],
-                         "language": tc.get("language", ""), "domain": tc.get("domain", "")}
-
-                # Agent 1
-                if "Agent 1" in bench_target:
-                    with st.spinner(f"Running Agent 1 on {tc['id']}…"):
-                        try:
-                            _t0    = _btime.time()
-                            _agent = _QUA(model=bench_model, temperature=0.1)
-                            _out   = _agent.process(_AI(query=tc["query"], context={}, metadata={}))
-                            _lat   = _btime.time() - _t0
-
-                            if _out.success:
-                                _ao = to_json_safe(_out.result)
-                                _prompt = f"""You are a legal AI evaluation expert. Score the query understanding output below for a Lebanese law system.
-
-User Query: "{tc['query']}"
-Expected Language: {tc['language']}
-Expected Domain: {tc['domain']}
-
-Agent Output:
-{json.dumps(_ao, ensure_ascii=False, indent=2)}
-
-Score each dimension 1–5 (1 = poor, 5 = excellent):
-- language_accuracy: Was the language detected correctly?
-- domain_accuracy: Was the legal domain classified correctly?
-- entity_extraction: How complete is the key-entity extraction?
-- intent_classification: How accurate is the user-intent label?
-- overall_quality: Overall usefulness of the structured output
-
-Return ONLY valid JSON — no prose, no markdown, no code fences:
-{{"language_accuracy":N,"domain_accuracy":N,"entity_extraction":N,"intent_classification":N,"overall_quality":N,"explanation":"one sentence"}}"""
-                                _jr     = _judge_retry(_judge, [_HumanMessage(content=_prompt)])
-                                _scores = _extract_json(_jr.content)
-                                entry.update({
-                                    "status": "success", "latency_s": round(_lat, 2),
-                                    "language_accuracy":     _scores.get("language_accuracy", 0),
-                                    "domain_accuracy":       _scores.get("domain_accuracy", 0),
-                                    "entity_extraction":     _scores.get("entity_extraction", 0),
-                                    "intent_classification": _scores.get("intent_classification", 0),
-                                    "overall_quality":       _scores.get("overall_quality", 0),
-                                    "avg_score": round(sum([
-                                        _scores.get("language_accuracy", 0),
-                                        _scores.get("domain_accuracy", 0),
-                                        _scores.get("entity_extraction", 0),
-                                        _scores.get("intent_classification", 0),
-                                        _scores.get("overall_quality", 0),
-                                    ]) / 5, 2),
-                                    "explanation": _scores.get("explanation", ""),
-                                    "agent_output": _ao,
-                                })
-                            else:
-                                entry.update({"status": "failed", "error": _out.error,
-                                              "latency_s": round(_btime.time()-_t0, 2)})
-                        except Exception as ex:
-                            entry.update({"status": "error", "error": str(ex)})
-
-                # Agent 2
-                elif "Agent 2" in bench_target:
-                    with st.spinner(f"Running Agent 2 on {tc['id']}…"):
-                        try:
-                            _t0    = _btime.time()
-                            _vs    = _get_vs()
-                            _agent = _RA(model=bench_model, temperature=0.1, vectorstore=_vs)
-                            _out   = _agent.process(_AI(
-                                query=tc["query"], context={},
-                                metadata={"k": num_documents, "score_threshold": similarity_threshold},
-                            ))
-                            _lat = _btime.time() - _t0
-
-                            if _out.success:
-                                _ao   = to_json_safe(_out.result)
-                                _docs = _ao.get("retrieved_documents", [])
-                                _k    = len(_docs)
-                                _prompt = f"""You are a legal information retrieval expert. Evaluate the documents retrieved for a Lebanese law query.
-
-User Query: "{tc['query']}"
-Language: {tc['language']} | Domain: {tc['domain']}
-Retrieved {_k} documents. Top 3 sample:
-{json.dumps(_docs[:3], ensure_ascii=False, indent=2)}
-
-Score each dimension 1–5:
-- relevance_precision: How relevant are the docs to the query?
-- domain_coverage: Do the docs cover the correct legal domain?
-- language_match: Do the docs match or complement the query language?
-- content_quality: How useful is the content for answering the query?
-- retrieval_completeness: Does the set seem to cover the topic well?
-
-Also estimate:
-- precision_at_k: float 0.0–1.0 (fraction of returned docs that are relevant)
-- relevant_docs_estimate: integer count of truly relevant docs among {_k}
-
-Return ONLY valid JSON — no prose, no markdown, no code fences:
-{{"relevance_precision":N,"domain_coverage":N,"language_match":N,"content_quality":N,"retrieval_completeness":N,"precision_at_k":F,"relevant_docs_estimate":N,"explanation":"one sentence"}}"""
-                                _jr     = _judge_retry(_judge, [_HumanMessage(content=_prompt)])
-                                _scores = _extract_json(_jr.content)
-                                entry.update({
-                                    "status": "success", "latency_s": round(_lat, 2),
-                                    "docs_retrieved":          _k,
-                                    "relevance_precision":     _scores.get("relevance_precision", 0),
-                                    "domain_coverage":         _scores.get("domain_coverage", 0),
-                                    "language_match":          _scores.get("language_match", 0),
-                                    "content_quality":         _scores.get("content_quality", 0),
-                                    "retrieval_completeness":  _scores.get("retrieval_completeness", 0),
-                                    "precision_at_k":          _scores.get("precision_at_k", 0.0),
-                                    "relevant_docs_estimate":  _scores.get("relevant_docs_estimate", 0),
-                                    "avg_score": round(sum([
-                                        _scores.get("relevance_precision", 0),
-                                        _scores.get("domain_coverage", 0),
-                                        _scores.get("language_match", 0),
-                                        _scores.get("content_quality", 0),
-                                        _scores.get("retrieval_completeness", 0),
-                                    ]) / 5, 2),
-                                    "explanation": _scores.get("explanation", ""),
-                                    "retrieved_documents": _docs,
-                                })
-                            else:
-                                entry.update({"status": "failed", "error": _out.error,
-                                              "latency_s": round(_btime.time()-_t0, 2)})
-                        except Exception as ex:
-                            entry.update({"status": "error", "error": str(ex)})
-
-                bench_results.append(entry)
-                bench_progress.progress((i + 1) / total)
-
-            bench_status.success(f"✅ Benchmark complete — {total} test cases evaluated.")
-            st.session_state['bench_results']       = bench_results
-            st.session_state['bench_results_agent'] = bench_target
-
-        # ── Display results ───────────────────────────────────────────────────
-        if 'bench_results' in st.session_state:
-            _res        = st.session_state['bench_results']
-            _agent_name = st.session_state.get('bench_results_agent', '')
-            _ok         = [r for r in _res if r.get('status') == 'success']
-
-            st.markdown("---")
-            _rc1, _rc2 = st.columns([6, 1])
-            with _rc1:
-                st.markdown("### Results")
-            with _rc2:
-                if st.button("🗑️ Clear", key="bench_clear"):
-                    del st.session_state['bench_results']
-                    st.session_state.pop('bench_results_agent', None)
-                    st.rerun()
-
-            if _ok:
-                if "Agent 1" in _agent_name:
-                    _dims   = ['language_accuracy','domain_accuracy','entity_extraction','intent_classification','overall_quality']
-                    _labels = ['Language','Domain','Entities','Intent','Overall']
-                    _cols   = st.columns(5)
-                    for col, dim, lbl in zip(_cols, _dims, _labels):
-                        avg = sum(r.get(dim, 0) for r in _ok) / len(_ok)
-                        col.metric(lbl, f"{avg:.2f} / 5")
-                    c1, c2 = st.columns(2)
-                    c1.metric("Avg Score",   f"{sum(r.get('avg_score',0) for r in _ok)/len(_ok):.2f} / 5")
-                    c2.metric("Avg Latency", f"{sum(r.get('latency_s',0) for r in _ok)/len(_ok):.2f} s")
-
-                elif "Agent 2" in _agent_name:
-                    _dims   = ['relevance_precision','domain_coverage','language_match','content_quality','retrieval_completeness']
-                    _labels = ['Relevance','Domain','Language','Content','Completeness']
-                    _cols   = st.columns(5)
-                    for col, dim, lbl in zip(_cols, _dims, _labels):
-                        avg = sum(r.get(dim, 0) for r in _ok) / len(_ok)
-                        col.metric(lbl, f"{avg:.2f} / 5")
-                    c1, c2, c3 = st.columns(3)
-                    c1.metric("Avg Precision@k",   f"{sum(r.get('precision_at_k',0) for r in _ok)/len(_ok):.2%}")
-                    c2.metric("Avg Docs Retrieved", f"{sum(r.get('docs_retrieved',0) for r in _ok)/len(_ok):.1f}")
-                    c3.metric("Avg Latency",        f"{sum(r.get('latency_s',0) for r in _ok)/len(_ok):.2f} s")
-
-                st.markdown("#### Per-Query Scores")
-                if "Agent 1" in _agent_name:
-                    _table = {
-                        "ID":       [r["id"]                           for r in _res],
-                        "Query":    [r["query"][:45]+"…"               for r in _res],
-                        "Language": [r.get("language","")              for r in _res],
-                        "Status":   [r.get("status","")                for r in _res],
-                        "Lang":     [r.get("language_accuracy","-")    for r in _res],
-                        "Domain":   [r.get("domain_accuracy","-")      for r in _res],
-                        "Entity":   [r.get("entity_extraction","-")    for r in _res],
-                        "Intent":   [r.get("intent_classification","-")for r in _res],
-                        "Overall":  [r.get("overall_quality","-")      for r in _res],
-                        "Avg":      [r.get("avg_score","-")            for r in _res],
-                        "Lat(s)":   [r.get("latency_s","-")            for r in _res],
-                    }
-                else:
-                    _table = {
-                        "ID":       [r["id"]                             for r in _res],
-                        "Query":    [r["query"][:45]+"…"                 for r in _res],
-                        "Language": [r.get("language","")                for r in _res],
-                        "Status":   [r.get("status","")                  for r in _res],
-                        "Docs":     [r.get("docs_retrieved","-")         for r in _res],
-                        "P@k":      [r.get("precision_at_k","-")         for r in _res],
-                        "Relevance":[r.get("relevance_precision","-")    for r in _res],
-                        "Coverage": [r.get("domain_coverage","-")        for r in _res],
-                        "Avg":      [r.get("avg_score","-")              for r in _res],
-                        "Lat(s)":   [r.get("latency_s","-")              for r in _res],
-                    }
-                st.dataframe(_table, use_container_width=True)
-
-                # Surface any errored queries with their actual error message.
-                _errs = [r for r in _res if r.get("status") in ("error", "failed")]
-                if _errs:
-                    with st.expander(f"⚠️ {len(_errs)} query(ies) errored — details", expanded=True):
-                        for r in _errs:
-                            st.markdown(f"**{r['id']}** — `{r.get('status')}`: {r.get('error', 'unknown error')}")
-
-                st.markdown("#### Judge Explanations")
-                for r in _res:
-                    if r.get("status") == "success" and r.get("explanation"):
-                        with st.expander(f"📝 {r['id']} — {r['query'][:55]}…"):
-                            st.markdown(f"**Score:** {r.get('avg_score','N/A')} / 5")
-                            st.markdown(f"**Explanation:** {r.get('explanation','')}")
-
-                            # Agent 2: show the actual chunks the judge scored.
-                            _r_docs = r.get("retrieved_documents", [])
-                            if _r_docs:
-                                st.markdown(f"**Retrieved chunks ({len(_r_docs)}):**")
-                                for _i, _d in enumerate(_r_docs, 1):
-                                    _m = _d.get("metadata", {})
-                                    _is_ruling = _d.get("result_type") == "court_ruling"
-                                    _icon = "⚖️" if _is_ruling else "📄"
-                                    _label = (_m.get("case_number") or _m.get("document_id", "N/A")
-                                              if _is_ruling
-                                              else f"Art. {_m.get('article_number', 'N/A')}")
-                                    _lang = _m.get("document_language", "")
-                                    _content = _d.get("content", "")
-                                    st.markdown(
-                                        f"**{_i}. {_icon} {_label}**  "
-                                        f"·  `{_m.get('source_type', '?')}`  ·  `{_lang}`"
-                                    )
-                                    st.text(_content[:400] + ("…" if len(_content) > 400 else ""))
-
-                            # Agent 1: show the structured output.
-                            if "agent_output" in r:
-                                st.json(r["agent_output"])
-
-                st.markdown("---")
-                col_bd1, col_bd2, col_bd3 = st.columns([1, 2, 1])
-                with col_bd2:
-                    st.download_button(
-                        "📥 Download Benchmark Results (JSON)",
-                        data=json.dumps(_res, ensure_ascii=False, indent=2),
-                        file_name=f"benchmark_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json",
-                        mime="application/json",
-                        use_container_width=True,
-                    )
-            else:
-                st.error("No successful results — all test cases failed.")
-                for r in _res:
-                    with st.expander(f"❌ {r['id']} — {r.get('status','unknown')}: {str(r.get('error',''))[:120]}"):
-                        st.json(r)
-
-

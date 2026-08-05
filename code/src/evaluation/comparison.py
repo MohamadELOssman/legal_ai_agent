@@ -7,6 +7,7 @@ the script and the UI score identically.
 
 Systems:
   multi_agent  — the full 7-agent LegalAIPipeline
+  agentic      — the chat assistant (orchestrator that calls sub-agents as needed)
   single_agent — SingleAgentBaseline (one LLM call + RAG)
   no_rag       — NoRAGBaseline (one LLM call, model knowledge only)
 """
@@ -195,6 +196,34 @@ def _run_multi_agent(cases, score_fn, vectorstore, model, progress) -> List[Dict
     return records
 
 
+def _run_agentic(cases, score_fn, vectorstore, model, progress) -> List[Dict[str, Any]]:
+    """The agentic chat assistant (orchestrator that calls sub-agents as needed)."""
+    from src.orchestrator.agentic import AgenticLegalAssistant
+    assistant = AgenticLegalAssistant(model=model, vectorstore=vectorstore)
+    records = []
+    for i, tc in enumerate(cases):
+        if progress:
+            progress("agentic", i, len(cases), tc)
+        r = assistant.chat([], tc["query"])
+        cits = r.get("citations", {}) or {}
+        usage = r.get("usage", {}) or {}
+        rec = {
+            "id": tc.get("id", f"TC{i+1}"), "query": tc["query"], "system": "agentic",
+            "success": True,
+            "memorandum": r.get("answer", ""),
+            "latency_s": r.get("latency_s"),
+            "num_citations": len(cits.get("cited", [])),
+            "num_verified_citations": len(cits.get("verified", [])),
+            "cost_usd": usage.get("cost_usd"),
+            "total_tokens": usage.get("total_tokens"),
+        }
+        _attach_citation_metrics(rec, tc)
+        if score_fn:
+            rec["judge"] = score_fn(tc["query"], rec["memorandum"], tc.get("reference_answer"))
+        records.append(rec)
+    return records
+
+
 def _run_baseline(cases, score_fn, system, vectorstore, model, progress) -> List[Dict[str, Any]]:
     if system == "single_agent":
         from src.baselines.single_agent_baseline import SingleAgentBaseline
@@ -239,6 +268,8 @@ def run_system(
     logger.info(f"Running system '{system}' over {len(cases)} cases")
     if system == "multi_agent":
         return _run_multi_agent(cases, score_fn, vectorstore, model, progress)
+    if system == "agentic":
+        return _run_agentic(cases, score_fn, vectorstore, model, progress)
     if system in ("single_agent", "no_rag"):
         return _run_baseline(cases, score_fn, system, vectorstore, model, progress)
     raise ValueError(f"Unknown system: {system}")
