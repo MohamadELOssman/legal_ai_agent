@@ -158,9 +158,19 @@ class LegalVectorStore:
         return documents
 
     def build_vectorstore(self, documents: List[Document]) -> None:
-        """Build Chroma vector store from documents."""
+        """Build Chroma vector store from documents (a clean, from-scratch rebuild)."""
 
         logger.info(f"Building vector store with {len(documents)} documents...")
+
+        # Wipe any existing persisted collection first. Chroma.from_documents APPENDS
+        # to an existing collection at persist_directory, so re-running the build
+        # without this would duplicate every document (e.g. adding a new code would
+        # leave two copies of every old article). Removing the directory guarantees
+        # an idempotent, reproducible rebuild.
+        import shutil
+        if self.persist_directory.exists():
+            shutil.rmtree(self.persist_directory, ignore_errors=True)
+        self.persist_directory.mkdir(parents=True, exist_ok=True)
 
         # Create Chroma vectorstore — cosine distance so similarity = 1 - score is correct
         self.vectorstore = Chroma.from_documents(
