@@ -55,12 +55,17 @@ Your task is to retrieve relevant Lebanese Penal Code articles and court rulings
         try:
             structured_query = agent_input.context.get("structured_query", {})
 
-            # Use original_query from structured_query, fall back to raw agent input
-            query = (
-                structured_query.get("original_query")
-                or agent_input.query
-                or ""
-            )
+            # The raw question, plus a FOCUSED query built from the extracted legal
+            # concepts (key entities). A verbose phrasing such as "which articles /
+            # legal texts talk about X in Lebanese law" embeds boilerplate ("legal
+            # texts", "Lebanese law") that pulls in jurisdiction/meta articles instead
+            # of the actual topic — so for a general question we retrieve on the
+            # concept the user is really asking about, not the whole sentence.
+            original = structured_query.get("original_query") or agent_input.query or ""
+            key_entities = structured_query.get("key_entities") or []
+            focused = " ".join(
+                str(e).strip() for e in key_entities if str(e).strip()
+            ).strip()
 
             top_k = agent_input.metadata.get("k") or agent_input.context.get("top_k", 5)
             score_threshold = agent_input.metadata.get("score_threshold", 0.3)
@@ -79,17 +84,25 @@ Your task is to retrieve relevant Lebanese Penal Code articles and court rulings
             # (== top_k). The end-to-end pipeline always sets the mode explicitly.
             research_mode = orch.get("research", {}).get("mode", "articles_only")
 
-            # Cross-lingual retrieval (opt-in): for EN/FR queries, also search with
-            # an Arabic translation and fuse (RRF). OFF by default — it adds an LLM
-            # call per query and its benefit is not yet validated (the A/B run was
-            # invalidated by an API credit outage). Enable via metadata["cross_lingual"]
-            # = True to evaluate it once budget allows.
+            # Build retrieval query variants (fused via RRF in multi_search):
+            #  • general legal question -> search the FOCUSED concept (boilerplate hurts);
+            #  • case analysis -> keep the full scenario (facts matter for case matching),
+            #    plus the focused concept to sharpen the article pool.
+            if research_mode == "articles_and_cases":
+                queries = [original] + ([focused] if focused and focused != original else [])
+            else:
+                queries = [focused] if len(focused) >= 3 else [original]
+            query = queries[0] if queries else original
+
+            # Cross-lingual retrieval (opt-in): for EN/FR queries, also search with an
+            # Arabic translation and fuse (RRF). OFF by default — it adds an LLM call
+            # per query and its benefit is not yet validated. Enable via
+            # metadata["cross_lingual"] = True.
             cross_lingual = agent_input.metadata.get("cross_lingual", False)
             lang = (structured_query.get("language") or "").lower()
-            queries = [query]
             if cross_lingual and lang and lang != "ar":
-                ar = self._translate_to_arabic(query)
-                if ar and ar != query:
+                ar = self._translate_to_arabic(original)
+                if ar and ar not in queries:
                     queries.append(ar)
 
             retrieved_documents = self._retrieve_documents(
