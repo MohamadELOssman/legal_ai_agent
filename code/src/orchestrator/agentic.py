@@ -38,6 +38,11 @@ You coordinate a team of named sub-agents. Call ONLY the ones a question needs �
 simple citizen question may need one Research call (or none); a complex case may
 need Research, then Analysis, then Citation. Do not call sub-agents you do not need.
 
+BE DECISIVE — do not loop. Use AT MOST 2-3 sub-agent calls in total. NEVER call the
+same sub-agent twice with the same or a very similar query. If a search does not
+return the perfect article, work with what you have — retrieving again rarely helps.
+Once you have the relevant provisions, STOP searching and WRITE the answer.
+
 YOUR SUB-AGENTS (tools):
 - research_agent(query): the Research sub-agent. Retrieves relevant articles from the
   Penal Code and the Code of Criminal Procedure, plus court rulings. Each result is
@@ -123,10 +128,11 @@ class AgenticLegalAssistant:
     """A tool-calling orchestrator over the legal corpus, with multi-turn chat."""
 
     def __init__(self, model: str = DEFAULT_MODEL, vectorstore: Optional[Any] = None,
-                 top_k: int = 5, max_iters: int = 6):
+                 top_k: int = 5, max_iters: int = 8, max_tool_calls: int = 6):
         cfg = get_config()
         self.top_k = top_k
         self.max_iters = max_iters
+        self.max_tool_calls = max_tool_calls   # after this many retrievals, force an answer
 
         if vectorstore is None:
             from src.rag.vectorstore import LegalVectorStore
@@ -141,6 +147,7 @@ class AgenticLegalAssistant:
         self._tool_map = {t.name: t for t in self.tools}
         llm = make_chat(model=model, api_key=cfg.anthropic_api_key,
                         max_tokens=4096, timeout=300, max_retries=2)
+        self._llm_plain = llm               # no tools — used to force a final answer
         self.llm = llm.bind_tools(self.tools)
 
         # Corpus index for citation verification — union across every code in the
@@ -313,12 +320,33 @@ class AgenticLegalAssistant:
         answer = ""
         t0 = time.time()
 
-        for _ in range(self.max_iters):
-            emit({"type": "thinking"})
-            ai = self.llm.invoke(msgs)
+        seen_queries: Dict[tuple, str] = {}   # (tool, normalized query) -> cached result
+        tool_calls_total = 0
+
+        def _acc_usage(ai):
             um = getattr(ai, "usage_metadata", None) or {}
             usage["input_tokens"] += int(um.get("input_tokens", 0) or 0)
             usage["output_tokens"] += int(um.get("output_tokens", 0) or 0)
+
+        for it in range(self.max_iters):
+            emit({"type": "thinking"})
+
+            # Force a final answer once the retrieval budget is spent (or on the last
+            # iteration): invoke WITHOUT tools so the model MUST write the answer from
+            # what it already gathered — this stops the endless re-search loop.
+            if tool_calls_total >= self.max_tool_calls or it == self.max_iters - 1:
+                msgs.append(HumanMessage(content=(
+                    "You now have enough information. Write the COMPLETE final answer for the "
+                    "user now, in the required format, using the sub-agent results already "
+                    "gathered above. Do NOT call any more tools.")))
+                emit({"type": "answering"})
+                ai = self._llm_plain.invoke(msgs)
+                _acc_usage(ai); msgs.append(ai)
+                answer = self._to_text(ai.content)
+                break
+
+            ai = self.llm.invoke(msgs)
+            _acc_usage(ai)
             msgs.append(ai)  # keep the full message (incl. thinking/tool blocks)
 
             tool_calls = getattr(ai, "tool_calls", None) or []
@@ -334,19 +362,30 @@ class AgenticLegalAssistant:
                          or args.get("article_numbers") or "")
                 trace.append({"tool": name, "query": query})
                 emit({"type": "tool_call", "tool": name, "query": query})
-                try:
-                    result = self._tool_map[name].invoke(args)
-                except Exception as e:
-                    result = f"tool error: {e}"
-                    logger.warning(f"tool {name} failed: {e}")
-                result = str(result)
+
+                # Short-circuit an exact repeat: return the cached result plus a nudge
+                # instead of re-retrieving the same chunks.
+                nkey = (name, " ".join(str(query).lower().split()))
+                if nkey in seen_queries:
+                    result = (seen_queries[nkey] +
+                              "\n\n[Note: you already retrieved this — do NOT search again; "
+                              "use these results and write the answer.]")
+                else:
+                    try:
+                        result = str(self._tool_map[name].invoke(args))
+                    except Exception as e:
+                        result = f"tool error: {e}"
+                        logger.warning(f"tool {name} failed: {e}")
+                    seen_queries[nkey] = result
+                tool_calls_total += 1
+
                 # A short preview (e.g., the article numbers found) for the UI.
                 _n_hits = result.count("Article ") + result.count("Ruling ")
                 emit({"type": "tool_result", "tool": name, "hits": _n_hits,
                       "preview": result[:160].replace("\n", " ")})
                 msgs.append(ToolMessage(content=result, tool_call_id=tc.get("id")))
-        else:
-            # Hit the iteration cap without a final answer.
+
+        if not answer:
             answer = self._to_text(getattr(ai, "content", "")) or \
                 "I could not complete the answer within the step limit."
 
