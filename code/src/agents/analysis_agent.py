@@ -18,8 +18,13 @@ from src.utils.prompt_loader import load_agent_prompt
 
 class AnalysisAgent(BaseAgent):
 
-    def __init__(self, model: str = DEFAULT_MODEL, temperature: float = 0.1):
-        super().__init__(role=AgentRole.ANALYSIS, model=model, temperature=temperature)
+    def __init__(self, model: str = DEFAULT_MODEL, temperature: float = 0.1,
+                 max_tokens: int = 8192):
+        # Headroom: extracting several provisions as JSON (with quoted text) can be
+        # long; the previous 4096 cap truncated the JSON mid-way for long articles
+        # (e.g. the theft provisions), which then failed to parse -> 0 provisions.
+        super().__init__(role=AgentRole.ANALYSIS, model=model, temperature=temperature,
+                         max_tokens=max_tokens)
 
     def get_system_prompt(self) -> str:
         prompt = load_agent_prompt("analysis")
@@ -116,7 +121,7 @@ Extract all provisions relevant to the query. Return JSON:
   "provisions": [
     {{
       "article_number": "549",
-      "provision_text": "exact text of the article",
+      "provision_text": "the key sentence(s) of the article, quoted — max ~300 characters, NOT the full text",
       "legal_principle": "the rule of law this article establishes",
       "conditions": ["condition 1", "condition 2"],
       "penalties_or_consequences": "what the law prescribes",
@@ -169,7 +174,7 @@ Analyze this case. Return JSON:
   "provisions": [
     {{
       "article_number": "549",
-      "provision_text": "exact article text",
+      "provision_text": "the key sentence(s), quoted — max ~300 characters, NOT the full text",
       "legal_principle": "what rule this establishes",
       "applies_to_case": true | false,
       "application_reasoning": "why/how this article applies to the specific facts above",

@@ -11,6 +11,37 @@ from src.config import DEFAULT_MODEL
 from src.rag.vectorstore import LegalVectorStore
 
 
+# Generic / boilerplate "entities" that describe the corpus rather than the legal
+# topic. If they leak into the focused retrieval query they match jurisdiction and
+# meta articles ("application of Lebanese law", "the Penal Code") instead of the
+# subject — so they are stripped before building the concept query.
+_GENERIC_ENTITY_SUBSTR = (
+    "قانون العقوبات", "القانون اللبناني", "الشريعة اللبنانية", "القانون الجزائي",
+    "قانون أصول المحاكمات", "النصوص القانونية", "المواد القانونية", "نص قانوني",
+    "penal code", "lebanese law", "code pénal", "criminal procedure",
+)
+_GENERIC_ENTITY_EXACT = {
+    "القانون", "القوانين", "لبنان", "المواد", "النصوص", "العقوبات", "المادة",
+    "law", "laws", "article", "articles", "code", "loi",
+}
+
+
+def _focus_terms(entities) -> list:
+    """Keep only topic-bearing entities (drop corpus/boilerplate terms)."""
+    out = []
+    for e in entities or []:
+        s = str(e).strip()
+        if not s:
+            continue
+        low = s.lower()
+        if s in _GENERIC_ENTITY_EXACT or low in _GENERIC_ENTITY_EXACT:
+            continue
+        if any(sub in low for sub in _GENERIC_ENTITY_SUBSTR):
+            continue
+        out.append(s)
+    return out
+
+
 class ResearchAgent(BaseAgent):
     """
     Agent 2: Research Agent
@@ -63,9 +94,7 @@ Your task is to retrieve relevant Lebanese Penal Code articles and court rulings
             # concept the user is really asking about, not the whole sentence.
             original = structured_query.get("original_query") or agent_input.query or ""
             key_entities = structured_query.get("key_entities") or []
-            focused = " ".join(
-                str(e).strip() for e in key_entities if str(e).strip()
-            ).strip()
+            focused = " ".join(_focus_terms(key_entities)).strip()
 
             top_k = agent_input.metadata.get("k") or agent_input.context.get("top_k", 5)
             score_threshold = agent_input.metadata.get("score_threshold", 0.3)
