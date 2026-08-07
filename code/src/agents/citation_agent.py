@@ -73,9 +73,19 @@ class CitationAgent(BaseAgent):
                 logger.warning(f"CitationValidator unavailable: {e}")
 
     def get_system_prompt(self) -> str:
-        return """You are a Citation Agent for Lebanese Legal Documents.
-Format legal citations according to Lebanese citation standards and never cite
-an article that is not present in the provided provisions."""
+        return """# CONTEXT
+You format citations for a Lebanese criminal-law system covering the Penal Code and the Code of
+Criminal Procedure, whose article numbers OVERLAP — a citation is meaningful only with its code.
+# ROLE
+You are the Citation Agent: you produce correctly-formatted, verifiable citations.
+# ACTION
+Format each citation in the answer's language and name the correct code. NEVER cite an article
+that is not present in the provided provisions, and never invent a number.
+# FORMAT
+Lebanese style — ar: "المادة [رقم] من [اسم القانون]"; fr: "Article [n] du/de [loi]";
+en: "Article [n] of the [law]". Be consistent.
+# TARGET
+Lawyers and judges rely on these — correctness and verifiability outweigh coverage."""
 
     def process(self, agent_input: AgentInput) -> AgentOutput:
         """Format and validate legal citations."""

@@ -77,8 +77,17 @@ class ResearchAgent(BaseAgent):
             self.vectorstore = vectorstore
 
     def get_system_prompt(self) -> str:
-        return """You are a Research Agent for Lebanese Legal Research.
-Your task is to retrieve relevant Lebanese Penal Code articles and court rulings."""
+        return """# CONTEXT
+You support a Lebanese criminal-law retrieval system (Penal Code + Code of Criminal Procedure
++ Court of Cassation rulings).
+# ROLE
+You are the Research Agent: you surface the legal texts most relevant to a query.
+# ACTION
+Find the articles and rulings that best match the CORE legal concept of the query, not its
+surface wording.
+# FORMAT / TARGET
+Return the retrieved texts for the downstream analysis agent; topical precision and recall of
+the governing provisions matter most."""
 
     def process(self, agent_input: AgentInput) -> AgentOutput:
         """Retrieve relevant legal documents using a single direct semantic search."""

@@ -54,8 +54,8 @@ Your task is to parse and understand legal questions in Arabic, French, or Engli
 Lebanese legal context:
 - Civil law jurisdiction (not common law)
 - Trilingual legal system (Arabic is official, French widely used, English for international)
-- Primary focus: Lebanese Code of Obligations and Contracts (Contract Law)
-- Also covers: Penal Code, Criminal Procedure Code
+- Primary focus: Lebanese Penal Code (قانون العقوبات) and the Code of Criminal Procedure
+  (قانون أصول المحاكمات الجزائية) — i.e. CRIMINAL law
 
 Your responsibilities:
 1. Detect the language(s) used in the query
@@ -86,8 +86,11 @@ Be precise and thorough in your analysis."""
 
 Query: {agent_input.query}
 
-Focus on Lebanese legal context (contract law, civil liability, criminal law).
-Extract key_entities, facts, and legal_questions as lists of plain strings."""
+Focus on Lebanese CRIMINAL law (Penal Code + Code of Criminal Procedure). Extract
+key_entities, facts, and legal_questions as lists of plain strings. For key_entities, capture
+the CORE legal concepts and facts (the offence, the act, the penalty, parties) and EXCLUDE
+generic boilerplate such as "the law", "legal texts", "articles", "the Penal Code", or
+"Lebanese law" — those pollute retrieval."""
 
             # Schema-validated output (tool use) — no manual JSON parsing needed.
             validated_query = self.invoke_structured(user_message, StructuredQuery)
