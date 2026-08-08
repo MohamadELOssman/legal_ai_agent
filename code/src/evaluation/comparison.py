@@ -24,27 +24,49 @@ from src.config import get_config, DEFAULT_MODEL
 
 JUDGE_DIMENSIONS = ["legal_correctness", "citation_quality", "completeness", "clarity"]
 
-JUDGE_PROMPT = """You are a Lebanese legal evaluation expert. Score the legal memorandum below.
+JUDGE_PROMPT = """# CONTEXT
+You are evaluating one answer produced by a Lebanese criminal-law AI system (Penal Code + Code
+of Criminal Procedure). No human reference answer is available for this item, so judge on legal
+soundness and quality alone.
+
+# ROLE
+You are an impartial Lebanese legal evaluation expert acting as an LLM-as-judge.
+
+# ACTION
+Read the user query and the AI's legal memorandum, then score four dimensions from 1 (poor) to
+5 (excellent):
+- legal_correctness: is the law stated correctly for Lebanese law?
+- citation_quality: are article citations specific, relevant, and plausibly correct?
+- completeness: does it fully address the question?
+- clarity: is it well-structured and clear?
 
 User Query: "{query}"
 
 Legal Memorandum:
 {memorandum}
 
-Score each dimension 1-5 (1 = poor, 5 = excellent):
-- legal_correctness: Is the law stated correctly for Lebanese law?
-- citation_quality: Are article citations specific, relevant, and plausibly correct?
-- completeness: Does it fully address the question?
-- clarity: Is it well-structured and clear?
-
+# FORMAT
 Return ONLY valid JSON (no prose, no code fences):
 {{"legal_correctness":N,"citation_quality":N,"completeness":N,"clarity":N,"explanation":"one sentence"}}"""
 
 
 # Used when the user supplied a ground-truth ("source of truth") answer: the judge
 # scores the AI answer RELATIVE to that reference.
-JUDGE_PROMPT_REF = """You are a Lebanese legal evaluation expert. Compare the AI answer against the
-REFERENCE (ground-truth) answer provided by a human expert.
+JUDGE_PROMPT_REF = """# CONTEXT
+You are evaluating one answer produced by a Lebanese criminal-law AI system, and a human expert
+has supplied a REFERENCE (ground-truth) answer. The reference is the standard of correctness —
+judge the AI answer RELATIVE to it, not against your own opinion.
+
+# ROLE
+You are an impartial Lebanese legal evaluation expert acting as an LLM-as-judge.
+
+# ACTION
+Compare the AI answer against the reference and score four dimensions from 1 (poor) to 5
+(excellent), judged AGAINST the reference:
+- legal_correctness: does the AI answer agree with the reference on the law and the conclusion?
+- citation_quality: are the cited articles consistent with the reference?
+- completeness: does it cover what the reference covers?
+- clarity: is it well-structured and clear?
 
 User Query: "{query}"
 
@@ -54,12 +76,7 @@ REFERENCE (ground-truth) answer:
 AI Answer to evaluate:
 {memorandum}
 
-Score each dimension 1-5 (1 = poor, 5 = excellent), judged AGAINST the reference:
-- legal_correctness: Does the AI answer agree with the reference on the law and conclusion?
-- citation_quality: Are the cited articles consistent with the reference?
-- completeness: Does it cover what the reference covers?
-- clarity: Is it well-structured and clear?
-
+# FORMAT
 Return ONLY valid JSON (no prose, no code fences):
 {{"legal_correctness":N,"citation_quality":N,"completeness":N,"clarity":N,"explanation":"one sentence"}}"""
 

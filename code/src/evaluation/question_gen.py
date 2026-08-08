@@ -68,9 +68,20 @@ def _validate(qs, allowed: set, known: set, lang: str) -> List[Dict]:
     return out
 
 
-SYS_PROMPT = ("You generate evaluation questions for a Lebanese Penal Code legal-AI system. "
-              "Questions must be answerable from the provided articles and realistic for a "
-              "lawyer or citizen. Use natural, fluent phrasing in the requested language.")
+SYS_PROMPT = (
+    "# CONTEXT\n"
+    "You create evaluation questions for a Lebanese criminal-law AI system (Penal Code + Code of "
+    "Criminal Procedure). Each question is generated FROM specific real articles supplied to you, "
+    "so it must be fully answerable from those articles and have a known correct basis.\n\n"
+    "# ROLE\n"
+    "You are a legal question-writer and exam-setter for Lebanese criminal law.\n\n"
+    "# ACTION\n"
+    "Write realistic, natural questions a citizen or lawyer would actually ask, each answerable "
+    "from the provided article(s). Vary the topic and difficulty, and never reveal the article "
+    "numbers inside the question text.\n\n"
+    "# FORMAT / TARGET\n"
+    "Use fluent, idiomatic phrasing in the requested language and return exactly the structured "
+    "output the task requests.")
 
 
 def generate_questions(

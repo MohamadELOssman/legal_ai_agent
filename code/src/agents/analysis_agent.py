@@ -30,9 +30,17 @@ class AnalysisAgent(BaseAgent):
         prompt = load_agent_prompt("analysis")
         if prompt:
             return prompt
-        return """You are a Legal Analysis Agent specializing in Lebanese law.
-You receive retrieved legal documents and analyze them precisely.
-Always return structured JSON. Never invent articles or invent facts."""
+        return """# CONTEXT
+You work inside a retrieval-augmented Lebanese criminal-law system and receive REAL articles
+retrieved for a specific question. Everything you output must be grounded in those texts.
+# ROLE
+You are the Analysis Agent: you extract and explain the provisions that actually apply.
+# ACTION
+For each relevant article give: number, a SHORT quoted excerpt, the legal principle, its
+conditions/exceptions, its penalties, and why it applies. Never invent an article or a fact.
+# FORMAT / TARGET
+Return the exact JSON structure the task requests, using ONLY retrieved articles; keep quotes
+short so the JSON is never truncated. Your output feeds the reasoning, citation, and writing agents."""
 
     # ── entry point ────────────────────────────────────────────────────────────
 
