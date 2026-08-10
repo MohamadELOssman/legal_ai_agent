@@ -1572,16 +1572,43 @@ elif st.session_state.active_tab == "Bench":
 
         # ── Test dataset: choose how the questions are provided ───────────────
         st.markdown("### Test Dataset")
-        _method = st.radio(
-            "How do you want to provide the benchmark questions?",
-            ["Generate questions — I add the reference answers",
-             "I provide the questions and the reference answers"],
-            key="bench_method")
+        st.markdown("How do you want to provide the benchmark questions?")
+        st.markdown("""
+        <style>
+        .optcard{border:1px solid #e2e8f0;border-radius:0.85rem;padding:1rem 1.1rem 0.7rem;
+                 background:#fff;transition:all .15s ease;height:100%;}
+        .optcard.on{border-color:#3b82f6;background:#f5f9ff;box-shadow:0 0 0 2px rgba(59,130,246,.16);}
+        .optcard .ic{font-size:1.6rem;line-height:1;}
+        .optcard .ti{font-weight:700;color:#0f172a;margin-top:.35rem;font-size:0.98rem;}
+        .optcard .de{color:#64748b;font-size:0.83rem;margin-top:.25rem;line-height:1.4;min-height:3.4em;}
+        [class*="st-key-optbtn_"] button{border-radius:0.55rem;margin-top:0.4rem;}
+        </style>""", unsafe_allow_html=True)
+
+        _OPTS = {
+            "generate": ("✨", "Generate questions",
+                         "The system generates grounded questions from the corpus; you fill in the reference answers."),
+            "provide":  ("📝", "Provide questions & answers",
+                         "You enter your own questions and their reference (ground-truth) answers in a table."),
+        }
+        st.session_state.setdefault("bench_method_key", "generate")
+        _oc = st.columns(2, gap="medium")
+        for _col, (_k, (_ic, _ti, _de)) in zip(_oc, _OPTS.items()):
+            with _col:
+                _on = st.session_state["bench_method_key"] == _k
+                st.markdown(
+                    f'<div class="optcard {"on" if _on else ""}">'
+                    f'<div class="ic">{_ic}</div><div class="ti">{_ti}</div>'
+                    f'<div class="de">{_de}</div></div>', unsafe_allow_html=True)
+                if st.button("✓ Selected" if _on else "Choose", key=f"optbtn_{_k}",
+                             use_container_width=True, type="primary" if _on else "secondary"):
+                    st.session_state["bench_method_key"] = _k
+                    st.rerun()
+        _method_key = st.session_state["bench_method_key"]
 
         all_test_cases = []
 
         # ─────────── Option A — generate questions, then add answers ───────────
-        if _method.startswith("Generate"):
+        if _method_key == "generate":
             with st.container(border=True):
                 st.markdown("**Step 1 · Generate questions**")
                 gc1, gc2, gc3 = st.columns([1, 2, 1], vertical_alignment="bottom")
