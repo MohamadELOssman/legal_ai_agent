@@ -3,7 +3,9 @@ Agent 1: Query Understanding Agent
 Parses and understands legal questions in Arabic, French, or English
 """
 
-from pydantic import BaseModel, Field
+import re
+
+from pydantic import BaseModel, Field, field_validator
 from loguru import logger
 
 from src.agents.base_agent import BaseAgent, AgentRole, AgentInput, AgentOutput
@@ -11,15 +13,44 @@ from src.config import DEFAULT_MODEL
 
 
 class StructuredQuery(BaseModel):
-    """Structured representation of a legal query."""
+    """Structured representation of a legal query.
 
-    original_query: str = Field(description="Original user query")
-    language: str = Field(description="Detected language (ar, fr, en)")
-    legal_domain: str = Field(description="Legal domain (contract law, criminal law, etc)")
-    key_entities: list[str] = Field(description="Key legal entities mentioned")
-    intent: str = Field(description="User intent (legal advice, case analysis, etc)")
-    facts: list[str] = Field(description="Relevant facts from the query")
-    legal_questions: list[str] = Field(description="Specific legal questions to answer")
+    All fields carry sensible defaults and the list fields coerce loosely-typed
+    model output, so a partial or slightly-malformed structured response (e.g. a
+    string like '<UNKNOWN>' where a list was expected, or a missing field) still
+    parses instead of crashing the whole pipeline.
+    """
+
+    original_query: str = Field(default="", description="Original user query")
+    language: str = Field(default="ar", description="Detected language (ar, fr, en)")
+    legal_domain: str = Field(default="", description="Legal domain (e.g. criminal law)")
+    key_entities: list[str] = Field(default_factory=list, description="Key legal entities/concepts")
+    intent: str = Field(default="", description="User intent (advice, case analysis, research)")
+    facts: list[str] = Field(default_factory=list, description="Relevant facts from the query")
+    legal_questions: list[str] = Field(default_factory=list, description="Specific legal questions")
+
+    @field_validator("key_entities", "facts", "legal_questions", mode="before")
+    @classmethod
+    def _coerce_list(cls, v):
+        """Accept None / a placeholder / a string / a stringified list -> clean list[str]."""
+        if v is None:
+            return []
+        if isinstance(v, str):
+            s = v.strip()
+            if not s or s.strip("<>").upper() in {"UNKNOWN", "NONE", "N/A", "NULL"}:
+                return []
+            parts = [p.strip() for p in re.split(r"[\n,;]+", s) if p.strip()]
+            return parts or [s]
+        if isinstance(v, (list, tuple)):
+            return [str(x).strip() for x in v if str(x).strip()]
+        return [str(v).strip()]
+
+    @field_validator("original_query", "language", "legal_domain", "intent", mode="before")
+    @classmethod
+    def _coerce_str(cls, v):
+        if v is None:
+            return ""
+        return v if isinstance(v, str) else str(v)
 
 
 class QueryUnderstandingAgent(BaseAgent):
@@ -83,7 +114,19 @@ generic boilerplate such as "the law", "legal texts", "articles", "the Penal Cod
 "Lebanese law" — those pollute retrieval."""
 
             # Schema-validated output (tool use) — no manual JSON parsing needed.
-            validated_query = self.invoke_structured(user_message, StructuredQuery)
+            # If the model returns a malformed/partial structure that even the tolerant
+            # schema cannot parse, degrade gracefully to a minimal query built from the
+            # raw input, so the pipeline continues instead of failing at stage 1.
+            try:
+                validated_query = self.invoke_structured(user_message, StructuredQuery)
+            except Exception as parse_err:
+                logger.warning(f"Query understanding structured parse failed ({parse_err}); "
+                               "using a minimal fallback query.")
+                validated_query = self._fallback_query(agent_input.query)
+
+            # Never leave the retrieval query empty: keep the original text.
+            if not validated_query.original_query:
+                validated_query.original_query = agent_input.query
 
             logger.info(
                 f"Query understood - Language: {validated_query.language}, "
@@ -111,3 +154,19 @@ generic boilerplate such as "the law", "legal texts", "articles", "the Penal Cod
                 success=False,
                 error=str(e),
             )
+
+    @staticmethod
+    def _fallback_query(text: str) -> StructuredQuery:
+        """A minimal structured query when the model output cannot be parsed."""
+        t = text or ""
+        if any("؀" <= c <= "ۿ" for c in t):
+            lang = "ar"
+        elif any(c in "àâçéèêëîïôûùüÿœ" for c in t.lower()):
+            lang = "fr"
+        else:
+            lang = "en"
+        return StructuredQuery(
+            original_query=t, language=lang, legal_domain="",
+            key_entities=[], intent="", facts=[],
+            legal_questions=[t] if t else [],
+        )
