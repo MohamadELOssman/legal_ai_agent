@@ -1570,157 +1570,90 @@ elif st.session_state.active_tab == "Bench":
                 similarity_threshold = st.slider("Threshold", 0.0, 1.0, 0.7, 0.05, key="bench_thresh",
                     help="Min cosine similarity for retrieval")
 
-        # ── Test dataset: choose how the questions are provided ───────────────
+        # ── Test dataset: generate questions, then add the reference answers ──
         st.markdown("### Test Dataset")
-        st.markdown("How do you want to provide the benchmark questions?")
-        st.markdown("""
-        <style>
-        .optcard{border:1px solid #e2e8f0;border-radius:0.85rem;padding:1rem 1.1rem 0.7rem;
-                 background:#fff;transition:all .15s ease;height:100%;}
-        .optcard.on{border-color:#3b82f6;background:#f5f9ff;box-shadow:0 0 0 2px rgba(59,130,246,.16);}
-        .optcard .ic{font-size:1.6rem;line-height:1;}
-        .optcard .ti{font-weight:700;color:#0f172a;margin-top:.35rem;font-size:0.98rem;}
-        .optcard .de{color:#64748b;font-size:0.83rem;margin-top:.25rem;line-height:1.4;min-height:3.4em;}
-        [class*="st-key-optbtn_"] button{border-radius:0.55rem;margin-top:0.4rem;}
-        </style>""", unsafe_allow_html=True)
-
-        _OPTS = {
-            "generate": ("✨", "Generate questions",
-                         "The system generates grounded questions from the corpus; you fill in the reference answers."),
-            "provide":  ("📝", "Provide questions & answers",
-                         "You enter your own questions and their reference (ground-truth) answers in a table."),
-        }
-        st.session_state.setdefault("bench_method_key", "generate")
-        _oc = st.columns(2, gap="medium")
-        for _col, (_k, (_ic, _ti, _de)) in zip(_oc, _OPTS.items()):
-            with _col:
-                _on = st.session_state["bench_method_key"] == _k
-                st.markdown(
-                    f'<div class="optcard {"on" if _on else ""}">'
-                    f'<div class="ic">{_ic}</div><div class="ti">{_ti}</div>'
-                    f'<div class="de">{_de}</div></div>', unsafe_allow_html=True)
-                if st.button("✓ Selected" if _on else "Choose", key=f"optbtn_{_k}",
-                             use_container_width=True, type="primary" if _on else "secondary"):
-                    st.session_state["bench_method_key"] = _k
-                    st.rerun()
-        _method_key = st.session_state["bench_method_key"]
-
+        st.caption("The system generates grounded questions from the corpus; you provide the "
+                   "reference (ground-truth) answer for each, then run the benchmark.")
         all_test_cases = []
 
-        # ─────────── Option A — generate questions, then add answers ───────────
-        if _method_key == "generate":
-            with st.container(border=True):
-                st.markdown("**Step 1 · Generate questions**")
-                gc1, gc2, gc3 = st.columns([1, 2, 1], vertical_alignment="bottom")
-                with gc1:
-                    gen_n = st.number_input("Number", 5, 100, 10, 5, key="gen_n")
-                with gc2:
-                    gen_langs = st.multiselect("Languages", ["ar", "en", "fr"],
-                        default=["ar", "en", "fr"], format_func=lambda x: _LNAME[x], key="gen_langs")
-                with gc3:
-                    _do_gen = st.button("✨ Generate", type="primary",
-                                        use_container_width=True, key="btn_gen")
-                if _do_gen:
-                    if not gen_langs:
-                        st.warning("Select at least one language.")
-                    else:
-                        from src.evaluation.question_gen import generate_questions
-                        _pbar = st.progress(0.0); _pstat = st.empty()
-
-                        def _gcb(done, total, msg):
-                            _pstat.info(f"{msg}  ({done}/{total})")
-                            _pbar.progress(min(1.0, done / max(1, total)))
-
-                        try:
-                            _cases = generate_questions(int(gen_n), model=bench_model,
-                                                        langs=gen_langs, progress=_gcb)
-                            st.session_state["gen_cases"] = _cases
-                            st.session_state["gen_page"] = 0
-                            _pstat.success(f"Generated {len(_cases)} questions."); st.rerun()
-                        except Exception as _e:
-                            _pstat.error(f"Generation failed: {_e}")
-
-                _gen = st.session_state.get("gen_cases") or []
-                if _gen:
-                    _hc1, _hc2 = st.columns([5, 1], vertical_alignment="bottom")
-                    with _hc1:
-                        st.markdown("**Step 2 · Add the reference (source-of-truth) answer for each question**")
-                    with _hc2:
-                        if st.button("🗑️ Clear", use_container_width=True, key="btn_gen_clear"):
-                            st.session_state.pop("gen_cases", None)
-                            st.session_state["gen_page"] = 0; st.rerun()
-                    all_test_cases = _gen
-
-                    _PER = 10
-                    st.session_state.setdefault("gen_page", 0)
-                    _tp = max(1, (len(_gen) + _PER - 1) // _PER)
-                    _pg = min(st.session_state["gen_page"], _tp - 1)
-                    _s0 = _pg * _PER
-                    _rows = [{"ID": tc.get("id", ""), "Query": tc.get("query", ""),
-                              "Language": tc.get("language", _LNAME.get(tc.get("lang", ""), "")),
-                              "Reference Answer": st.session_state["ref_answers"].get(tc.get("id", ""), "")}
-                             for tc in _gen[_s0:_s0 + _PER]]
-                    _ed = st.data_editor(_rows, use_container_width=True, hide_index=True,
-                        disabled=["ID", "Query", "Language"],
-                        column_config={"Reference Answer": st.column_config.TextColumn(
-                            "Reference Answer (ground truth — required)", width="large", required=True)},
-                        key=f"ref_editor_p{_pg}")
-                    for _r in _ed:
-                        if _r.get("ID"):
-                            st.session_state["ref_answers"][_r["ID"]] = _r.get("Reference Answer", "") or ""
-
-                    _n1, _n2, _n3 = st.columns([1, 3, 1])
-                    with _n1:
-                        if st.button("⬅️ Prev", disabled=(_pg <= 0),
-                                     use_container_width=True, key="pg_prev"):
-                            st.session_state["gen_page"] = _pg - 1; st.rerun()
-                    with _n2:
-                        st.markdown(f"<div style='text-align:center;padding-top:0.4rem;color:#64748b;'>"
-                                    f"Showing {_s0 + 1}–{min(_s0 + _PER, len(_gen))} of {len(_gen)} "
-                                    f"· page {_pg + 1} / {_tp}</div>", unsafe_allow_html=True)
-                    with _n3:
-                        if st.button("Next ➡️", disabled=(_pg >= _tp - 1),
-                                     use_container_width=True, key="pg_next"):
-                            st.session_state["gen_page"] = _pg + 1; st.rerun()
+        with st.container(border=True):
+            st.markdown("**Step 1 · Generate questions**")
+            gc1, gc2, gc3 = st.columns([1, 2, 1], vertical_alignment="bottom")
+            with gc1:
+                gen_n = st.number_input("Number", 5, 100, 10, 5, key="gen_n")
+            with gc2:
+                gen_langs = st.multiselect("Languages", ["ar", "en", "fr"],
+                    default=["ar", "en", "fr"], format_func=lambda x: _LNAME[x], key="gen_langs")
+            with gc3:
+                _do_gen = st.button("✨ Generate", type="primary",
+                                    use_container_width=True, key="btn_gen")
+            if _do_gen:
+                if not gen_langs:
+                    st.warning("Select at least one language.")
                 else:
-                    st.caption("Generate questions above to begin.")
+                    from src.evaluation.question_gen import generate_questions
+                    _pbar = st.progress(0.0); _pstat = st.empty()
 
-        # ─────────── Option B — provide both questions and answers ───────────
-        else:
-            with st.container(border=True):
-                st.markdown("**Enter your own questions and their reference answers**")
-                st.caption("Add one row per question — both the question and its reference "
-                           "(ground-truth) answer are required. Use the ﹢ at the bottom of the table to add rows.")
-                st.session_state.setdefault("provided_rows",
-                    [{"Query": "", "Language": "Arabic", "Reference Answer": ""}])
-                _ed = st.data_editor(
-                    st.session_state["provided_rows"], num_rows="dynamic",
-                    use_container_width=True, hide_index=True,
-                    column_config={
-                        "Query": st.column_config.TextColumn("Question", width="large", required=True),
-                        "Language": st.column_config.SelectboxColumn("Language",
-                            options=["Arabic", "French", "English"], width="small", required=True),
-                        "Reference Answer": st.column_config.TextColumn(
-                            "Reference Answer (ground truth)", width="large", required=True),
-                    },
-                    key="provided_editor")
-                st.session_state["provided_rows"] = _ed
-                st.session_state["ref_answers"] = {}
-                for _i, _r in enumerate(_ed):
-                    _q = (_r.get("Query") or "").strip()
-                    _a = (_r.get("Reference Answer") or "").strip()
-                    if not _q:
-                        continue
-                    _lang = _r.get("Language", "Arabic") or "Arabic"
-                    _cid = f"U{_i + 1}"
-                    all_test_cases.append({"id": _cid, "query": _q, "language": _lang,
-                        "lang": _lang[:2].lower(), "type": "general_legal_query",
-                        "reference_answer": _a})
-                    st.session_state["ref_answers"][_cid] = _a
-                st.caption(f"{len(all_test_cases)} question(s) ready.")
+                    def _gcb(done, total, msg):
+                        _pstat.info(f"{msg}  ({done}/{total})")
+                        _pbar.progress(min(1.0, done / max(1, total)))
+
+                    try:
+                        _cases = generate_questions(int(gen_n), model=bench_model,
+                                                    langs=gen_langs, progress=_gcb)
+                        st.session_state["gen_cases"] = _cases
+                        st.session_state["gen_page"] = 0
+                        _pstat.success(f"Generated {len(_cases)} questions."); st.rerun()
+                    except Exception as _e:
+                        _pstat.error(f"Generation failed: {_e}")
+
+            _gen = st.session_state.get("gen_cases") or []
+            if _gen:
+                _hc1, _hc2 = st.columns([5, 1], vertical_alignment="bottom")
+                with _hc1:
+                    st.markdown("**Step 2 · Add the reference (source-of-truth) answer for each question**")
+                with _hc2:
+                    if st.button("🗑️ Clear", use_container_width=True, key="btn_gen_clear"):
+                        st.session_state.pop("gen_cases", None)
+                        st.session_state["gen_page"] = 0; st.rerun()
+                all_test_cases = _gen
+
+                _PER = 10
+                st.session_state.setdefault("gen_page", 0)
+                _tp = max(1, (len(_gen) + _PER - 1) // _PER)
+                _pg = min(st.session_state["gen_page"], _tp - 1)
+                _s0 = _pg * _PER
+                _rows = [{"ID": tc.get("id", ""), "Query": tc.get("query", ""),
+                          "Language": tc.get("language", _LNAME.get(tc.get("lang", ""), "")),
+                          "Reference Answer": st.session_state["ref_answers"].get(tc.get("id", ""), "")}
+                         for tc in _gen[_s0:_s0 + _PER]]
+                _ed = st.data_editor(_rows, use_container_width=True, hide_index=True,
+                    disabled=["ID", "Query", "Language"],
+                    column_config={"Reference Answer": st.column_config.TextColumn(
+                        "Reference Answer (ground truth — required)", width="large", required=True)},
+                    key=f"ref_editor_p{_pg}")
+                for _r in _ed:
+                    if _r.get("ID"):
+                        st.session_state["ref_answers"][_r["ID"]] = _r.get("Reference Answer", "") or ""
+
+                _n1, _n2, _n3 = st.columns([1, 3, 1])
+                with _n1:
+                    if st.button("⬅️ Prev", disabled=(_pg <= 0),
+                                 use_container_width=True, key="pg_prev"):
+                        st.session_state["gen_page"] = _pg - 1; st.rerun()
+                with _n2:
+                    st.markdown(f"<div style='text-align:center;padding-top:0.4rem;color:#64748b;'>"
+                                f"Showing {_s0 + 1}–{min(_s0 + _PER, len(_gen))} of {len(_gen)} "
+                                f"· page {_pg + 1} / {_tp}</div>", unsafe_allow_html=True)
+                with _n3:
+                    if st.button("Next ➡️", disabled=(_pg >= _tp - 1),
+                                 use_container_width=True, key="pg_next"):
+                        st.session_state["gen_page"] = _pg + 1; st.rerun()
+            else:
+                st.caption("Generate questions above to begin.")
 
         if not all_test_cases:
-            st.info("Add or generate at least one question (with a reference answer) to run the benchmark.")
+            st.info("Generate at least one question and add its reference answer to run the benchmark.")
             st.stop()
 
         # ══════════════════════════════════════════════════════════════════════
