@@ -662,6 +662,9 @@ with st.sidebar:
     if st.button("Benchmarking", use_container_width=True, key="nav_bench",
                  type="primary" if _tab == "Bench" else "secondary"):
         st.session_state.active_tab = "Bench"; st.rerun()
+    if st.button("Ablation Study", use_container_width=True, key="nav_ablation",
+                 type="primary" if _tab == "Ablation" else "secondary"):
+        st.session_state.active_tab = "Ablation"; st.rerun()
 
     # Conversations live in the sidebar only on the Chat page.
     if _tab == "Chat":
@@ -1926,3 +1929,153 @@ elif st.session_state.active_tab == "Bench":
                     file_name=f"comparison_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json",
                     mime="application/json", use_container_width=True,
                 )
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# PAGE 4 — ABLATION STUDY (drop one sub-agent at a time vs. the full chat)
+# ══════════════════════════════════════════════════════════════════════════════
+
+elif st.session_state.active_tab == "Ablation":
+
+    st.markdown("""
+    <div class="page-header">
+        <h2>🧪 Ablation Study — What does each sub-agent add?</h2>
+    </div>
+    """, unsafe_allow_html=True)
+
+    st.markdown("""
+    <div class="info-banner">
+    Runs the <strong>Chat Assistant</strong> on one question in several configurations — the
+    FULL set of sub-agents, and the same chat with ONE sub-agent removed at a time — then scores
+    each answer with an LLM judge. The drop in score when a sub-agent is removed is that agent's
+    <strong>contribution</strong>. Provide a reference answer for the most reliable scoring.
+    </div>""", unsafe_allow_html=True)
+
+    _AB_DROPS = {
+        "research_agent": "Drop Research Agent",
+        "analysis_agent": "Drop Analysis Agent",
+        "citation_agent": "Drop Citation Agent",
+    }
+
+    with st.expander("⚙️ Settings", expanded=True):
+        _abc1, _abc2 = st.columns(2)
+        with _abc1:
+            _ab_model = st.selectbox("System Model — the Chat Assistant", list(_MODELS),
+                format_func=lambda x: _MODELS[x], key="ab_model")
+        with _abc2:
+            _ab_judge = st.selectbox("Judge Model — the evaluator",
+                ["claude-sonnet-5", "claude-sonnet-4-6", "claude-opus-4-6"], key="ab_judge")
+        _ab_drops = st.multiselect(
+            "Configurations to compare (Full is always included)", list(_AB_DROPS),
+            default=["analysis_agent", "citation_agent"],
+            format_func=lambda k: _AB_DROPS[k], key="ab_drops")
+
+    _ab_q = st.text_area("Legal question", key="ab_q", height=90,
+        placeholder="e.g. ما هي عقوبة السرقة في القانون اللبناني؟")
+    _ab_ref = st.text_area("Reference answer (optional but recommended — enables reference-based scoring)",
+        key="ab_ref", height=90,
+        placeholder="Paste the correct expert answer; each configuration is scored against it.")
+
+    _n_runs = 1 + len(_ab_drops)
+    st.caption(f"Will run **{_n_runs}** configuration(s) — each is a full chat turn plus a judge call.")
+
+    if st.button("🧪  Run Ablation", type="primary", use_container_width=True, key="ab_run"):
+        if not _ab_q.strip():
+            st.warning("Enter a question first.")
+        else:
+            from src.orchestrator.agentic import AgenticLegalAssistant
+            from src.evaluation.comparison import build_judge as _ab_build_judge
+            _vs = _get_vs()
+            _judge = _ab_build_judge(_ab_judge)
+            _configs = [("full", set())] + [(k, {k}) for k in _ab_drops]
+            _prog = st.progress(0.0); _stat = st.empty()
+            _out = []
+            for _i, (_name, _disabled) in enumerate(_configs):
+                _lbl = "Full (all sub-agents)" if _name == "full" else _AB_DROPS[_name]
+                _stat.info(f"Running **{_lbl}** … ({_i + 1}/{len(_configs)})")
+                try:
+                    _asst = AgenticLegalAssistant(model=_ab_model, vectorstore=_vs,
+                                                  disabled_tools=_disabled)
+                    _res = _asst.chat([], _ab_q.strip())
+                    _sc = _judge(_ab_q.strip(), _res.get("answer", ""), (_ab_ref.strip() or None))
+                    _u = _res.get("usage", {}) or {}
+                    _out.append({
+                        "name": _name, "label": _lbl,
+                        "answer": _res.get("answer", ""),
+                        "score": _sc.get("avg_score"),
+                        "dims": {k: _sc.get(k) for k in
+                                 ("legal_correctness", "citation_quality", "completeness", "clarity")},
+                        "explanation": _sc.get("explanation", ""),
+                        "tools_used": _res.get("tools_used", 0),
+                        "tools": [t.get("tool") for t in _res.get("trace", [])],
+                        "verified": len(_res.get("citations", {}).get("verified", [])),
+                        "latency": _res.get("latency_s"),
+                        "cost": _u.get("cost_usd"),
+                    })
+                except Exception as _e:
+                    _out.append({"name": _name, "label": _lbl, "error": str(_e)})
+                _prog.progress((_i + 1) / len(_configs))
+            _stat.success("✅ Ablation complete.")
+            st.session_state["ab_results"] = _out
+
+    # ── Results ───────────────────────────────────────────────────────────────
+    if st.session_state.get("ab_results"):
+        _R = st.session_state["ab_results"]
+        _full = next((r for r in _R if r.get("name") == "full"), None)
+
+        _rh1, _rh2 = st.columns([6, 1])
+        with _rh1:
+            st.markdown("### Results")
+        with _rh2:
+            if st.button("🗑️ Clear", key="ab_clear"):
+                st.session_state.pop("ab_results", None); st.rerun()
+
+        _cols = st.columns(len(_R))
+        for _col, _r in zip(_cols, _R):
+            with _col:
+                st.markdown(f"**{_r['label']}**")
+                if _r.get("error"):
+                    st.error("run failed"); continue
+                _sc = _r.get("score")
+                st.metric("Judge score", f"{_sc if _sc is not None else '–'} / 5")
+                if _full and _r["name"] != "full" and _full.get("score") is not None and _sc is not None:
+                    _delta = round(_full["score"] - _sc, 2)
+                    st.metric("Contribution", f"{_delta:+.2f}",
+                              help="Full score − this config: how much this sub-agent adds.")
+                st.caption(f"🛠️ {_r.get('tools_used', 0)} calls · ✅ {_r.get('verified', 0)} cites · "
+                           f"⏱️ {_r.get('latency', '?')}s · 💵 ${(_r.get('cost') or 0):.4f}")
+
+        _scored = {r["label"]: r["score"] for r in _R if r.get("score") is not None}
+        if _scored:
+            st.markdown("#### Judge score by configuration")
+            st.bar_chart({"Score (1–5)": _scored})
+
+        if _full and _full.get("score") is not None:
+            _contribs = [(r["label"].replace("Drop ", ""), round(_full["score"] - r["score"], 2))
+                         for r in _R if r["name"] != "full" and r.get("score") is not None]
+            if _contribs:
+                st.markdown("#### Contribution of each sub-agent  (Full − dropped)")
+                _pos = [f"**{n}**: {d:+.2f}" for n, d in _contribs]
+                st.markdown(" · ".join(_pos))
+                st.caption("Positive = removing the agent hurt quality (it helps). "
+                           "≈0 = little effect on this question. Negative = it slightly hurt here.")
+
+        st.markdown("#### Answers")
+        for _r in _R:
+            with st.expander(f"{_r['label']} — score {_r.get('score', '–')}/5"):
+                if _r.get("error"):
+                    st.error(_r["error"]); continue
+                _ans = _r.get("answer", "")
+                if any("؀" <= c <= "ۿ" for c in _ans[:300]):
+                    st.markdown(f'<div dir="rtl" style="text-align:right">{_ans}</div>',
+                                unsafe_allow_html=True)
+                else:
+                    st.markdown(_ans)
+                st.caption("Sub-agents used: " + (", ".join(t for t in (_r.get("tools") or []) if t) or "none")
+                           + (f"  ·  Judge: {_r['explanation']}" if _r.get("explanation") else ""))
+
+        st.download_button(
+            "📥 Download ablation results (JSON)",
+            data=json.dumps(_R, ensure_ascii=False, indent=2),
+            file_name=f"ablation_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json",
+            mime="application/json", use_container_width=True, key="ab_dl")

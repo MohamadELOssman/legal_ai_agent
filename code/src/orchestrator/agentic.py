@@ -133,11 +133,14 @@ class AgenticLegalAssistant:
     """A tool-calling orchestrator over the legal corpus, with multi-turn chat."""
 
     def __init__(self, model: str = DEFAULT_MODEL, vectorstore: Optional[Any] = None,
-                 top_k: int = 5, max_iters: int = 8, max_tool_calls: int = 6):
+                 top_k: int = 5, max_iters: int = 8, max_tool_calls: int = 6,
+                 disabled_tools: Optional[Any] = None):
         cfg = get_config()
         self.top_k = top_k
         self.max_iters = max_iters
         self.max_tool_calls = max_tool_calls   # after this many retrievals, force an answer
+        # Sub-agents to disable for this run (ablation studies): a set of tool names.
+        self.disabled_tools = set(disabled_tools or ())
 
         if vectorstore is None:
             from src.rag.vectorstore import LegalVectorStore
@@ -148,12 +151,23 @@ class AgenticLegalAssistant:
         self.model = model
         self._analysis = None  # lazy — the Analysis sub-agent (built on first use)
         self._sources = []     # documents retrieved during the current turn
-        self.tools = self._build_tools()
+        # Build all sub-agent tools, then drop any that are disabled for this run.
+        self.tools = [t for t in self._build_tools() if t.name not in self.disabled_tools]
         self._tool_map = {t.name: t for t in self.tools}
+
+        # Per-instance system prompt: note any unavailable sub-agents so the
+        # orchestrator does not try to rely on them.
+        self.system_prompt = SYSTEM_PROMPT
+        if self.disabled_tools:
+            self.system_prompt += (
+                "\n\n## Constraint (ablation)\n- The following sub-agent(s) are UNAVAILABLE for "
+                "this run: " + ", ".join(sorted(self.disabled_tools)) + ". Do not rely on them; "
+                "answer using only the sub-agents you have.")
+
         llm = make_chat(model=model, api_key=cfg.anthropic_api_key,
                         max_tokens=4096, timeout=300, max_retries=2)
         self._llm_plain = llm               # no tools — used to force a final answer
-        self.llm = llm.bind_tools(self.tools)
+        self.llm = llm.bind_tools(self.tools) if self.tools else llm
 
         # Corpus index for citation verification — union across every code in the
         # index (penal_code, criminal_procedure_code, ...), so citations to any
@@ -312,7 +326,7 @@ class AgenticLegalAssistant:
 
         self._sources = []  # reset per-turn source collector
 
-        msgs: List[Any] = [SystemMessage(content=SYSTEM_PROMPT)]
+        msgs: List[Any] = [SystemMessage(content=self.system_prompt)]
         for h in history:
             if h.get("role") == "user":
                 msgs.append(HumanMessage(content=h["content"]))
