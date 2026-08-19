@@ -1630,26 +1630,52 @@ elif st.session_state.active_tab == "Bench":
 
         # ── Configuration ─────────────────────────────────────────────────────
         with st.expander("⚙️ Benchmark Configuration", expanded=True):
-            bc1, bc2, bc3, bc4 = st.columns(4)
+            st.caption("The **System Model** powers the Chat Assistant that answers each question; "
+                       "the **Judge Model** scores every answer against your reference. Both run at "
+                       "temperature 0 for consistency.")
+            bc1, bc2 = st.columns(2)
             with bc1:
-                judge_model = st.selectbox("Judge Model",
+                bench_model = st.selectbox("System Model — the Chat Assistant", list(_MODELS),
+                    format_func=lambda x: _MODELS[x], key="bench_sys_model",
+                    help="Model the Chat Assistant uses to answer the questions")
+            with bc2:
+                judge_model = st.selectbox("Judge Model — the evaluator",
                     ["claude-sonnet-5", "claude-sonnet-4-6", "claude-opus-4-6"],
                     key="bench_judge_model", help="Model that scores answers against the reference")
-            with bc2:
-                bench_model = st.selectbox("System Model", list(_MODELS),
-                    format_func=lambda x: _MODELS[x], key="bench_sys_model",
-                    help="Model the evaluated system(s) will use")
-            with bc3:
-                num_documents = st.slider("Documents", 1, 20, 5, key="bench_docs",
-                    help="Article chunks retrieved by the RAG systems")
-            with bc4:
-                similarity_threshold = st.slider("Threshold", 0.0, 1.0, 0.7, 0.05, key="bench_thresh",
-                    help="Min cosine similarity for retrieval")
 
         # ── Test dataset: generate questions, then add the reference answers ──
         st.markdown("### Test Dataset")
         st.caption("The system generates grounded questions from the corpus; you provide the "
                    "reference (ground-truth) answer for each, then run the benchmark.")
+
+        # Visual 3-step progress indicator (reflects where you are in the flow).
+        _gc = st.session_state.get("gen_cases") or []
+        _refs = st.session_state.get("ref_answers") or {}
+        _refs_done = bool(_gc) and any((_refs.get(c.get("id", "")) or "").strip() for c in _gc)
+        _s1 = "done" if _gc else "on"
+        _s2 = ("done" if _refs_done else "on") if _gc else "off"
+        _s3 = "on" if _refs_done else "off"
+        st.markdown(f"""
+        <style>
+        .stepper{{display:flex;align-items:center;gap:.5rem;flex-wrap:wrap;margin:.2rem 0 1rem;}}
+        .step{{display:flex;align-items:center;gap:.5rem;padding:.5rem .9rem;border-radius:2rem;
+               border:1px solid #e2e8f0;background:#fff;font-size:.85rem;font-weight:600;color:#94a3b8;}}
+        .step .n{{display:inline-flex;align-items:center;justify-content:center;width:1.4rem;height:1.4rem;
+                 border-radius:50%;background:#eef2f7;color:#94a3b8;font-size:.78rem;font-weight:700;}}
+        .step.on{{border-color:#3b82f6;color:#1e40af;background:#f5f9ff;box-shadow:0 0 0 2px rgba(59,130,246,.12);}}
+        .step.on .n{{background:#3b82f6;color:#fff;}}
+        .step.done{{border-color:#bbf7d0;color:#166534;background:#f0fdf4;}}
+        .step.done .n{{background:#22c55e;color:#fff;}}
+        .stepper .arw{{color:#cbd5e1;font-size:1.1rem;}}
+        </style>
+        <div class="stepper">
+          <div class="step {_s1}"><span class="n">{'✓' if _s1=='done' else '1'}</span> Generate questions</div>
+          <span class="arw">→</span>
+          <div class="step {_s2}"><span class="n">{'✓' if _s2=='done' else '2'}</span> Add reference answers</div>
+          <span class="arw">→</span>
+          <div class="step {_s3}"><span class="n">3</span> Run &amp; score</div>
+        </div>""", unsafe_allow_html=True)
+
         all_test_cases = []
 
         with st.container(border=True):
