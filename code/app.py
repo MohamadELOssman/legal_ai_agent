@@ -475,6 +475,82 @@ h4 { color: #475569; font-weight: 600; }
     .footer-tags { gap: 1rem; }
     .legal-doc { padding: 1.5rem 1.25rem; }
 }
+
+/* ═══════════════════════ SMOOTH UX LAYER ═══════════════════════ */
+/* Interaction-driven transitions only (no entrance animations → no rerun flicker). */
+
+/* Main-area buttons: tactile, smooth, consistent. */
+.block-container .stButton > button,
+.block-container .stDownloadButton > button {
+    border-radius: 0.6rem !important;
+    font-weight: 600 !important;
+    transition: transform .12s ease, box-shadow .18s ease,
+                background .18s ease, border-color .18s ease, color .15s ease !important;
+    will-change: transform;
+}
+.block-container .stButton > button:hover,
+.block-container .stDownloadButton > button:hover { transform: translateY(-1px); }
+.block-container .stButton > button:active { transform: translateY(0); }
+.block-container .stButton > button[kind="primary"] {
+    background: linear-gradient(135deg, #2563eb, #3b82f6) !important;
+    border: none !important;
+    box-shadow: 0 2px 8px rgba(37,99,235,.28) !important;
+}
+.block-container .stButton > button[kind="primary"]:hover {
+    box-shadow: 0 8px 22px rgba(37,99,235,.38) !important;
+}
+.block-container .stButton > button[kind="secondary"] {
+    border: 1.5px solid #e2e8f0 !important; background: #fff !important; color: #334155 !important;
+}
+.block-container .stButton > button[kind="secondary"]:hover {
+    border-color: #3b82f6 !important; color: #1e40af !important; background: #f8fbff !important;
+}
+
+/* Bordered containers → soft cards that gently lift. */
+[data-testid="stVerticalBlockBorderWrapper"] {
+    border-radius: 0.9rem !important;
+    box-shadow: 0 1px 3px rgba(15,23,42,.05);
+    transition: box-shadow .22s ease, border-color .22s ease;
+}
+[data-testid="stVerticalBlockBorderWrapper"]:hover { box-shadow: 0 8px 26px rgba(15,23,42,.09); }
+
+/* Metrics → cards that lift on hover. */
+[data-testid="stMetric"], [data-testid="metric-container"] {
+    border-radius: 0.75rem;
+    transition: transform .16s ease, box-shadow .22s ease;
+}
+[data-testid="stMetric"]:hover, [data-testid="metric-container"]:hover {
+    transform: translateY(-2px); box-shadow: 0 10px 26px rgba(15,23,42,.09);
+}
+
+/* Selects / multiselect / number inputs → smooth focus ring. */
+[data-baseweb="select"] > div,
+[data-testid="stNumberInput"] input {
+    border-radius: 0.6rem !important;
+    transition: border-color .15s ease, box-shadow .15s ease !important;
+}
+[data-baseweb="select"] > div:focus-within {
+    border-color: #3b82f6 !important; box-shadow: 0 0 0 3px rgba(59,130,246,.12) !important;
+}
+
+/* Expanders → rounded, soft, smooth hover. */
+[data-testid="stExpander"] details {
+    border-radius: 0.75rem !important; border: 1px solid #e2e8f0 !important; overflow: hidden;
+    transition: border-color .15s ease, box-shadow .2s ease;
+}
+[data-testid="stExpander"] details:hover { border-color: #cdd8e8 !important; box-shadow: 0 4px 16px rgba(15,23,42,.05); }
+
+/* Dataframe / data editor → rounded with a soft frame. */
+[data-testid="stDataFrame"], [data-testid="stDataEditor"] {
+    border-radius: 0.75rem !important; overflow: hidden;
+    border: 1px solid #e6ebf2; box-shadow: 0 1px 3px rgba(15,23,42,.05);
+}
+
+/* Alerts, tabs, radios, progress → gentler. */
+[data-testid="stAlert"] { border-radius: 0.75rem; }
+.stTabs [data-baseweb="tab"] { transition: color .15s ease; }
+.stRadio label, .stCheckbox label { transition: color .12s ease; }
+.stProgress > div > div > div { transition: width .3s ease; }
 </style>
 """, unsafe_allow_html=True)
 
