@@ -1533,7 +1533,7 @@ elif st.session_state.active_tab == "Bench":
 
     st.markdown("""
     <div class="page-header">
-        <h2>📊 Benchmarking — Full System vs Baselines</h2>
+        <h2>📊 Benchmarking — Chat Assistant vs Baselines</h2>
     </div>
     """, unsafe_allow_html=True)
 
@@ -1665,23 +1665,23 @@ elif st.session_state.active_tab == "Bench":
             st.markdown("### Run & Score")
             st.markdown("""
             <div class="info-banner">
-            Runs each selected system over the questions and scores its answer with an
-            LLM judge (legal correctness · citation quality · completeness · clarity)
-            AGAINST your reference answer. <strong>Note:</strong> the full pipeline
-            makes ~6 LLM calls per query, so keep the count low for a quick run.
+            Runs the <strong>Chat Assistant</strong> (and any baselines you add) over the
+            questions and scores each answer with an LLM judge (legal correctness · citation
+            quality · completeness · clarity) AGAINST your reference answer.
+            <strong>Note:</strong> the chat makes several LLM calls per query, so keep the count
+            low for a quick run.
             </div>""", unsafe_allow_html=True)
 
             cc1, cc2, cc3 = st.columns([2, 1, 1])
             with cc1:
                 _sys_labels = {
-                    "multi_agent": "Full Pipeline (7 agents)",
-                    "agentic": "Chat (agentic orchestrator)",
+                    "agentic": "Chat Assistant (agentic)",
                     "single_agent": "Single-Agent + RAG",
                     "no_rag": "No-RAG (LLM only)",
                 }
                 cmp_systems = st.multiselect(
                     "Systems to run (add baselines to compare)", list(_sys_labels),
-                    default=["multi_agent"],
+                    default=["agentic"],
                     format_func=lambda s: _sys_labels[s], key="cmp_systems")
             with cc2:
                 _maxq = len(all_test_cases)
@@ -1694,7 +1694,7 @@ elif st.session_state.active_tab == "Bench":
             with cc3:
                 cmp_judge_on = st.checkbox("LLM-as-judge", value=True, key="cmp_judge_on")
 
-            if st.button("🚀  Run System Comparison", type="primary",
+            if st.button("🚀  Run Benchmark", type="primary",
                          use_container_width=True, key="run_cmp"):
                 if not cmp_systems:
                     st.warning("Select at least one system.")
