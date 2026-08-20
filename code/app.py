@@ -131,6 +131,117 @@ def _load_assistant(model: str):
     return AgenticLegalAssistant(model=model, vectorstore=_load_vectorstore())
 
 
+def _dataset_ui(prefix: str, gen_model: str, run_label: str = "Run & score"):
+    """Shared test-dataset UI: generate grounded questions + collect reference
+    answers, with a 3-step indicator. State is namespaced by `prefix` so tabs stay
+    independent. Returns the test cases (each with `reference_answer` attached)."""
+    _LN = {"ar": "Arabic", "en": "English", "fr": "French"}
+    gck, pgk, rak = f"{prefix}_gen_cases", f"{prefix}_gen_page", f"{prefix}_ref_answers"
+    st.session_state.setdefault(rak, {})
+    refs = st.session_state[rak]
+
+    gen = st.session_state.get(gck) or []
+    refs_done = bool(gen) and any((refs.get(c.get("id", "")) or "").strip() for c in gen)
+    s1 = "done" if gen else "on"
+    s2 = ("done" if refs_done else "on") if gen else "off"
+    s3 = "on" if refs_done else "off"
+    st.markdown(f"""
+    <style>
+    .stepper{{display:flex;align-items:center;gap:.5rem;flex-wrap:wrap;margin:.2rem 0 1rem;}}
+    .step{{display:flex;align-items:center;gap:.5rem;padding:.5rem .9rem;border-radius:2rem;
+           border:1px solid #e2e8f0;background:#fff;font-size:.85rem;font-weight:600;color:#94a3b8;}}
+    .step .n{{display:inline-flex;align-items:center;justify-content:center;width:1.4rem;height:1.4rem;
+             border-radius:50%;background:#eef2f7;color:#94a3b8;font-size:.78rem;font-weight:700;}}
+    .step.on{{border-color:#3b82f6;color:#1e40af;background:#f5f9ff;box-shadow:0 0 0 2px rgba(59,130,246,.12);}}
+    .step.on .n{{background:#3b82f6;color:#fff;}}
+    .step.done{{border-color:#bbf7d0;color:#166534;background:#f0fdf4;}}
+    .step.done .n{{background:#22c55e;color:#fff;}}
+    .stepper .arw{{color:#cbd5e1;font-size:1.1rem;}}
+    </style>
+    <div class="stepper">
+      <div class="step {s1}"><span class="n">{'✓' if s1=='done' else '1'}</span> Generate questions</div>
+      <span class="arw">→</span>
+      <div class="step {s2}"><span class="n">{'✓' if s2=='done' else '2'}</span> Add reference answers</div>
+      <span class="arw">→</span>
+      <div class="step {s3}"><span class="n">3</span> {run_label}</div>
+    </div>""", unsafe_allow_html=True)
+
+    cases = []
+    with st.container(border=True):
+        st.markdown("**Step 1 · Generate questions**")
+        c1, c2, c3 = st.columns([1, 2, 1], vertical_alignment="bottom")
+        with c1:
+            gen_n = st.number_input("Number", 5, 100, 10, 5, key=f"{prefix}_gen_n")
+        with c2:
+            gen_langs = st.multiselect("Languages", ["ar", "en", "fr"], default=["ar", "en", "fr"],
+                                       format_func=lambda x: _LN[x], key=f"{prefix}_gen_langs")
+        with c3:
+            do_gen = st.button("✨ Generate", type="primary", use_container_width=True,
+                               key=f"{prefix}_btn_gen")
+        if do_gen:
+            if not gen_langs:
+                st.warning("Select at least one language.")
+            else:
+                from src.evaluation.question_gen import generate_questions
+                pbar = st.progress(0.0); pstat = st.empty()
+
+                def _cb(d, t, m):
+                    pstat.info(f"{m}  ({d}/{t})")
+                    pbar.progress(min(1.0, d / max(1, t)))
+
+                try:
+                    got = generate_questions(int(gen_n), model=gen_model, langs=gen_langs, progress=_cb)
+                    st.session_state[gck] = got
+                    st.session_state[pgk] = 0
+                    pstat.success(f"Generated {len(got)} questions."); st.rerun()
+                except Exception as e:
+                    pstat.error(f"Generation failed: {e}")
+
+        gen = st.session_state.get(gck) or []
+        if gen:
+            h1, h2 = st.columns([5, 1], vertical_alignment="bottom")
+            with h1:
+                st.markdown("**Step 2 · Add the reference (source-of-truth) answer for each question**")
+            with h2:
+                if st.button("🗑️ Clear", use_container_width=True, key=f"{prefix}_gen_clear"):
+                    st.session_state.pop(gck, None); st.session_state[pgk] = 0; st.rerun()
+            cases = gen
+            PER = 10
+            st.session_state.setdefault(pgk, 0)
+            tp = max(1, (len(gen) + PER - 1) // PER)
+            pg = min(st.session_state[pgk], tp - 1)
+            s0 = pg * PER
+            rows = [{"ID": c.get("id", ""), "Query": c.get("query", ""),
+                     "Language": c.get("language", _LN.get(c.get("lang", ""), "")),
+                     "Reference Answer": refs.get(c.get("id", ""), "")}
+                    for c in gen[s0:s0 + PER]]
+            ed = st.data_editor(rows, use_container_width=True, hide_index=True,
+                disabled=["ID", "Query", "Language"],
+                column_config={"Reference Answer": st.column_config.TextColumn(
+                    "Reference Answer (ground truth — required)", width="large", required=True)},
+                key=f"{prefix}_ref_editor_p{pg}")
+            for r in ed:
+                if r.get("ID"):
+                    refs[r["ID"]] = r.get("Reference Answer", "") or ""
+            n1, n2, n3 = st.columns([1, 3, 1])
+            with n1:
+                if st.button("⬅️ Prev", disabled=(pg <= 0), use_container_width=True, key=f"{prefix}_pg_prev"):
+                    st.session_state[pgk] = pg - 1; st.rerun()
+            with n2:
+                st.markdown(f"<div style='text-align:center;padding-top:0.4rem;color:#64748b;'>"
+                            f"Showing {s0 + 1}–{min(s0 + PER, len(gen))} of {len(gen)} "
+                            f"· page {pg + 1} / {tp}</div>", unsafe_allow_html=True)
+            with n3:
+                if st.button("Next ➡️", disabled=(pg >= tp - 1), use_container_width=True, key=f"{prefix}_pg_next"):
+                    st.session_state[pgk] = pg + 1; st.rerun()
+        else:
+            st.caption("Generate questions above to begin.")
+
+    for c in cases:
+        c["reference_answer"] = refs.get(c.get("id", ""), "")
+    return cases
+
+
 # ── Page config ────────────────────────────────────────────────────────────────
 
 st.set_page_config(
@@ -1935,6 +2046,12 @@ elif st.session_state.active_tab == "Bench":
 # PAGE 4 — ABLATION STUDY (drop one sub-agent at a time vs. the full chat)
 # ══════════════════════════════════════════════════════════════════════════════
 
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# PAGE 4 — ABLATION STUDY (drop one sub-agent at a time, over a batch)
+# ══════════════════════════════════════════════════════════════════════════════
+
 elif st.session_state.active_tab == "Ablation":
 
     st.markdown("""
@@ -1945,10 +2062,10 @@ elif st.session_state.active_tab == "Ablation":
 
     st.markdown("""
     <div class="info-banner">
-    Runs the <strong>Chat Assistant</strong> on one question in several configurations — the
-    FULL set of sub-agents, and the same chat with ONE sub-agent removed at a time — then scores
-    each answer with an LLM judge. The drop in score when a sub-agent is removed is that agent's
-    <strong>contribution</strong>. Provide a reference answer for the most reliable scoring.
+    Runs the <strong>Chat Assistant</strong> over a BATCH of questions in several configurations —
+    the FULL set of sub-agents, and the same chat with ONE sub-agent removed at a time — then
+    scores every answer against your reference with an LLM judge. Averaged over the batch, the
+    drop in score when a sub-agent is removed is that agent's <strong>contribution</strong>.
     </div>""", unsafe_allow_html=True)
 
     _AB_DROPS = {
@@ -1970,112 +2087,150 @@ elif st.session_state.active_tab == "Ablation":
             default=["analysis_agent", "citation_agent"],
             format_func=lambda k: _AB_DROPS[k], key="ab_drops")
 
-    _ab_q = st.text_area("Legal question", key="ab_q", height=90,
-        placeholder="e.g. ما هي عقوبة السرقة في القانون اللبناني؟")
-    _ab_ref = st.text_area("Reference answer (optional but recommended — enables reference-based scoring)",
-        key="ab_ref", height=90,
-        placeholder="Paste the correct expert answer; each configuration is scored against it.")
+    # ── Test dataset (batch): generate questions + reference answers ──────────
+    st.markdown("### Test Dataset")
+    _ab_cases = _dataset_ui("ab", _ab_model, run_label="Run ablation")
 
-    _n_runs = 1 + len(_ab_drops)
-    st.caption(f"Will run **{_n_runs}** configuration(s) — each is a full chat turn plus a judge call.")
+    if not _ab_cases:
+        st.info("Generate at least one question and add its reference answer to run the ablation.")
+        st.stop()
+
+    # ── Run & score ──────────────────────────────────────────────────────────
+    st.markdown("---")
+    st.markdown("### Run & Score")
+    _configs_meta = [("full", "Full (all sub-agents)", set())] + \
+                    [(k, _AB_DROPS[k], {k}) for k in _ab_drops]
+    _rc1, _rc2 = st.columns([3, 1])
+    with _rc1:
+        _n_runs = len(_configs_meta) * min(len(_ab_cases), 3)
+        st.caption(f"{len(_configs_meta)} configuration(s) × the questions you run — each is a full "
+                   f"chat turn plus a judge call. Keep the count low for a quick pass.")
+    with _rc2:
+        _maxq = len(_ab_cases)
+        if _maxq <= 1:
+            _ab_limit = _maxq
+            st.metric("Questions to run", _maxq)
+        else:
+            _ab_limit = st.slider("Questions to run", 1, _maxq, min(3, _maxq), key="ab_limit")
 
     if st.button("🧪  Run Ablation", type="primary", use_container_width=True, key="ab_run"):
-        if not _ab_q.strip():
-            st.warning("Enter a question first.")
-        else:
-            from src.orchestrator.agentic import AgenticLegalAssistant
-            from src.evaluation.comparison import build_judge as _ab_build_judge
-            _vs = _get_vs()
-            _judge = _ab_build_judge(_ab_judge)
-            _configs = [("full", set())] + [(k, {k}) for k in _ab_drops]
-            _prog = st.progress(0.0); _stat = st.empty()
-            _out = []
-            for _i, (_name, _disabled) in enumerate(_configs):
-                _lbl = "Full (all sub-agents)" if _name == "full" else _AB_DROPS[_name]
-                _stat.info(f"Running **{_lbl}** … ({_i + 1}/{len(_configs)})")
-                try:
-                    _asst = AgenticLegalAssistant(model=_ab_model, vectorstore=_vs,
-                                                  disabled_tools=_disabled)
-                    _res = _asst.chat([], _ab_q.strip())
-                    _sc = _judge(_ab_q.strip(), _res.get("answer", ""), (_ab_ref.strip() or None))
-                    _u = _res.get("usage", {}) or {}
-                    _out.append({
-                        "name": _name, "label": _lbl,
-                        "answer": _res.get("answer", ""),
-                        "score": _sc.get("avg_score"),
-                        "dims": {k: _sc.get(k) for k in
-                                 ("legal_correctness", "citation_quality", "completeness", "clarity")},
-                        "explanation": _sc.get("explanation", ""),
-                        "tools_used": _res.get("tools_used", 0),
-                        "tools": [t.get("tool") for t in _res.get("trace", [])],
-                        "verified": len(_res.get("citations", {}).get("verified", [])),
-                        "latency": _res.get("latency_s"),
-                        "cost": _u.get("cost_usd"),
-                    })
-                except Exception as _e:
-                    _out.append({"name": _name, "label": _lbl, "error": str(_e)})
-                _prog.progress((_i + 1) / len(_configs))
-            _stat.success("✅ Ablation complete.")
-            st.session_state["ab_results"] = _out
+        _cases = _ab_cases[:_ab_limit]
+        _missing = [str(c.get("id", "?")) for c in _cases if not (c.get("reference_answer") or "").strip()]
+        if _missing:
+            st.error("📝 A reference answer is required for every question. Missing for: "
+                     + ", ".join(_missing[:20]) + (" …" if len(_missing) > 20 else ""))
+            st.stop()
+
+        from src.orchestrator.agentic import AgenticLegalAssistant
+        from src.evaluation.comparison import build_judge as _ab_build_judge
+        _vs = _get_vs()
+        _judge = _ab_build_judge(_ab_judge)
+
+        _prog = st.progress(0.0); _stat = st.empty()
+        _total = len(_configs_meta) * len(_cases); _done = 0
+        _by_config = {}
+        try:
+            for _name, _lbl, _disabled in _configs_meta:
+                _asst = AgenticLegalAssistant(model=_ab_model, vectorstore=_vs, disabled_tools=_disabled)
+                _recs = []
+                for _c in _cases:
+                    _stat.info(f"**{_lbl}** — {_c['query'][:48]}…  ({_done + 1}/{_total})")
+                    try:
+                        _res = _asst.chat([], _c["query"])
+                        _sc = _judge(_c["query"], _res.get("answer", ""), _c.get("reference_answer"))
+                        _u = _res.get("usage", {}) or {}
+                        _recs.append({
+                            "id": _c.get("id"), "query": _c["query"],
+                            "answer": _res.get("answer", ""),
+                            "score": _sc.get("avg_score"),
+                            "explanation": _sc.get("explanation", ""),
+                            "tools_used": _res.get("tools_used", 0),
+                            "tools": [t.get("tool") for t in _res.get("trace", [])],
+                            "verified": len(_res.get("citations", {}).get("verified", [])),
+                            "latency": _res.get("latency_s"),
+                            "cost": _u.get("cost_usd"),
+                        })
+                    except Exception as _e:
+                        _recs.append({"id": _c.get("id"), "query": _c["query"], "error": str(_e)})
+                    _done += 1; _prog.progress(_done / _total)
+                _by_config[_name] = {"label": _lbl, "records": _recs}
+            _stat.success(f"✅ Ablation complete — {len(_configs_meta)} configs × {len(_cases)} questions.")
+            st.session_state["ab_batch"] = _by_config
+        except Exception as _e:
+            _stat.error(f"Ablation failed: {_e}")
 
     # ── Results ───────────────────────────────────────────────────────────────
-    if st.session_state.get("ab_results"):
-        _R = st.session_state["ab_results"]
-        _full = next((r for r in _R if r.get("name") == "full"), None)
+    if st.session_state.get("ab_batch"):
+        _B = st.session_state["ab_batch"]
+
+        def _avg(recs, k):
+            vals = [r.get(k) for r in recs if isinstance(r.get(k), (int, float))]
+            return round(sum(vals) / len(vals), 2) if vals else None
+
+        _summary = {name: {"label": d["label"],
+                           "score": _avg(d["records"], "score"),
+                           "latency": _avg(d["records"], "latency"),
+                           "cost": _avg(d["records"], "cost"),
+                           "tools": _avg(d["records"], "tools_used"),
+                           "verified": _avg(d["records"], "verified"),
+                           "n": len(d["records"])}
+                    for name, d in _B.items()}
+        _full = _summary.get("full")
 
         _rh1, _rh2 = st.columns([6, 1])
         with _rh1:
-            st.markdown("### Results")
+            st.markdown("### Results  ·  averaged over the batch")
         with _rh2:
             if st.button("🗑️ Clear", key="ab_clear"):
-                st.session_state.pop("ab_results", None); st.rerun()
+                st.session_state.pop("ab_batch", None); st.rerun()
 
-        _cols = st.columns(len(_R))
-        for _col, _r in zip(_cols, _R):
+        _cols = st.columns(len(_summary))
+        for _col, (_name, _row) in zip(_cols, _summary.items()):
             with _col:
-                st.markdown(f"**{_r['label']}**")
-                if _r.get("error"):
-                    st.error("run failed"); continue
-                _sc = _r.get("score")
-                st.metric("Judge score", f"{_sc if _sc is not None else '–'} / 5")
-                if _full and _r["name"] != "full" and _full.get("score") is not None and _sc is not None:
-                    _delta = round(_full["score"] - _sc, 2)
-                    st.metric("Contribution", f"{_delta:+.2f}",
-                              help="Full score − this config: how much this sub-agent adds.")
-                st.caption(f"🛠️ {_r.get('tools_used', 0)} calls · ✅ {_r.get('verified', 0)} cites · "
-                           f"⏱️ {_r.get('latency', '?')}s · 💵 ${(_r.get('cost') or 0):.4f}")
+                st.markdown(f"**{_row['label']}**")
+                _sc = _row["score"]
+                st.metric("Avg judge score", f"{_sc if _sc is not None else '–'} / 5")
+                if _full and _name != "full" and _full["score"] is not None and _sc is not None:
+                    st.metric("Contribution", f"{round(_full['score'] - _sc, 2):+.2f}",
+                              help="Full − this config, averaged over the batch.")
+                st.caption(f"🛠️ {_row['tools']} calls · ✅ {_row['verified']} cites · "
+                           f"⏱️ {_row['latency']}s · 💵 ${(_row['cost'] or 0):.4f}  (avg)")
 
-        _scored = {r["label"]: r["score"] for r in _R if r.get("score") is not None}
+        _scored = {r["label"]: r["score"] for r in _summary.values() if r["score"] is not None}
         if _scored:
-            st.markdown("#### Judge score by configuration")
-            st.bar_chart({"Score (1–5)": _scored})
+            st.markdown("#### Average judge score by configuration")
+            st.bar_chart({"Avg score (1–5)": _scored})
 
-        if _full and _full.get("score") is not None:
+        if _full and _full["score"] is not None:
             _contribs = [(r["label"].replace("Drop ", ""), round(_full["score"] - r["score"], 2))
-                         for r in _R if r["name"] != "full" and r.get("score") is not None]
+                         for n, r in _summary.items() if n != "full" and r["score"] is not None]
             if _contribs:
-                st.markdown("#### Contribution of each sub-agent  (Full − dropped)")
-                _pos = [f"**{n}**: {d:+.2f}" for n, d in _contribs]
-                st.markdown(" · ".join(_pos))
-                st.caption("Positive = removing the agent hurt quality (it helps). "
-                           "≈0 = little effect on this question. Negative = it slightly hurt here.")
+                st.markdown("#### Contribution of each sub-agent  (Full − dropped, avg)")
+                st.markdown(" · ".join(f"**{n}**: {d:+.2f}" for n, d in _contribs))
+                st.caption("Positive = removing the agent lowered quality (it helps). "
+                           "≈0 = little effect. Negative = it slightly hurt on this set.")
 
-        st.markdown("#### Answers")
-        for _r in _R:
-            with st.expander(f"{_r['label']} — score {_r.get('score', '–')}/5"):
-                if _r.get("error"):
-                    st.error(_r["error"]); continue
-                _ans = _r.get("answer", "")
-                if any("؀" <= c <= "ۿ" for c in _ans[:300]):
-                    st.markdown(f'<div dir="rtl" style="text-align:right">{_ans}</div>',
-                                unsafe_allow_html=True)
-                else:
-                    st.markdown(_ans)
-                st.caption("Sub-agents used: " + (", ".join(t for t in (_r.get("tools") or []) if t) or "none")
-                           + (f"  ·  Judge: {_r['explanation']}" if _r.get("explanation") else ""))
+        st.markdown("#### Per-question scores")
+        _ids = [r.get("id") for r in next(iter(_B.values()))["records"]]
+        _tbl = {"Question": [ (next((rr["query"] for rr in next(iter(_B.values()))["records"]
+                                     if rr.get("id") == _id), "") or "")[:60] for _id in _ids ]}
+        for _name, _d in _B.items():
+            _m = {r.get("id"): r.get("score") for r in _d["records"]}
+            _tbl[_summary[_name]["label"]] = [_m.get(_id, "-") for _id in _ids]
+        st.dataframe(_tbl, use_container_width=True)
+
+        with st.expander("📝 Answers per configuration"):
+            for _name, _d in _B.items():
+                st.markdown(f"**{_d['label']}**")
+                for _r in _d["records"]:
+                    if _r.get("error"):
+                        st.error(f"{_r.get('id')}: {_r['error']}"); continue
+                    st.markdown(f"*{_r.get('id')} · score {_r.get('score','–')}/5* — "
+                                + (", ".join(t for t in (_r.get('tools') or []) if t) or "no tools"))
+                st.markdown("---")
 
         st.download_button(
             "📥 Download ablation results (JSON)",
-            data=json.dumps(_R, ensure_ascii=False, indent=2),
+            data=json.dumps({"summary": _summary, "by_config": _B}, ensure_ascii=False, indent=2),
             file_name=f"ablation_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json",
             mime="application/json", use_container_width=True, key="ab_dl")
