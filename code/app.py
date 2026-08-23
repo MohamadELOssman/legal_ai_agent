@@ -242,6 +242,38 @@ def _dataset_ui(prefix: str, gen_model: str, run_label: str = "Run & score"):
     return cases
 
 
+def _load_expert_cases(prefix: str = "bench"):
+    """Load the author-provided expert benchmark set from disk, let the user filter
+    by type, preview it, and return the selected cases (references already attached)."""
+    import json as _json
+    from pathlib import Path as _P
+    p = _P("data_processed/expert_benchmark_set.json")
+    if not p.exists():
+        st.warning("Expert set not found at data_processed/expert_benchmark_set.json.")
+        return []
+    try:
+        cases = _json.loads(p.read_text(encoding="utf-8")).get("cases", [])
+    except Exception as e:
+        st.error(f"Could not read the expert set: {e}")
+        return []
+    _TYPE = {"citizen": "Citizen", "case_study": "Case study", "lawyer": "Lawyer"}
+    types = st.multiselect("Filter by question type", list(_TYPE), default=list(_TYPE),
+                           format_func=lambda t: _TYPE.get(t, t), key=f"{prefix}_expert_types")
+    sel = [c for c in cases if c.get("user_type") in types]
+    with st.container(border=True):
+        st.markdown(f"**Expert set** — {len(sel)} question(s) with author-provided gold answers.")
+        st.dataframe({
+            "ID": [c.get("id") for c in sel],
+            "Type": [_TYPE.get(c.get("user_type"), c.get("user_type")) for c in sel],
+            "Question": [(c.get("query", "")[:80] + "…") if len(c.get("query", "")) > 80
+                         else c.get("query", "") for c in sel],
+            "Gold articles": [", ".join(c.get("gold_articles", [])) or "—" for c in sel],
+        }, use_container_width=True, hide_index=True)
+    for c in sel:
+        c.setdefault("reference_answer", "")
+    return sel
+
+
 # ── Page config ────────────────────────────────────────────────────────────────
 
 st.set_page_config(
@@ -1723,7 +1755,7 @@ elif st.session_state.active_tab == "Bench":
 
     st.markdown("""
     <div class="page-header">
-        <h2>📊 Benchmarking — Chat Assistant vs Baselines</h2>
+        <h2>📊 Benchmarking — Chat vs Pipeline vs Baselines</h2>
     </div>
     """, unsafe_allow_html=True)
 
@@ -1740,7 +1772,6 @@ elif st.session_state.active_tab == "Bench":
 
     if bench_ok:
         _LNAME = {"ar": "Arabic", "en": "English", "fr": "French"}
-        st.session_state.setdefault("ref_answers", {})
 
         # ── Configuration ─────────────────────────────────────────────────────
         with st.expander("⚙️ Benchmark Configuration", expanded=True):
@@ -1757,119 +1788,18 @@ elif st.session_state.active_tab == "Bench":
                     ["claude-sonnet-5", "claude-sonnet-4-6", "claude-opus-4-6"],
                     key="bench_judge_model", help="Model that scores answers against the reference")
 
-        # ── Test dataset: generate questions, then add the reference answers ──
+        # ── Test dataset: generate from corpus, or load the expert set ──────
         st.markdown("### Test Dataset")
-        st.caption("The system generates grounded questions from the corpus; you provide the "
-                   "reference (ground-truth) answer for each, then run the benchmark.")
-
-        # Visual 3-step progress indicator (reflects where you are in the flow).
-        _gc = st.session_state.get("gen_cases") or []
-        _refs = st.session_state.get("ref_answers") or {}
-        _refs_done = bool(_gc) and any((_refs.get(c.get("id", "")) or "").strip() for c in _gc)
-        _s1 = "done" if _gc else "on"
-        _s2 = ("done" if _refs_done else "on") if _gc else "off"
-        _s3 = "on" if _refs_done else "off"
-        st.markdown(f"""
-        <style>
-        .stepper{{display:flex;align-items:center;gap:.5rem;flex-wrap:wrap;margin:.2rem 0 1rem;}}
-        .step{{display:flex;align-items:center;gap:.5rem;padding:.5rem .9rem;border-radius:2rem;
-               border:1px solid #e2e8f0;background:#fff;font-size:.85rem;font-weight:600;color:#94a3b8;}}
-        .step .n{{display:inline-flex;align-items:center;justify-content:center;width:1.4rem;height:1.4rem;
-                 border-radius:50%;background:#eef2f7;color:#94a3b8;font-size:.78rem;font-weight:700;}}
-        .step.on{{border-color:#3b82f6;color:#1e40af;background:#f5f9ff;box-shadow:0 0 0 2px rgba(59,130,246,.12);}}
-        .step.on .n{{background:#3b82f6;color:#fff;}}
-        .step.done{{border-color:#bbf7d0;color:#166534;background:#f0fdf4;}}
-        .step.done .n{{background:#22c55e;color:#fff;}}
-        .stepper .arw{{color:#cbd5e1;font-size:1.1rem;}}
-        </style>
-        <div class="stepper">
-          <div class="step {_s1}"><span class="n">{'✓' if _s1=='done' else '1'}</span> Generate questions</div>
-          <span class="arw">→</span>
-          <div class="step {_s2}"><span class="n">{'✓' if _s2=='done' else '2'}</span> Add reference answers</div>
-          <span class="arw">→</span>
-          <div class="step {_s3}"><span class="n">3</span> Run &amp; score</div>
-        </div>""", unsafe_allow_html=True)
-
-        all_test_cases = []
-
-        with st.container(border=True):
-            st.markdown("**Step 1 · Generate questions**")
-            gc1, gc2, gc3 = st.columns([1, 2, 1], vertical_alignment="bottom")
-            with gc1:
-                gen_n = st.number_input("Number", 5, 100, 10, 5, key="gen_n")
-            with gc2:
-                gen_langs = st.multiselect("Languages", ["ar", "en", "fr"],
-                    default=["ar", "en", "fr"], format_func=lambda x: _LNAME[x], key="gen_langs")
-            with gc3:
-                _do_gen = st.button("✨ Generate", type="primary",
-                                    use_container_width=True, key="btn_gen")
-            if _do_gen:
-                if not gen_langs:
-                    st.warning("Select at least one language.")
-                else:
-                    from src.evaluation.question_gen import generate_questions
-                    _pbar = st.progress(0.0); _pstat = st.empty()
-
-                    def _gcb(done, total, msg):
-                        _pstat.info(f"{msg}  ({done}/{total})")
-                        _pbar.progress(min(1.0, done / max(1, total)))
-
-                    try:
-                        _cases = generate_questions(int(gen_n), model=bench_model,
-                                                    langs=gen_langs, progress=_gcb)
-                        st.session_state["gen_cases"] = _cases
-                        st.session_state["gen_page"] = 0
-                        _pstat.success(f"Generated {len(_cases)} questions."); st.rerun()
-                    except Exception as _e:
-                        _pstat.error(f"Generation failed: {_e}")
-
-            _gen = st.session_state.get("gen_cases") or []
-            if _gen:
-                _hc1, _hc2 = st.columns([5, 1], vertical_alignment="bottom")
-                with _hc1:
-                    st.markdown("**Step 2 · Add the reference (source-of-truth) answer for each question**")
-                with _hc2:
-                    if st.button("🗑️ Clear", use_container_width=True, key="btn_gen_clear"):
-                        st.session_state.pop("gen_cases", None)
-                        st.session_state["gen_page"] = 0; st.rerun()
-                all_test_cases = _gen
-
-                _PER = 10
-                st.session_state.setdefault("gen_page", 0)
-                _tp = max(1, (len(_gen) + _PER - 1) // _PER)
-                _pg = min(st.session_state["gen_page"], _tp - 1)
-                _s0 = _pg * _PER
-                _rows = [{"ID": tc.get("id", ""), "Query": tc.get("query", ""),
-                          "Language": tc.get("language", _LNAME.get(tc.get("lang", ""), "")),
-                          "Reference Answer": st.session_state["ref_answers"].get(tc.get("id", ""), "")}
-                         for tc in _gen[_s0:_s0 + _PER]]
-                _ed = st.data_editor(_rows, use_container_width=True, hide_index=True,
-                    disabled=["ID", "Query", "Language"],
-                    column_config={"Reference Answer": st.column_config.TextColumn(
-                        "Reference Answer (ground truth — required)", width="large", required=True)},
-                    key=f"ref_editor_p{_pg}")
-                for _r in _ed:
-                    if _r.get("ID"):
-                        st.session_state["ref_answers"][_r["ID"]] = _r.get("Reference Answer", "") or ""
-
-                _n1, _n2, _n3 = st.columns([1, 3, 1])
-                with _n1:
-                    if st.button("⬅️ Prev", disabled=(_pg <= 0),
-                                 use_container_width=True, key="pg_prev"):
-                        st.session_state["gen_page"] = _pg - 1; st.rerun()
-                with _n2:
-                    st.markdown(f"<div style='text-align:center;padding-top:0.4rem;color:#64748b;'>"
-                                f"Showing {_s0 + 1}–{min(_s0 + _PER, len(_gen))} of {len(_gen)} "
-                                f"· page {_pg + 1} / {_tp}</div>", unsafe_allow_html=True)
-                with _n3:
-                    if st.button("Next ➡️", disabled=(_pg >= _tp - 1),
-                                 use_container_width=True, key="pg_next"):
-                        st.session_state["gen_page"] = _pg + 1; st.rerun()
-            else:
-                st.caption("Generate questions above to begin.")
+        _src = st.radio("Question source",
+                        ["Generate from corpus", "Expert set (author-provided)"],
+                        horizontal=True, key="bench_source")
+        if _src.startswith("Expert"):
+            all_test_cases = _load_expert_cases("bench")
+        else:
+            all_test_cases = _dataset_ui("bench", bench_model, run_label="Run & score")
 
         if not all_test_cases:
-            st.info("Generate at least one question and add its reference answer to run the benchmark.")
+            st.info("Generate questions (and add reference answers), or load the expert set, to run the benchmark.")
             st.stop()
 
         # ══════════════════════════════════════════════════════════════════════
@@ -1881,23 +1811,25 @@ elif st.session_state.active_tab == "Bench":
             st.markdown("### Run & Score")
             st.markdown("""
             <div class="info-banner">
-            Runs the <strong>Chat Assistant</strong> (and any baselines you add) over the
-            questions and scores each answer with an LLM judge (legal correctness · citation
-            quality · completeness · clarity) AGAINST your reference answer.
-            <strong>Note:</strong> the chat makes several LLM calls per query, so keep the count
-            low for a quick run.
+            Runs each selected system — the <strong>Chat Assistant</strong> and/or the
+            <strong>Full Pipeline</strong> (plus optional baselines) — over the questions and
+            scores each answer with an LLM judge (legal correctness · citation quality ·
+            completeness · clarity) AGAINST your reference answer.
+            <strong>Note:</strong> each system makes several LLM calls per query, so keep the
+            count low for a quick run.
             </div>""", unsafe_allow_html=True)
 
             cc1, cc2, cc3 = st.columns([2, 1, 1])
             with cc1:
                 _sys_labels = {
                     "agentic": "Chat Assistant (agentic)",
+                    "multi_agent": "Full Pipeline (7 agents)",
                     "single_agent": "Single-Agent + RAG",
                     "no_rag": "No-RAG (LLM only)",
                 }
                 cmp_systems = st.multiselect(
-                    "Systems to run (add baselines to compare)", list(_sys_labels),
-                    default=["agentic"],
+                    "Systems to run — compare Chat vs Pipeline (+ optional baselines)",
+                    list(_sys_labels), default=["agentic", "multi_agent"],
                     format_func=lambda s: _sys_labels[s], key="cmp_systems")
             with cc2:
                 _maxq = len(all_test_cases)
@@ -1916,12 +1848,8 @@ elif st.session_state.active_tab == "Bench":
                     st.warning("Select at least one system.")
                 else:
                     cmp_cases = all_test_cases[:cmp_limit]
-                    # Attach the user-entered reference ("source of truth") answers so
-                    # the judge scores each system's answer against them.
-                    _refs = st.session_state.get("ref_answers", {})
-                    for _c in cmp_cases:
-                        _c["reference_answer"] = _refs.get(_c.get("id", ""), "")
-
+                    # Reference answers are already attached to each case (from the
+                    # generation table or the expert set).
                     # Reference answers are REQUIRED for judged evaluation (the ground
                     # truth). Block the run if any evaluated question is missing one.
                     _missing = [str(_c.get("id", "?")) for _c in cmp_cases
