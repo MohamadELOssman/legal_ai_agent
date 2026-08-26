@@ -81,9 +81,21 @@ Return ONLY valid JSON (no prose, no code fences):
 {{"legal_correctness":N,"citation_quality":N,"completeness":N,"clarity":N,"explanation":"one sentence"}}"""
 
 
-def extract_json(text: str) -> dict:
-    """Best-effort JSON extraction from an LLM response."""
-    text = (text or "").strip()
+def _content_to_text(content) -> str:
+    """Normalize an LLM response to plain text. Reasoning models (e.g. claude-sonnet-5)
+    return `content` as a LIST of blocks (thinking + text) rather than a string."""
+    if isinstance(content, str):
+        return content
+    if isinstance(content, list):
+        return "".join(
+            b.get("text", "") for b in content
+            if isinstance(b, dict) and b.get("type") in (None, "text") and "text" in b)
+    return str(content or "")
+
+
+def extract_json(text) -> dict:
+    """Best-effort JSON extraction from an LLM response (string or block list)."""
+    text = _content_to_text(text).strip()
     try:
         return json.loads(text)
     except json.JSONDecodeError:
