@@ -174,8 +174,10 @@ def build_judge(model: str = DEFAULT_MODEL) -> Callable[[str, str], dict]:
     from src.utils.llm import make_chat
 
     cfg = get_config()
+    # Headroom for reasoning models (e.g. claude-sonnet-5) whose thinking blocks
+    # would otherwise starve the JSON output at a small token cap.
     judge = make_chat(model=model, api_key=cfg.anthropic_api_key,
-                      temperature=0.0, max_tokens=400)
+                      temperature=0.0, max_tokens=1500)
 
     def score(query: str, memorandum: str, reference: str = None) -> dict:
         if not memorandum:
@@ -185,10 +187,22 @@ def build_judge(model: str = DEFAULT_MODEL) -> Callable[[str, str], dict]:
                 query=query, reference=reference[:4000], memorandum=memorandum[:6000])
         else:
             prompt = JUDGE_PROMPT.format(query=query, memorandum=memorandum[:6000])
-        resp = judge.invoke([HumanMessage(content=prompt)])
-        s = extract_json(resp.content)
-        vals = [s.get(d, 0) for d in JUDGE_DIMENSIONS]
-        s["avg_score"] = round(sum(vals) / len(JUDGE_DIMENSIONS), 2) if any(vals) else 0
+
+        # Retry once if the model returns an unparseable / empty response (transient
+        # on reasoning models), so a single hiccup does not zero-out a real answer.
+        s = {}
+        for _ in range(2):
+            try:
+                resp = judge.invoke([HumanMessage(content=prompt)])
+                s = extract_json(resp.content)
+            except Exception as e:  # pragma: no cover
+                logger.warning(f"judge call failed: {e}")
+                s = {}
+            if any(isinstance(s.get(d), (int, float)) for d in JUDGE_DIMENSIONS):
+                break
+
+        vals = [s.get(d) for d in JUDGE_DIMENSIONS if isinstance(s.get(d), (int, float))]
+        s["avg_score"] = round(sum(vals) / len(vals), 2) if vals else None
         s["reference_based"] = bool(reference and reference.strip())
         return s
 
