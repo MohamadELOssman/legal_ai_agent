@@ -21,6 +21,22 @@ SUM = Path("experiments/expert_run_summary.json")
 OUT.parent.mkdir(parents=True, exist_ok=True)
 
 cases = json.loads(SRC.read_text(encoding="utf-8"))["cases"]
+
+# ── Resume: keep already-good records, only (re)run the failed/missing ones ──
+def _good(r):
+    return r.get("score") is not None and "error" not in r and (r.get("answer") or "")
+
+results = []
+done = set()
+if OUT.exists():
+    try:
+        prev = json.loads(OUT.read_text(encoding="utf-8"))
+        results = [r for r in prev if _good(r)]
+        done = {(r["system"], r["id"]) for r in results}
+        logger.info(f"Resuming: kept {len(done)} good records, will (re)run the rest.")
+    except Exception:
+        pass
+
 vs = LegalVectorStore(); vs.load_vectorstore()
 judge = build_judge(JUDGE)
 
@@ -44,11 +60,21 @@ def run_pipe(c):
             (r.get("validation", {}) or {}).get("num_verified_citations"))
 
 
-results = []
+# Hard per-case wall-clock cap so a hung/outage call can't run for hours.
+import signal
+class _CaseTimeout(Exception):
+    pass
+def _on_alarm(signum, frame):
+    raise _CaseTimeout("case exceeded the 220s time budget")
+signal.signal(signal.SIGALRM, _on_alarm)
+
 t0 = time.time()
 for sysname, runner in [("agentic", run_chat), ("multi_agent", run_pipe)]:
     for i, c in enumerate(cases):
+        if (sysname, c["id"]) in done:
+            continue
         rec = {"system": sysname, "id": c["id"], "type": c["user_type"], "query": c["query"]}
+        signal.alarm(220)
         try:
             ans, lat, cost, vc = runner(c)
             sc = judge(c["query"], ans, c.get("reference_answer"))
@@ -64,6 +90,8 @@ for sysname, runner in [("agentic", run_chat), ("multi_agent", run_pipe)]:
         except Exception as e:
             rec["error"] = str(e)
             logger.warning(f"[{sysname}] {c['id']} FAILED: {e}")
+        finally:
+            signal.alarm(0)
         results.append(rec)
         OUT.write_text(json.dumps(results, ensure_ascii=False, indent=1), encoding="utf-8")
 
