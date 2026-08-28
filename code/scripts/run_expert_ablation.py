@@ -25,11 +25,8 @@ OUT.parent.mkdir(parents=True, exist_ok=True)
 CONFIGS = [("full", set()), ("drop_analysis", {"analysis_agent"}),
            ("drop_citation", {"citation_agent"})]
 
-# Representative subset: first 2 of each type.
-allcases = json.loads(SRC.read_text(encoding="utf-8"))["cases"]
-subset = []
-for t in ("citizen", "case_study", "lawyer"):
-    subset += [c for c in allcases if c["user_type"] == t][:2]
+# ALL provided questions (not a sample).
+subset = json.loads(SRC.read_text(encoding="utf-8"))["cases"]
 
 # Resume: keep good records.
 def _good(r):
