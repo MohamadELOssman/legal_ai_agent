@@ -10,7 +10,6 @@ from dataclasses import dataclass
 from enum import Enum
 
 from langchain_anthropic import ChatAnthropic
-from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_core.messages import HumanMessage, SystemMessage
 from loguru import logger
 
@@ -95,6 +94,7 @@ class BaseAgent(ABC):
                 timeout=timeout,
             )
         elif "gemini" in model.lower():
+            from langchain_google_genai import ChatGoogleGenerativeAI  # lazy: only for gemini
             self.llm = ChatGoogleGenerativeAI(
                 model=model,
                 temperature=temperature,

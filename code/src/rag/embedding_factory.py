@@ -6,7 +6,6 @@ Supports: HuggingFace (local/free), Google Gemini, OpenAI
 from typing import Literal, Optional
 from langchain_core.embeddings import Embeddings
 from langchain_huggingface import HuggingFaceEmbeddings
-from langchain_google_genai import GoogleGenerativeAIEmbeddings
 from loguru import logger
 
 from src.config import get_config
@@ -71,6 +70,7 @@ def get_embeddings(
         # - models/text-embedding-004 (768 dims, multilingual, recommended)
         # - models/embedding-001 (legacy, 768 dims)
 
+        from langchain_google_genai import GoogleGenerativeAIEmbeddings  # lazy: google only
         return GoogleGenerativeAIEmbeddings(
             model=model,
             google_api_key=config.google_api_key,
