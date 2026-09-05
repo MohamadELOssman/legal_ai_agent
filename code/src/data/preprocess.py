@@ -4,6 +4,7 @@ Handles PDF extraction, chunking, metadata extraction for Lebanese legal documen
 """
 
 import re
+import unicodedata
 from pathlib import Path
 from typing import List, Dict, Optional, Tuple
 from dataclasses import dataclass
@@ -85,7 +86,7 @@ class LegalDocumentProcessor:
             text = page.get_text()
             full_text.append(text)
 
-        content = "\n\n".join(full_text)
+        content = unicodedata.normalize("NFKC", "\n\n".join(full_text))
 
         # Detect language
         language = self.detect_language(content)
@@ -130,6 +131,10 @@ class LegalDocumentProcessor:
         """Extract article numbers and their content."""
         if language not in self.article_patterns:
             return []
+
+        # Normalize Unicode so Arabic presentation-form characters (from scanned/legacy
+        # PDFs) are converted to standard Arabic codepoints before regex matching.
+        text = unicodedata.normalize("NFKC", text)
 
         pattern = self.article_patterns[language]
         articles = []
@@ -181,40 +186,23 @@ class LegalDocumentProcessor:
             return self._chunk_fixed_size(document, max_chunk_size, 200)
 
         for idx, (article_num, article_text) in enumerate(articles):
-            # If article too long, split it
-            if len(article_text) > max_chunk_size:
-                sub_chunks = self._split_long_article(article_text, max_chunk_size)
-                for sub_idx, sub_chunk in enumerate(sub_chunks):
-                    chunks.append(
-                        LegalChunk(
-                            text=sub_chunk,
-                            article_number=f"{article_num}.{sub_idx}",
-                            language=document.language,
-                            document_source=document.source_file,
-                            page_number=0,  # TODO: track page numbers
-                            chunk_index=len(chunks),
-                            metadata={
-                                "document_type": document.document_type,
-                                "article_number": article_num,
-                                "is_sub_chunk": True,
-                            },
-                        )
-                    )
-            else:
-                chunks.append(
-                    LegalChunk(
-                        text=article_text,
-                        article_number=article_num,
-                        language=document.language,
-                        document_source=document.source_file,
-                        page_number=0,
-                        chunk_index=len(chunks),
-                        metadata={
-                            "document_type": document.document_type,
-                            "article_number": article_num,
-                        },
-                    )
+            # Each article is stored as one complete chunk — never split.
+            # The embedding model truncates long texts internally, but the full
+            # text is preserved in the vector store for the agent to read.
+            chunks.append(
+                LegalChunk(
+                    text=article_text,
+                    article_number=article_num,
+                    language=document.language,
+                    document_source=document.source_file,
+                    page_number=0,
+                    chunk_index=idx,
+                    metadata={
+                        "document_type": document.document_type,
+                        "article_number": article_num,
+                    },
                 )
+            )
 
         return chunks
 

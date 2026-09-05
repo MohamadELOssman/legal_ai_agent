@@ -23,29 +23,43 @@ class LegalDocumentReranker:
     they process query + document together, capturing interaction features.
     """
 
-    def __init__(self, model_name: str = "cross-encoder/ms-marco-MiniLM-L-6-v2"):
+    # Tried in order. Multilingual first (the corpus is Arabic — the English
+    # ms-marco model mis-ranks Arabic and is why reranking was disabled); the
+    # English model is kept last as an offline fallback if a download fails.
+    DEFAULT_MODELS = [
+        "BAAI/bge-reranker-base",                # multilingual cross-encoder (Arabic-capable)
+        "cross-encoder/ms-marco-MiniLM-L-6-v2",  # English fallback (usually already cached)
+    ]
+
+    def __init__(self, model_name: str = None):
         """
         Initialize reranker.
 
         Args:
-            model_name: Cross-encoder model name
-                - cross-encoder/ms-marco-MiniLM-L-6-v2 (fast, good quality)
-                - cross-encoder/ms-marco-MiniLM-L-12-v2 (slower, better quality)
-                - BAAI/bge-reranker-base (multilingual support)
+            model_name: Cross-encoder model to load. If None, tries DEFAULT_MODELS
+                in order (multilingual bge first, English ms-marco as fallback).
+                - BAAI/bge-reranker-base / BAAI/bge-reranker-v2-m3 (multilingual)
+                - cross-encoder/ms-marco-MiniLM-L-6-v2 (English, fast)
         """
-        self.model_name = model_name
         self.model = None
+        self.model_name = None
 
-        if RERANKER_AVAILABLE:
-            try:
-                logger.info(f"Loading reranker model: {model_name}")
-                self.model = CrossEncoder(model_name)
-                logger.info("✓ Reranker loaded successfully")
-            except Exception as e:
-                logger.error(f"Failed to load reranker: {e}")
-                self.model = None
-        else:
+        if not RERANKER_AVAILABLE:
             logger.warning("Reranker not available - install sentence-transformers")
+            return
+
+        candidates = [model_name] if model_name else list(self.DEFAULT_MODELS)
+        for name in candidates:
+            try:
+                logger.info(f"Loading reranker model: {name}")
+                self.model = CrossEncoder(name)
+                self.model_name = name
+                logger.info(f"✓ Reranker loaded successfully ({name})")
+                break
+            except Exception as e:
+                logger.warning(f"Could not load reranker '{name}': {e}")
+        if self.model is None:
+            logger.error("No reranker model could be loaded — reranking disabled")
 
     def is_available(self) -> bool:
         """Check if reranker is available."""
@@ -147,8 +161,8 @@ class LegalDocumentReranker:
 _reranker = None
 
 
-def get_reranker(model_name: str = "cross-encoder/ms-marco-MiniLM-L-6-v2") -> LegalDocumentReranker:
-    """Get global reranker instance."""
+def get_reranker(model_name: str = None) -> LegalDocumentReranker:
+    """Get global reranker instance (None model_name → multilingual default chain)."""
     global _reranker
     if _reranker is None:
         _reranker = LegalDocumentReranker(model_name=model_name)

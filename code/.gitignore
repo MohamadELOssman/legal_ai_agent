@@ -1,3 +1,8 @@
 
 # Local chat conversation store (runtime)
 chat_history.json
+
+# Public webapp runtime data — collected feedback (contains names/emails). Never commit.
+data_local/
+feedback.db
+feedback.xlsx

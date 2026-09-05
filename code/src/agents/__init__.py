@@ -1,6 +1,7 @@
 """Legal AI Agents."""
 
 from src.agents.base_agent import BaseAgent, AgentRole, AgentInput, AgentOutput
+from src.agents.orchestrator_agent import OrchestratorAgent
 from src.agents.document_preprocessing_agent import DocumentPreprocessingAgent
 from src.agents.query_understanding_agent import QueryUnderstandingAgent
 from src.agents.research_agent import ResearchAgent
@@ -14,6 +15,7 @@ __all__ = [
     "AgentRole",
     "AgentInput",
     "AgentOutput",
+    "OrchestratorAgent",
     "DocumentPreprocessingAgent",
     "QueryUnderstandingAgent",
     "ResearchAgent",

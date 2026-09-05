@@ -48,6 +48,13 @@ class LegalVectorStore:
         self.bm25_retriever = None
         self.hybrid_retriever = None
 
+        # Hybrid-retrieval candidate pool + fusion weights. The pool must be large
+        # enough that a gold article ranked >10 by either retriever is still a
+        # candidate for reranking/fusion — the old fixed (semantic 10 / BM25 5) capped
+        # what could ever be surfaced. Tunable via reconfigure_hybrid() for sweeps.
+        self.candidate_k = 30
+        self.hybrid_weights: Tuple[float, float] = (0.5, 0.5)
+
         # Initialize reranker (lazy loading)
         self.reranker = None
         if use_reranking:
@@ -193,30 +200,50 @@ class LegalVectorStore:
 
         logger.info("BM25 retriever built successfully")
 
-    def build_hybrid_retriever(self, documents: List[Document], weights: Tuple[float, float] = (0.5, 0.5)) -> None:
-        """Build hybrid retriever combining semantic + BM25."""
+    def build_hybrid_retriever(self, documents: List[Document],
+                               weights: Optional[Tuple[float, float]] = None,
+                               candidate_k: Optional[int] = None) -> None:
+        """Build hybrid retriever combining semantic + BM25.
+
+        candidate_k is the per-retriever candidate pool feeding the ensemble +
+        reranker. Both sub-retrievers use it so a gold ranked >10 by either can still
+        surface (the old fixed semantic=10 / BM25=5 made those unreachable).
+        """
 
         if self.vectorstore is None:
             raise ValueError("Vector store not built. Call build_vectorstore() first.")
 
-        logger.info("Building hybrid retriever...")
+        candidate_k = candidate_k or self.candidate_k
+        weights = weights or self.hybrid_weights
+        logger.info(f"Building hybrid retriever (candidate_k={candidate_k}, weights={weights})...")
 
-        # Semantic retriever
+        # Semantic retriever — large candidate pool for fusion/reranking.
         semantic_retriever = self.vectorstore.as_retriever(
-            search_kwargs={"k": 10}  # Retrieve more for reranking
+            search_kwargs={"k": candidate_k}
         )
 
         # BM25 retriever
         if self.bm25_retriever is None:
             self.build_bm25_retriever(documents)
+        self.bm25_retriever.k = candidate_k  # match the pool (was fixed at 5)
 
         # Ensemble retriever (hybrid)
         self.hybrid_retriever = EnsembleRetriever(
             retrievers=[semantic_retriever, self.bm25_retriever],
-            weights=weights,  # Equal weight to semantic and keyword
+            weights=list(weights),
         )
 
         logger.info("Hybrid retriever built successfully")
+
+    def reconfigure_hybrid(self, weights: Optional[Tuple[float, float]] = None,
+                           candidate_k: Optional[int] = None) -> None:
+        """Update fusion weights / candidate pool and rebuild the hybrid retriever
+        from the documents already in Chroma. Used by the retrieval-tuning sweep."""
+        if weights is not None:
+            self.hybrid_weights = weights
+        if candidate_k is not None:
+            self.candidate_k = candidate_k
+        self._rebuild_hybrid_retriever_from_chroma()
 
     def _rebuild_hybrid_retriever_from_chroma(self) -> None:
         """Rebuild BM25 + hybrid retriever using documents already in Chroma."""
@@ -240,8 +267,9 @@ class LegalVectorStore:
         
             logger.info(f"Retrieved {len(documents)} documents from Chroma for BM25 rebuild")
         
-            # Rebuild BM25 + hybrid retriever
-            self.build_hybrid_retriever(documents, weights=(0.5, 0.5))
+            # Rebuild BM25 + hybrid retriever (uses self.candidate_k / self.hybrid_weights)
+            self.bm25_retriever = None  # force a fresh BM25 with the current pool size
+            self.build_hybrid_retriever(documents)
             logger.info("✓ Hybrid retriever rebuilt successfully")
         
         except Exception as e:

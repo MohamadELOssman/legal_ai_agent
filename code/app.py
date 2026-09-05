@@ -242,38 +242,6 @@ def _dataset_ui(prefix: str, gen_model: str, run_label: str = "Run & score"):
     return cases
 
 
-def _load_expert_cases(prefix: str = "bench"):
-    """Load the author-provided expert benchmark set from disk, let the user filter
-    by type, preview it, and return the selected cases (references already attached)."""
-    import json as _json
-    from pathlib import Path as _P
-    p = _P("data_processed/expert_benchmark_set.json")
-    if not p.exists():
-        st.warning("Expert set not found at data_processed/expert_benchmark_set.json.")
-        return []
-    try:
-        cases = _json.loads(p.read_text(encoding="utf-8")).get("cases", [])
-    except Exception as e:
-        st.error(f"Could not read the expert set: {e}")
-        return []
-    _TYPE = {"citizen": "Citizen", "case_study": "Case study", "lawyer": "Lawyer"}
-    types = st.multiselect("Filter by question type", list(_TYPE), default=list(_TYPE),
-                           format_func=lambda t: _TYPE.get(t, t), key=f"{prefix}_expert_types")
-    sel = [c for c in cases if c.get("user_type") in types]
-    with st.container(border=True):
-        st.markdown(f"**Expert set** — {len(sel)} question(s) with author-provided gold answers.")
-        st.dataframe({
-            "ID": [c.get("id") for c in sel],
-            "Type": [_TYPE.get(c.get("user_type"), c.get("user_type")) for c in sel],
-            "Question": [(c.get("query", "")[:80] + "…") if len(c.get("query", "")) > 80
-                         else c.get("query", "") for c in sel],
-            "Gold articles": [", ".join(c.get("gold_articles", [])) or "—" for c in sel],
-        }, use_container_width=True, hide_index=True)
-    for c in sel:
-        c.setdefault("reference_answer", "")
-    return sel
-
-
 # ── Page config ────────────────────────────────────────────────────────────────
 
 st.set_page_config(
@@ -799,9 +767,6 @@ with st.sidebar:
     if st.button("End-to-End Pipeline", use_container_width=True, key="nav_pipeline",
                  type="primary" if _tab == "Pipeline" else "secondary"):
         st.session_state.active_tab = "Pipeline"; st.rerun()
-    if st.button("Individual Agents", use_container_width=True, key="nav_agents",
-                 type="primary" if _tab == "Agents" else "secondary"):
-        st.session_state.active_tab = "Agents"; st.rerun()
     if st.button("Benchmarking", use_container_width=True, key="nav_bench",
                  type="primary" if _tab == "Bench" else "secondary"):
         st.session_state.active_tab = "Bench"; st.rerun()
@@ -1469,285 +1434,6 @@ elif st.session_state.active_tab == "Pipeline":
 
 
 # ══════════════════════════════════════════════════════════════════════════════
-# PAGE 2 — INDIVIDUAL AGENT TESTING
-# ══════════════════════════════════════════════════════════════════════════════
-
-elif st.session_state.active_tab == "Agents":
-
-    st.markdown("""
-    <div class="page-header">
-        <h2>🔬 Individual Agent Testing</h2>
-    </div>
-    """, unsafe_allow_html=True)
-
-    # ── Settings ──────────────────────────────────────────────────────────────
-    with st.expander("⚙️ Agent Settings", expanded=False):
-        a1, a2, a3, a4 = st.columns(4)
-        with a1:
-            model_choice = st.selectbox("AI Model", list(_MODELS), format_func=lambda x: _MODELS[x],
-                                        key="agent_model", help="Model for the selected agent")
-        with a2:
-            temperature = st.slider("Temperature", 0.0, 1.0, 0.0, 0.05, key="agent_temp")
-        with a3:
-            num_documents = st.slider("Documents", 1, 20, 5, key="agent_docs",
-                                      help="Article chunks to retrieve (Agent 2). Standalone runs retrieve articles only.")
-        with a4:
-            similarity_threshold = st.slider("Threshold", 0.0, 1.0, 0.7, 0.05, key="agent_thresh",
-                                             help="Min cosine similarity for article retrieval")
-
-    # ── Load agents ───────────────────────────────────────────────────────────
-    _classes = _get_agents()
-    if _classes is None:
-        st.stop()
-    (_, QueryUnderstandingAgent, ResearchAgent, AnalysisAgent,
-     ReasoningAgent, CitationAgent, WritingAgent, AgentInput, _dp) = _classes
-
-    # ── Agent selector — button row ───────────────────────────────────────────
-    _agent_defs = [
-        ("Agent 1", "🔍 Query",     "Parses and structures the legal question into a structured query object."),
-        ("Agent 2", "🔎 Research",  "Searches the vector store using hybrid retrieval (semantic + BM25 + reranking)."),
-        ("Agent 3", "🧠 Analysis",  "Analyzes retrieved provisions and extracts applicable law."),
-        ("Agent 4", "⚖️ Reasoning", "Applies legal reasoning framework to analyzed provisions."),
-        ("Agent 5", "📖 Citations", "Generates properly formatted Lebanese legal citations."),
-        ("Agent 6", "✍️ Writing",   "Produces the final professional legal memorandum."),
-    ]
-
-    st.markdown("#### Select Agent")
-    _cur = st.session_state.selected_agent
-    btn_cols = st.columns(6)
-    for col, (key, label, _) in zip(btn_cols, _agent_defs):
-        with col:
-            if st.button(label, key=f"sel_{key}",
-                         type="primary" if _cur == key else "secondary",
-                         use_container_width=True):
-                st.session_state.selected_agent = key
-                st.rerun()
-
-    # Show description of selected agent
-    _sel_desc = next(d for k, _, d in _agent_defs if k == _cur)
-    st.markdown(f"""
-    <div class="info-banner">
-        <strong>{_cur}:</strong> {_sel_desc}
-    </div>
-    """, unsafe_allow_html=True)
-
-    agent_choice = st.session_state.selected_agent
-
-    # ── Agent 1 ───────────────────────────────────────────────────────────────
-    if agent_choice == "Agent 1":
-        st.markdown("#### Input Query")
-        query = st.text_area("Legal question:", key="a1_query", height=100,
-                             placeholder="Example: ما هي شروط صحة العقد؟ • What are the requirements for a valid contract?",
-                             label_visibility="collapsed")
-
-        if st.button("🚀  Analyze & Structure Query", type="primary", use_container_width=True, key="btn_a1"):
-            if not query.strip():
-                st.warning("Please enter a legal question first.")
-            else:
-                with st.spinner("Analyzing query structure..."):
-                    agent = QueryUnderstandingAgent(model=model_choice, temperature=temperature)
-                    output = agent.process(AgentInput(query=query, context={}, metadata={}))
-
-                if output.success:
-                    st.success("Query structured successfully.")
-                    c1, c2, c3, c4 = st.columns(4)
-                    with c1: st.metric("Language", output.result.get("language", "N/A").upper())
-                    with c2: st.metric("Legal Domain", output.result.get("legal_domain", "N/A"))
-                    with c3: st.metric("Intent", output.result.get("intent", "N/A"))
-                    with c4: st.metric("Entities Found", len(output.result.get("key_entities", [])))
-                    st.markdown("#### Structured Output")
-                    st.json(to_json_safe(output.result))
-                else:
-                    st.error(f"Analysis failed: {output.error}")
-
-    # ── Agent 2 ───────────────────────────────────────────────────────────────
-    elif agent_choice == "Agent 2":
-        st.caption(f"Active settings: {num_documents} documents · threshold {similarity_threshold} · Hybrid + Reranking")
-        st.markdown("#### Research Query")
-        query = st.text_area("Query:", key="a2_query", height=100,
-                             placeholder="Example: الظروف المخففة • circonstances atténuantes • mitigating circumstances",
-                             label_visibility="collapsed")
-
-        if st.button("🚀  Search Legal Documents", type="primary", use_container_width=True, key="btn_a2"):
-            if not query.strip():
-                st.warning("Please enter a research query first.")
-            else:
-                with st.spinner("Searching vector database with hybrid retrieval..."):
-                    vs = _get_vs()
-                    agent = ResearchAgent(model=model_choice, temperature=temperature, vectorstore=vs)
-                    output = agent.process(AgentInput(
-                        query=query,
-                        context={},
-                        metadata={"k": num_documents, "score_threshold": similarity_threshold},
-                    ))
-
-                if output.success:
-                    docs = output.result.get("retrieved_documents", [])
-                    articles = [d for d in docs if d.get("result_type") == "legal_article"]
-                    rulings  = [d for d in docs if d.get("result_type") == "court_ruling"]
-
-                    c1, c2, c3 = st.columns(3)
-                    with c1: st.metric("Total Retrieved", len(docs))
-                    with c2: st.metric("Legal Articles",  len(articles))
-                    with c3: st.metric("Court Rulings",   len(rulings))
-
-                    st.markdown("#### Retrieved Documents")
-                    for i, doc in enumerate(docs, 1):
-                        meta     = doc.get('metadata', {})
-                        is_ruling = doc.get("result_type") == "court_ruling"
-                        icon     = "⚖️" if is_ruling else "📄"
-                        label_id = (meta.get('case_number') or meta.get('document_id', 'N/A')
-                                    if is_ruling
-                                    else f"Art. {meta.get('article_number', meta.get('document_id', 'N/A'))}")
-
-                        with st.expander(f"{icon} Document {i} — {label_id}", expanded=(i == 1)):
-                            col_l, col_r = st.columns(2)
-                            lang_map = {'ar': 'Arabic', 'en': 'English', 'fr': 'French'}
-                            lang_code = meta.get('document_language', '')
-                            with col_l:
-                                st.markdown(f"**Source:** {meta.get('source_type', 'N/A')}")
-                                st.markdown(f"**Language:** {lang_map.get(lang_code, lang_code or 'N/A')}")
-                                if is_ruling:
-                                    st.markdown(f"**Court:** {meta.get('court', 'N/A')}")
-                                    st.markdown(f"**Date:** {meta.get('decision_date', 'N/A')}")
-                            with col_r:
-                                if is_ruling:
-                                    st.markdown(f"**Case:** {meta.get('case_number', 'N/A')}")
-                                    st.markdown(f"**Outcome:** {meta.get('outcome', 'N/A')}")
-                                    st.markdown(f"**Articles:** {meta.get('applicable_articles', 'N/A')}")
-                                else:
-                                    st.markdown(f"**Article:** {meta.get('article_number', 'N/A')}")
-                                    st.markdown(f"**Document:** {meta.get('document_type', 'N/A')}")
-                                    st.markdown(f"**Chunk:** {meta.get('chunk_index', 'N/A')}")
-                            st.markdown("**Content:**")
-                            content = doc.get('content', '')
-                            st.text(content[:500] + ("..." if len(content) > 500 else ""))
-                else:
-                    st.error(f"Search failed: {output.error}")
-
-    # ── Agent 3 ───────────────────────────────────────────────────────────────
-    elif agent_choice == "Agent 3":
-        st.markdown("#### Input")
-        query   = st.text_area("Query:", key="a3_query", height=80,
-                               placeholder="Enter the legal query...")
-        context = st.text_area("Context (JSON from agents 1–2):", key="a3_ctx", height=150,
-                               placeholder='{"structured_query": {...}, "research_results": {...}}')
-
-        if st.button("🚀  Perform Legal Analysis", type="primary", use_container_width=True, key="btn_a3"):
-            if not query.strip() or not context.strip():
-                st.warning("Please provide both query and context.")
-            else:
-                try:
-                    ctx = json.loads(context)
-                    with st.spinner("Analyzing legal provisions..."):
-                        agent  = AnalysisAgent(model=model_choice, temperature=temperature)
-                        output = agent.process(AgentInput(query=query, context=ctx, metadata={}))
-                    if output.success:
-                        st.success("Analysis completed.")
-                        st.markdown("#### Analysis Output")
-                        st.json(to_json_safe(output.result))
-                    else:
-                        st.error(f"Analysis failed: {output.error}")
-                except json.JSONDecodeError:
-                    st.error("Invalid JSON — please check the context field.")
-
-    # ── Agent 4 ───────────────────────────────────────────────────────────────
-    elif agent_choice == "Agent 4":
-        st.markdown("#### Input")
-        query   = st.text_area("Query:", key="a4_query", height=80,
-                               placeholder="Enter the legal query...")
-        context = st.text_area("Context (JSON from agents 1–3):", key="a4_ctx", height=150,
-                               placeholder='{"structured_query": {...}, "analysis_results": {...}}')
-
-        if st.button("🚀  Apply Legal Reasoning", type="primary", use_container_width=True, key="btn_a4"):
-            if not query.strip() or not context.strip():
-                st.warning("Please provide both query and context.")
-            else:
-                try:
-                    ctx = json.loads(context)
-                    with st.spinner("Applying legal reasoning framework..."):
-                        agent  = ReasoningAgent(model=model_choice, temperature=temperature)
-                        output = agent.process(AgentInput(query=query, context=ctx, metadata={}))
-                    if output.success:
-                        st.success("Legal reasoning completed.")
-                        st.markdown("#### Reasoning Output")
-                        st.json(to_json_safe(output.result))
-                    else:
-                        st.error(f"Reasoning failed: {output.error}")
-                except json.JSONDecodeError:
-                    st.error("Invalid JSON — please check the context field.")
-
-    # ── Agent 5 ───────────────────────────────────────────────────────────────
-    elif agent_choice == "Agent 5":
-        st.markdown("#### Input")
-        query   = st.text_area("Query:", key="a5_query", height=80,
-                               placeholder="Enter the legal query...")
-        context = st.text_area("Context (JSON from agents 1–4):", key="a5_ctx", height=150,
-                               placeholder='{"structured_query": {...}, "analysis_results": {...}, "reasoning_results": {...}}')
-
-        if st.button("🚀  Generate Legal Citations", type="primary", use_container_width=True, key="btn_a5"):
-            if not query.strip() or not context.strip():
-                st.warning("Please provide both query and context.")
-            else:
-                try:
-                    ctx = json.loads(context)
-                    with st.spinner("Generating formatted citations..."):
-                        agent  = CitationAgent(model=model_choice, temperature=temperature)
-                        output = agent.process(AgentInput(query=query, context=ctx, metadata={}))
-                    if output.success:
-                        citations = output.result.get("citations", [])
-                        c1, c2, c3 = st.columns(3)
-                        with c1: st.metric("Total Citations", len(citations))
-                        with c2: st.metric("Format", "Lebanese Legal")
-                        with c3: st.metric("Status", "✓ Valid")
-                        st.markdown("#### Citations Output")
-                        st.json(to_json_safe(output.result))
-                    else:
-                        st.error(f"Citation generation failed: {output.error}")
-                except json.JSONDecodeError:
-                    st.error("Invalid JSON — please check the context field.")
-
-    # ── Agent 6 ───────────────────────────────────────────────────────────────
-    elif agent_choice == "Agent 6":
-        st.markdown("#### Input")
-        query   = st.text_area("Query:", key="a6_query", height=80,
-                               placeholder="Enter the legal query...")
-        context = st.text_area("Context (JSON from all previous agents):", key="a6_ctx", height=150,
-                               placeholder='{"structured_query": {...}, "provisions": [...], "reasoning": "...", "citations": [...]}')
-
-        if st.button("🚀  Generate Legal Memorandum", type="primary", use_container_width=True, key="btn_a6"):
-            if not query.strip() or not context.strip():
-                st.warning("Please provide both query and complete context.")
-            else:
-                try:
-                    ctx = json.loads(context)
-                    with st.spinner("Writing professional legal memorandum..."):
-                        agent  = WritingAgent(model=model_choice, temperature=temperature)
-                        output = agent.process(AgentInput(query=query, context=ctx, metadata={}))
-                    if output.success:
-                        memorandum = output.result.get('memorandum', '')
-                        language   = output.result.get('language', 'ar')
-                        c1, c2, c3 = st.columns(3)
-                        with c1: st.metric("Language",   language.upper())
-                        with c2: st.metric("Word Count", len(memorandum.split()))
-                        with c3: st.metric("Status",     "✓ Complete")
-                        st.markdown("---")
-                        st.markdown("#### Legal Memorandum")
-                        render_legal_document(memorandum, language)
-                        st.download_button(
-                            "📥 Download Memorandum",
-                            data=memorandum,
-                            file_name=f"legal_memorandum_{datetime.now().strftime('%Y%m%d_%H%M%S')}.md",
-                            mime="text/markdown",
-                            use_container_width=True,
-                        )
-                    else:
-                        st.error(f"Memorandum generation failed: {output.error}")
-                except json.JSONDecodeError:
-                    st.error("Invalid JSON — please check the context field.")
-
-
-# ══════════════════════════════════════════════════════════════════════════════
 # PAGE 3 — BENCHMARKING
 # ══════════════════════════════════════════════════════════════════════════════
 
@@ -1788,15 +1474,9 @@ elif st.session_state.active_tab == "Bench":
                     ["claude-sonnet-5", "claude-sonnet-4-6", "claude-opus-4-6"],
                     key="bench_judge_model", help="Model that scores answers against the reference")
 
-        # ── Test dataset: generate from corpus, or load the expert set ──────
+        # ── Test dataset: generate grounded questions from the corpus ──────
         st.markdown("### Test Dataset")
-        _src = st.radio("Question source",
-                        ["Generate from corpus", "Expert set (author-provided)"],
-                        horizontal=True, key="bench_source")
-        if _src.startswith("Expert"):
-            all_test_cases = _load_expert_cases("bench")
-        else:
-            all_test_cases = _dataset_ui("bench", bench_model, run_label="Run & score")
+        all_test_cases = _dataset_ui("bench", bench_model, run_label="Run & score")
 
         if not all_test_cases:
             st.info("Generate questions (and add reference answers), or load the expert set, to run the benchmark.")
@@ -1999,6 +1679,7 @@ elif st.session_state.active_tab == "Ablation":
     _AB_DROPS = {
         "research_agent": "Drop Research Agent",
         "analysis_agent": "Drop Analysis Agent",
+        "reasoning_agent": "Drop Reasoning Agent",
         "citation_agent": "Drop Citation Agent",
     }
 
@@ -2012,7 +1693,7 @@ elif st.session_state.active_tab == "Ablation":
                 ["claude-sonnet-5", "claude-sonnet-4-6", "claude-opus-4-6"], key="ab_judge")
         _ab_drops = st.multiselect(
             "Configurations to compare (Full is always included)", list(_AB_DROPS),
-            default=["analysis_agent", "citation_agent"],
+            default=["analysis_agent", "reasoning_agent"],
             format_func=lambda k: _AB_DROPS[k], key="ab_drops")
 
     # ── Test dataset (batch): generate questions + reference answers ──────────

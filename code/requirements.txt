@@ -14,6 +14,7 @@ langchain-anthropic==0.2.4
 langchain-google-genai==2.0.4
 langchain-openai==0.2.9
 langchain-huggingface==0.0.1  # For local embeddings
+huggingface_hub>=0.23  # durable feedback backup to a private HF Dataset (public webapp)
 langchain-community==0.3.7
 langchain-chroma==0.1.4
 langgraph==0.2.45
@@ -54,7 +55,7 @@ rouge-score==0.1.2
 nltk==3.8.1
 
 # Web Interface
-streamlit==1.30.0
+streamlit==1.56.0
 plotly==5.18.0
 
 # Monitoring & Logging

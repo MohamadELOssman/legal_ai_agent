@@ -23,7 +23,7 @@ OUT.parent.mkdir(parents=True, exist_ok=True)
 # Meaningful configs (dropping Research leaves retrieval via Analysis, so it is
 # less interpretable and omitted here).
 CONFIGS = [("full", set()), ("drop_analysis", {"analysis_agent"}),
-           ("drop_citation", {"citation_agent"})]
+           ("drop_reasoning", {"reasoning_agent"})]
 
 # ALL provided questions (not a sample).
 subset = json.loads(SRC.read_text(encoding="utf-8"))["cases"]

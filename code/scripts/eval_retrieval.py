@@ -71,8 +71,16 @@ def ndcg_at_k(retrieved, relevant, k):
 
 # ── Retrieval ──────────────────────────────────────────────────────────────────
 
+_FOCUS = None  # set to AgenticLegalAssistant._focus when --focus is passed
+
+
 def retrieved_article_numbers(vs, query, k, strategy, use_reranking):
-    """Return the ordered list of article numbers for a query under one config."""
+    """Return the ordered list of article numbers for a query under one config.
+
+    With --focus, the query is reduced to legal keywords first — mirroring how the
+    orchestrator actually retrieves (it sends concept queries, not raw scenarios)."""
+    if _FOCUS is not None:
+        query = _FOCUS(query)
     docs = vs.search(query=query, k=k, strategy=strategy,
                      use_reranking=use_reranking, score_threshold=0.0,
                      filter_dict={"source_type": "legal_code"})
@@ -113,7 +121,15 @@ def main():
     parser.add_argument("--k", type=int, default=5)
     parser.add_argument("--gold", type=str, default=str(GOLD_FILE))
     parser.add_argument("--output", type=str, default=None)
+    parser.add_argument("--focus", action="store_true",
+                        help="Reduce each query to legal keywords first (mirrors the agent).")
     args = parser.parse_args()
+
+    global _FOCUS
+    if args.focus:
+        from src.orchestrator.agentic import AgenticLegalAssistant
+        _FOCUS = AgenticLegalAssistant._focus
+        logger.info("Focus mode ON: queries reduced to legal keywords before retrieval.")
 
     cases = json.load(open(args.gold, encoding="utf-8"))["cases"]
     logger.info(f"Loaded {len(cases)} gold queries; evaluating @k={args.k}")

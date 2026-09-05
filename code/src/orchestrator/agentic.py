@@ -55,9 +55,20 @@ SYSTEM_PROMPT = """════════════════════�
      its code; use it for exact article text and numbers.
    • analysis_agent(question)      → retrieves the law and extracts the applicable provisions with
      a grounded explanation; use it for a thorough analysis (lawyer/judge cases), not a lookup.
+   • reasoning_agent(question)     → applies the retrieved law to the facts and builds a
+     step-by-step argument (elements → facts → counter-arguments → conclusion); use it for a
+     concrete case or a "how does the law apply here" question.
    • citation_agent(article_numbers) → verifies article numbers exist in the corpus; use before
      citing when unsure a number is real.
-3. BE DECISIVE — do not loop: use AT MOST 2-3 calls total, NEVER repeat a call with the same or a
+   SEARCH BY LEGAL CONCEPT, NOT BY THE STORY. First name the legal characterisation the facts point
+   to — the core offence (e.g. "القتل القصد", "الرشوة", "إساءة استعمال الوظيفة", "القتل عن إهمال")
+   AND any defence / mitigating or aggravating factor (e.g. "العذر المخفف", "الأسباب المخففة",
+   "الدفاع المشروع", "الظروف المشددة", "تعدد الجرائم"). Retrieve with those abstract legal terms —
+   do not paste the scenario text as the query. Scale your effort to the question: a simple
+   one-issue question needs ONE focused search; only a genuinely multi-issue case warrants a
+   separate search per issue. Do not over-search a simple question — extra tangential articles
+   dilute the answer.
+3. BE DECISIVE — do not loop: use AT MOST 3-4 calls total, NEVER repeat a call with the same or a
    near-identical query, and once you have the relevant provisions, STOP and write the answer.
 4. Ground everything in what the sub-agents returned: cite ONLY numbers they returned (NEVER
    invent one; if the law is not found, say so), and ALWAYS name the code for each citation
@@ -133,7 +144,7 @@ class AgenticLegalAssistant:
     """A tool-calling orchestrator over the legal corpus, with multi-turn chat."""
 
     def __init__(self, model: str = DEFAULT_MODEL, vectorstore: Optional[Any] = None,
-                 top_k: int = 5, max_iters: int = 8, max_tool_calls: int = 6,
+                 top_k: int = 6, max_iters: int = 8, max_tool_calls: int = 6,
                  disabled_tools: Optional[Any] = None):
         cfg = get_config()
         self.top_k = top_k
@@ -150,6 +161,7 @@ class AgenticLegalAssistant:
 
         self.model = model
         self._analysis = None  # lazy — the Analysis sub-agent (built on first use)
+        self._reasoning = None # lazy — the Reasoning sub-agent (built on first use)
         self._sources = []     # documents retrieved during the current turn
         # Build all sub-agent tools, then drop any that are disabled for this run.
         self.tools = [t for t in self._build_tools() if t.name not in self.disabled_tools]
@@ -184,6 +196,70 @@ class AgenticLegalAssistant:
                               use_reranking=False, score_threshold=0.0,
                               filter_dict={"source_type": source_type})
 
+    # Generic words that add no retrieval signal — dropping them focuses the query
+    # on the actual offence/legal concept so the right article ranks highly.
+    _BOILER = {
+        "قانون", "القانون", "العقوبات", "اللبناني", "لبنان", "المادة", "المواد", "مادة",
+        "الشخص", "شخص", "قام", "يقوم", "عندما", "حيث", "بعد", "قبل", "أثناء", "خلال",
+        "مع", "في", "من", "الى", "إلى", "على", "عن", "او", "أو", "و", "ثم", "كما",
+        "ما", "هو", "هي", "التي", "الذي", "هذا", "هذه", "ذلك", "كان", "كانت", "قد",
+        "أن", "إن", "لكي", "حتى", "كل", "أي", "به", "له", "لها", "هل", "ماذا", "كيف",
+        "the", "a", "an", "of", "to", "in", "on", "and", "or", "is", "was", "when",
+        "who", "what", "how", "person", "did", "by", "with",
+    }
+
+    @classmethod
+    def _focus(cls, query: str) -> str:
+        """Reduce a verbose question/scenario to its legal-salient keywords."""
+        import re
+        toks = re.findall(r"[\wء-ي]+", query or "", flags=re.UNICODE)
+        kept = [t for t in toks if t not in cls._BOILER and len(t) > 1
+                and not t.isdigit() and t.upper() not in {"X", "Y", "Z"}]
+        focused = " ".join(kept[:14])
+        return focused if len(focused) >= 4 else (query or "")
+
+    # Above this many words a query is a pasted, unfocused scenario — only then is
+    # the focused fan-out worth the extra breadth. Concept queries (the normal case,
+    # and what the orchestrator is told to send) stay narrow so simple questions are
+    # not flooded with tangential articles. Breadth for complex cases comes from the
+    # orchestrator issuing several concept searches, not from fanning out every call.
+    _FANOUT_MIN_WORDS = 35
+
+    def _retrieve_articles(self, query: str, k: int):
+        """Retrieve on the query AND its synonym-expanded form, merged unique.
+
+        Expansion (query_expansion) bridges legal-vocabulary gaps that dense/BM25
+        retrieval misses — e.g. a question saying سكر (drunkenness) while the article
+        text says تسمم (intoxication), or رشوة vs ارتشاء. Merging the ORIGINAL and the
+        EXPANDED retrievals (rather than replacing) keeps an already-on-target query's
+        hits while adding the ones expansion recovers — measured +10-12% recall@k.
+        For a long unfocused scenario with no synonym trigger, fall back to a focused
+        pass so a pasted story is not the only query."""
+        queries = [query]
+        try:
+            from src.rag.query_expansion import expand_query
+            exp = expand_query(query, max_expansions=5)
+        except Exception:
+            exp = query
+        if exp and exp != query:
+            queries.append(exp)
+        elif len((query or "").split()) >= self._FANOUT_MIN_WORDS:
+            f = self._focus(query)
+            if f and f != query:
+                queries.append(f)
+
+        seen, merged = set(), []
+        for q in queries:
+            if not q:
+                continue
+            for d in self._retrieve(q, "legal_code", k):
+                key = (d.metadata.get("document_type", ""), str(d.metadata.get("article_number", "")))
+                if key in seen:
+                    continue
+                seen.add(key)
+                merged.append(d)
+        return merged
+
     def _record_article(self, d):
         self._sources.append({
             "kind": "article", "code": _code_of(d.metadata),
@@ -206,10 +282,17 @@ class AgenticLegalAssistant:
             self._analysis = AnalysisAgent(model=self.model)
         return self._analysis
 
+    def _get_reasoning_agent(self):
+        """Build the Reasoning sub-agent lazily (first time it is actually used)."""
+        if self._reasoning is None:
+            from src.agents.reasoning_agent import ReasoningAgent
+            self._reasoning = ReasoningAgent(model=self.model)
+        return self._reasoning
+
     def _build_tools(self):
         def research_agent(query: str) -> str:
             """Research sub-agent: retrieve relevant articles and rulings."""
-            arts = self._retrieve(query, "legal_code", self.top_k)
+            arts = self._retrieve_articles(query, self.top_k)
             rulings = self._retrieve(query, "court_ruling", 3)
             for d in arts:
                 self._record_article(d)
@@ -231,7 +314,7 @@ class AgenticLegalAssistant:
         def analysis_agent(question: str) -> str:
             """Analysis sub-agent: retrieve + extract the applicable provisions (grounded)."""
             from src.agents.base_agent import AgentInput
-            arts = self._retrieve(question, "legal_code", self.top_k)
+            arts = self._retrieve_articles(question, self.top_k)
             if not arts:
                 return "No applicable provisions found (no law retrieved)."
             for d in arts:
@@ -260,6 +343,34 @@ class AgenticLegalAssistant:
                 lines.append(f"Summary: {summary}")
             return "\n".join(lines)
 
+        def reasoning_agent(question: str) -> str:
+            """Reasoning sub-agent: apply the law to the facts and build the argument."""
+            from src.agents.base_agent import AgentInput
+            arts = self._retrieve_articles(question, self.top_k)
+            if not arts:
+                return "No law retrieved to reason over."
+            for d in arts:
+                self._record_article(d)
+            docs = [{"content": d.page_content, "metadata": d.metadata,
+                     "result_type": "legal_article"} for d in arts]
+            sq = {"original_query": question, "legal_domain": "criminal",
+                  "key_entities": [], "legal_questions": [question]}
+            # Ground on extracted provisions first, then reason element-by-element over them.
+            an = self._get_analysis_agent().process(AgentInput(
+                query=question,
+                context={"structured_query": sq,
+                         "research_results": {"retrieved_documents": docs}},
+                metadata={"orchestrator": {"analysis": {"mode": "legal_explanation"}}}))
+            provisions = (an.result or {}).get("provisions", [])
+            if not provisions:
+                return "No applicable provisions to reason over."
+            out = self._get_reasoning_agent().process(AgentInput(
+                query=question,
+                context={"structured_query": sq, "provisions": provisions},
+                metadata={"orchestrator": {"analysis": {"mode": "legal_explanation"}}}))
+            reasoning = (out.result or {}).get("reasoning", "")
+            return reasoning or "No reasoning produced."
+
         def citation_agent(article_numbers: str) -> str:
             """Citation sub-agent: verify article numbers against the corpus."""
             import re
@@ -284,6 +395,12 @@ class AgenticLegalAssistant:
                             "provisions with a grounded explanation. Use for a thorough legal "
                             "analysis of a lawyer/judge question, not a simple look-up."),
             StructuredTool.from_function(
+                func=reasoning_agent, name="reasoning_agent", args_schema=_QuestionArgs,
+                description="Reasoning sub-agent. Applies the retrieved law to the facts and "
+                            "builds a step-by-step legal argument (element-by-element analysis, "
+                            "counter-arguments, conclusion). Use for a concrete case or a "
+                            "how-does-the-law-apply question, after or instead of analysis."),
+            StructuredTool.from_function(
                 func=citation_agent, name="citation_agent", args_schema=_ArticlesArgs,
                 description="Citation sub-agent. Verifies that article numbers exist in the "
                             "corpus and flags any that do not. Use before citing if unsure."),
@@ -307,6 +424,33 @@ class AgenticLegalAssistant:
         unverified = sorted((a for a in cited if a not in self._known), key=lambda x: int(x))
         return {"cited": sorted(cited, key=lambda x: int(x) if x.isdigit() else 0),
                 "verified": verified, "unverified": unverified}
+
+    def _retrieved_numbers(self) -> set:
+        """Article numbers actually retrieved by the sub-agents this turn."""
+        return {s["number"] for s in self._sources
+                if s.get("kind") == "article" and str(s.get("number", "")).isdigit()}
+
+    def _grounding_block(self) -> str:
+        """A menu of the articles retrieved this turn; the model may cite ONLY these."""
+        arts, seen, lines = [s for s in self._sources if s.get("kind") == "article"], set(), []
+        for s in arts:
+            key = (s.get("number"), s.get("code"))
+            if key in seen or not str(s.get("number", "")).isdigit():
+                continue
+            seen.add(key)
+            lines.append(f"- المادة {s['number']} ({s.get('code', 'Penal Code')}): "
+                         f"{(s.get('text') or '').strip()[:150]}")
+        if not lines:
+            return ""
+        allowed = ", ".join(sorted({n for n, _ in seen}, key=int))
+        return (
+            "RETRIEVED ARTICLES (the ONLY article numbers you may cite, each with its code):\n"
+            + "\n".join(lines)
+            + f"\n\nALLOWED article numbers: {allowed}.\n"
+            "Cite ONLY numbers from this list and always name the code. An article number that is "
+            "NOT in this list is forbidden — if the provision you need is not above, say it was not "
+            "found in the retrieved law rather than guessing a number. Prefer the article whose text "
+            "above actually matches the facts (e.g. the base offence over a neighbouring one).")
 
     # ── chat ──────────────────────────────────────────────────────────────────
     def chat(self, history: List[Dict[str, str]], user_message: str,
@@ -354,10 +498,12 @@ class AgenticLegalAssistant:
             # iteration): invoke WITHOUT tools so the model MUST write the answer from
             # what it already gathered — this stops the endless re-search loop.
             if tool_calls_total >= self.max_tool_calls or it == self.max_iters - 1:
+                _ground = self._grounding_block()
                 msgs.append(HumanMessage(content=(
                     "You now have enough information. Write the COMPLETE final answer for the "
                     "user now, in the required format, using the sub-agent results already "
-                    "gathered above. Do NOT call any more tools.")))
+                    "gathered above. Do NOT call any more tools."
+                    + (f"\n\n{_ground}" if _ground else ""))))
                 emit({"type": "answering"})
                 ai = self._llm_plain.invoke(msgs)
                 _acc_usage(ai); msgs.append(ai)
@@ -407,6 +553,33 @@ class AgenticLegalAssistant:
         if not answer:
             answer = self._to_text(getattr(ai, "content", "")) or \
                 "I could not complete the answer within the step limit."
+
+        # ── Grounded-citation correction (bounded to one extra pass) ──────────
+        # If the draft cites an article number that was NOT retrieved this turn, it is
+        # ungrounded — rewrite once, constrained to the retrieved-article menu.
+        retrieved = self._retrieved_numbers()
+        if retrieved:
+            from src.evaluation.comparison import extract_cited_articles
+            cited = set(extract_cited_articles(answer))
+            stray = sorted((c for c in cited if c.isdigit() and c not in retrieved), key=int)
+            if stray:
+                _ground = self._grounding_block()
+                logger.info(f"grounding: rewriting to drop ungrounded citations {stray}")
+                msgs.append(HumanMessage(content=(
+                    "Your draft cited article number(s) " + ", ".join(stray) + " that were NOT in "
+                    "the retrieved law and are therefore forbidden. Rewrite the COMPLETE final "
+                    "answer citing ONLY the allowed article numbers below; drop the forbidden "
+                    "number(s) (if a needed provision is not listed, say it was not found rather "
+                    "than guessing). Keep the same format and language.\n\n" + _ground)))
+                emit({"type": "answering"})
+                try:
+                    ai2 = self._llm_plain.invoke(msgs)
+                    _acc_usage(ai2)
+                    fixed = self._to_text(ai2.content)
+                    if fixed.strip():
+                        answer = fixed
+                except Exception as e:
+                    logger.warning(f"grounding correction failed: {e}")
 
         try:
             from src.utils.cost_tracker import CostTracker

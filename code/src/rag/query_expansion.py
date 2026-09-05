@@ -30,7 +30,18 @@ class TrilingualQueryExpander:
         if self.synonyms_file.exists():
             try:
                 with open(self.synonyms_file, "r", encoding="utf-8") as f:
-                    return json.load(f)
+                    synonyms = json.load(f)
+                # Merge in the criminal-law synonym set if present (keeps the civil
+                # sets in the main file; criminal vocabulary lives alongside it so
+                # concept queries like سكر↔تسمم / رشوة↔ارتشاء expand correctly).
+                crim = self.synonyms_file.parent / "legal_synonyms_criminal.json"
+                if crim.exists():
+                    try:
+                        synonyms.update(json.load(open(crim, encoding="utf-8")))
+                        logger.info(f"Merged criminal synonyms from {crim.name}")
+                    except Exception as e:
+                        logger.warning(f"Failed to load criminal synonyms: {e}")
+                return synonyms
             except Exception as e:
                 logger.warning(f"Failed to load synonyms: {e}")
                 return self._get_default_synonyms()

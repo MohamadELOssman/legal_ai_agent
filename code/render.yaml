@@ -1,0 +1,33 @@
+# Render Blueprint for the public Lebanese Legal Assistant.
+# Auto-detected when placed at the GIT REPO ROOT. Because this app lives in a
+# subfolder, `rootDir` points Render at it. If Render does not pick this up from the
+# subfolder, copy this file to the repo root (it already sets rootDir), or create the
+# service manually in the dashboard with Root Directory = legal_ai_agent/code.
+services:
+  - type: web
+    name: legal-assistant-public
+    runtime: docker
+    rootDir: legal_ai_agent/code
+    dockerfilePath: ./Dockerfile
+    # The ML embedding + torch need ~1–1.5 GB RAM. Standard (2 GB) is the safe choice;
+    # Starter may work now that the reranker is disabled, but can OOM under load.
+    plan: standard
+    healthCheckPath: /_stcore/health
+    autoDeploy: false
+    disk:
+      name: feedback-data          # persists feedback.db / feedback.xlsx across restarts
+      mountPath: /data
+      sizeGB: 1
+    envVars:
+      - key: ANTHROPIC_API_KEY     # set as a SECRET in the dashboard — never commit it
+        sync: false
+      - key: APP_PASSCODE          # shared access code you give your friends
+        sync: false
+      - key: ADMIN_PASSCODE        # unlocks the feedback download at <url>/?admin=1
+        sync: false
+      - key: DATA_DIR
+        value: /data
+      - key: PUBLIC_MODEL
+        value: claude-sonnet-5
+      - key: PUBLIC_MAX_QUESTIONS
+        value: "5"
